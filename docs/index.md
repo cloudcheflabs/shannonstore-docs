@@ -8,13 +8,9 @@ hide:
 
 
 <p align="center">
+  <a href="./intro/intro">
   <img width="500" src="./images/logo/shannonstore-logo-with-name-below.png">
+  </a>
 </p>
-
-<div align="center">
-    <p>
-      Let's get started with <a href="./intro/intro">Introduction</a>.
-    </p>
-</div>
 
 
