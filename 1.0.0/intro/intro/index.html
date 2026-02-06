@@ -11,6 +11,8 @@
         <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/intro/intro/">
       
       
+        <link rel="prev" href="../../architecture/architecture/">
+      
       
       
         
@@ -72,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#introduction-to-shannonstore" class="md-skip">
+        <a href="#getting-started" class="md-skip">
           Skip to content
         </a>
       
@@ -208,6 +210,26 @@
   
   
   
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/architecture/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
     
   
   
@@ -218,7 +240,7 @@
           
   
   
-  Introduction to ShannonStore
+  Getting Started
 
         </a>
       </li>
@@ -264,6 +286,93 @@
       
   
   
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ShannonStore Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -285,17 +394,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    Introduction to ShannonStore
+    Getting Started
   
 
     
@@ -306,12 +415,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_1">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Introduction to ShannonStore
+    Getting Started
   
 
           </label>
@@ -384,10 +493,54 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#shannonstore-architecture" class="md-nav__link">
+  <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ShannonStore Architecture
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#install-shannonstore-on-local" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install ShannonStore on Local
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#create-bucket-and-credential" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create Bucket and Credential
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#upload-files-to-shannonstore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload files to ShannonStore
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stop-example-servers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stop Example Servers
       
     </span>
   </a>
@@ -427,8 +580,84 @@
 
 
 
-<h1 id="introduction-to-shannonstore">Introduction to ShannonStore</h1>
-<h2 id="shannonstore-architecture">ShannonStore Architecture</h2>
+<h1 id="getting-started">Getting Started</h1>
+<p>This shows how to install ShannonStore on local to experience it quickly.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>Because ShannonStore is written in Java, Java 17 needs to be installed on local.</p>
+<h2 id="install-shannonstore-on-local">Install ShannonStore on Local</h2>
+<p>ShannonStore distribution can be downloaded like this.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl -L -O https://github.com/cloudcheflabs/shannonstore-pack/releases/download/shannonstore-archive/shannonstore-1.0.0.tar.gz
+</code></pre></div>
+<p>And untar the downloaded package.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>tar zxvf shannonstore-1.0.0.tar.gz
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>cd shannonstore-1.0.0;
+</code></pre></div></p>
+<p>Run the example servers which are 1 API server and 3 Data nodes with Zookeeper on local.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>export SHANNONSTORE_MASTER_KEY=&quot;ShannonStoreMasterKey1200303003abc&quot;
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>bin/start-example-servers.sh;
+</code></pre></div>
+<blockquote>
+<p>Environment variable <code>SHANNONSTORE_MASTER_KEY</code> that must be at least 32 characters needs to be exported when running ShannonStore servers.</p>
+</blockquote>
+<p>After a few seconds, visit admin page of ShannonStore.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>http://localhost:8080/admin
+</code></pre></div>
+<p>First initial admin user and password is <code>admin</code> / <code>admin</code>, after that you need to change the initial password.</p>
+<p><img width="1200" src="../../images/getting-started/dashboard.png"/></p>
+<h2 id="create-bucket-and-credential">Create Bucket and Credential</h2>
+<p>In order to upload files to ShannonStore, a bucket and a S3 credential need to be created in Admin UI.</p>
+<p>In the menu of <code>Identity Control</code>, click <code>New Keypair</code> to create a S3 credential(access key / secret key).
+After that, click the download icon in the created keypair to download access key and secret key.
+<img width="1200" src="../../images/getting-started/credential.png"/></p>
+<p>And you also need to create a bucket, go to the menu of <code>Object Store</code>, click <code>New Bucket</code>
+to create a bucket with the name of <code>test-bucket</code>.</p>
+<h2 id="upload-files-to-shannonstore">Upload files to ShannonStore</h2>
+<p>Now, you can connect ShannonStore to upload files. AWS CLI will be used for this example.
+Configure a S3 profile with the S3 credential(access key and secret key) from the downloaded credential file before.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>aws configure --profile=custom-s3 set default.s3.signature_version s3v4;
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>aws configure --profile=custom-s3 set aws_access_key_id &lt;access-key&gt;;
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>aws configure --profile=custom-s3 set aws_secret_access_key &lt;secret-key&gt;;
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>aws configure --profile=custom-s3 set region us-east-1;
+</code></pre></div>
+<p>Upload a file to ShannonStore as below, take a note that the S3 endpoint is <code>http://localhost:8080</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a># upload file.
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>aws s3 cp ./values-dev_old.yaml s3://test-bucket/values-dev_old.yaml \
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>--profile=custom-s3 \
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>--endpoint-url http://localhost:8080 \
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>--no-verify-ssl
+</code></pre></div>
+<p>You can also test <code>ls</code>, <code>download</code>, <code>delete</code> of objects in ShannonStore.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a># ls.
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>aws s3 ls \
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>s3://test-bucket \
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>--profile=custom-s3 \
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>--endpoint=http://localhost:8080 \
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>--no-verify-ssl \
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>--recursive \
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>--human-readable \
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>--summarize \
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>;
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a># download.
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>aws s3 cp \
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>--profile=custom-s3 \
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>--endpoint=http://localhost:8080 \
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>s3://test-bucket/values-dev_old.yaml values-dev_downloaded.yaml \
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>;
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a># delete.
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>aws s3 rm \
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>--profile=custom-s3 \
+<a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a>--endpoint=http://localhost:8080 \
+<a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>s3://test-bucket/values-dev_old.yaml \
+<a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a>;
+</code></pre></div></p>
+<h2 id="stop-example-servers">Stop Example Servers</h2>
+<p>In order to stop the running example servers, run this.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>bin/stop-example-servers.sh
+</code></pre></div>
 
 
 
