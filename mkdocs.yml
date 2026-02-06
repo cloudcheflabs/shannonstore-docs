@@ -1,4 +1,4 @@
-site_name: Chango
+site_name: ShannonStore
 site_url: https://cloudcheflabs.github.io/shannonstore-docs
 theme:
   name: material
@@ -27,12 +27,14 @@ theme:
         name: Switch to light mode
       primary: custom
       accent: lime
-  logo: images/logo/shannonstore-logo.png
-  favicon: images/logo/shannonstore-logo.png
+  logo: images/logo/shannonstore-logo-without-name.png
+  favicon: images/logo/shannonstore-logo-without-name.png
 
 
 nav:
-  - "Introduction to ShannonStore":
+  - "Architecture":
+      - "ShannonStore Architecture": architecture/architecture.md
+  - "Getting Started":
       - "Getting Started": intro/intro.md
 
 
