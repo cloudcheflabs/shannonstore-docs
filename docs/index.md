@@ -8,7 +8,7 @@ hide:
 
 
 <p align="center">
-  <a href="./intro/intro">
+  <a href="./architecture/architecture">
   <img width="500" src="./images/logo/shannonstore-logo-with-name-below.png">
   </a>
 </p>

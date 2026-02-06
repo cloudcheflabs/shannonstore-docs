@@ -32,7 +32,9 @@ theme:
 
 
 nav:
-  - "Introduction to ShannonStore":
+  - "Architecture":
+      - "ShannonStore Architecture": architecture/architecture.md
+  - "Getting Started":
       - "Getting Started": intro/intro.md
 
 
