@@ -541,17 +541,11 @@
 and elastic scalability in modern data environments.</p>
 <h2 id="shannonstore-architecture">ShannonStore Architecture</h2>
 <p><img width="600" src="../../images/architecture/shannonstore-architecture.png" align="center"/></p>
-<p>External Access Layer (Proxy) is the front-end gateway that serves as the single entry point for all external S3 clients (AWS CLI, SDKs, etc.).</p>
-<ul>
-<li>Role: Handles Load Balancing, SSL Termination, and request routing.</li>
-<li>Key Feature: Aggregates multiple API Servers into a single endpoint. It ensures high availability by automatically bypassing API nodes that are restarting or
-  experiencing failure.</li>
-</ul>
 <p>Control &amp; Logic Layer (API Servers) is the "Brain" of ShannonStore. It interprets the S3 protocol and orchestrates data movement.</p>
 <ul>
 <li>S3 Protocol Handling: Processes RESTful requests and generates S3-compliant XML/JSON responses.</li>
 <li>Metadata Management (RocksDB): Manages object locations, sizes, and permissions. Metadata is logically divided into 64+ Partitions and distributed across the API cluster.</li>
-<li>Security (KMS &amp; IAM): Enforces granular Role-Based Access Control (RBAC) and ensures all data is encrypted at rest and in transit using a distributed Key Management Service.</li>
+<li>Security (KMS &amp; IAM): Enforces granular Role-Based Access Control (RBAC) and ensures all data is encrypted at rest(SSE-S3, SSE-KMS support) and in transit using a distributed Key Management Service.</li>
 <li>Request Coordination:<ul>
 <li>Writes: Encodes incoming data into Erasure Coding (EC) shards (e.g., 2+1 or 4+2) and transmits them in parallel to Data Nodes.</li>
 <li>Reads: Retrieves shards from multiple Data Nodes and reconstructs the original data via EC decoding.</li>
