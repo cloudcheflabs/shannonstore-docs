@@ -34,7 +34,7 @@ bin/start-example-servers.sh;
 After a few seconds, visit admin page of ShannonStore.
 
 ```agsl
-http://localhost:8080/admin
+http://localhost:8888/admin
 ```
 
 First initial admin user and password is `admin` / `admin`, after that you need to change the initial password.
