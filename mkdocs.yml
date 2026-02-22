@@ -36,6 +36,23 @@ nav:
       - "ShannonStore Architecture": architecture/architecture.md
   - "Getting Started":
       - "Getting Started": intro/intro.md
+  - "Features":
+      - "S3 Compatible API": features/s3-compatible-api.md
+      - "Distributed Architecture": features/distributed-architecture.md
+      - "Erasure Coding": features/ec.md
+      - "Encryption & Key Management": features/kms.md
+      - "Data Compression": features/data-compression.md
+      - "Identity & Access Management": features/iam.md
+      - "Authentication & Authorization": features/auth-authz.md
+      - "Disk Repair Service": features/disk-repair.md
+      - "Backup & Restore": features/backup.md
+      - "Monitoring & Metrics": features/monitoring.md
+      - "Metadata Management": features/metadata-management.md
+      - "Multi-Disk Storage": features/multi-disk-storage.md
+      - "Performance Optimization": features/performance.md
+      - "Maintenance Mode": features/maintenance.md
+      - "Configuration Management": features/configuration.md
+      - "Network & Internal Communication": features/network.md
 
 
 extra:
