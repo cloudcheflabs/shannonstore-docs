@@ -8,25 +8,31 @@
       
       
       
+        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/performance/">
       
+      
+        <link rel="prev" href="../multi-disk-storage/">
+      
+      
+        <link rel="next" href="../maintenance/">
       
       
         
       
       
-      <link rel="icon" href="/shannonstore-docs/1.0.0/images/logo/shannonstore-logo-without-name.png">
+      <link rel="icon" href="../../images/logo/shannonstore-logo-without-name.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
-        <title>ShannonStore</title>
+        <title>Performance Optimization - ShannonStore</title>
       
     
     
-      <link rel="stylesheet" href="/shannonstore-docs/1.0.0/assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="/shannonstore-docs/1.0.0/assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -45,7 +51,7 @@
       
     
     
-    <script>__md_scope=new URL("/shannonstore-docs/1.0.0",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -69,6 +75,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#performance-optimization" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -83,9 +94,9 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="/shannonstore-docs/1.0.0/." title="ShannonStore" class="md-header__button md-logo" aria-label="ShannonStore" data-md-component="logo">
+    <a href="../.." title="ShannonStore" class="md-header__button md-logo" aria-label="ShannonStore" data-md-component="logo">
       
-  <img src="/shannonstore-docs/1.0.0/images/logo/shannonstore-logo-without-name.png" alt="logo">
+  <img src="../../images/logo/shannonstore-logo-without-name.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -102,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              
+              Performance Optimization
             
           </span>
         </div>
@@ -205,7 +216,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="/shannonstore-docs/1.0.0/architecture/architecture/" class="md-tabs__link">
+        <a href="../../architecture/architecture/" class="md-tabs__link">
           
   
   
@@ -225,7 +236,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="/shannonstore-docs/1.0.0/intro/intro/" class="md-tabs__link">
+        <a href="../../intro/intro/" class="md-tabs__link">
           
   
   
@@ -241,11 +252,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="/shannonstore-docs/1.0.0/features/s3-compatible-api/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../s3-compatible-api/" class="md-tabs__link">
           
   
   
@@ -281,9 +294,9 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="/shannonstore-docs/1.0.0/." title="ShannonStore" class="md-nav__button md-logo" aria-label="ShannonStore" data-md-component="logo">
+    <a href="../.." title="ShannonStore" class="md-nav__button md-logo" aria-label="ShannonStore" data-md-component="logo">
       
-  <img src="/shannonstore-docs/1.0.0/images/logo/shannonstore-logo-without-name.png" alt="logo">
+  <img src="../../images/logo/shannonstore-logo-without-name.png" alt="logo">
 
     </a>
     ShannonStore
@@ -350,7 +363,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/architecture/architecture/" class="md-nav__link">
+      <a href="../../architecture/architecture/" class="md-nav__link">
         
   
   
@@ -437,7 +450,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/intro/intro/" class="md-nav__link">
+      <a href="../../intro/intro/" class="md-nav__link">
         
   
   
@@ -469,26 +482,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
@@ -506,7 +524,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -524,7 +542,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/s3-compatible-api/" class="md-nav__link">
+      <a href="../s3-compatible-api/" class="md-nav__link">
         
   
   
@@ -552,7 +570,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/distributed-architecture/" class="md-nav__link">
+      <a href="../distributed-architecture/" class="md-nav__link">
         
   
   
@@ -580,7 +598,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/ec/" class="md-nav__link">
+      <a href="../ec/" class="md-nav__link">
         
   
   
@@ -608,7 +626,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/kms/" class="md-nav__link">
+      <a href="../kms/" class="md-nav__link">
         
   
   
@@ -636,7 +654,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/data-compression/" class="md-nav__link">
+      <a href="../data-compression/" class="md-nav__link">
         
   
   
@@ -664,7 +682,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/iam/" class="md-nav__link">
+      <a href="../iam/" class="md-nav__link">
         
   
   
@@ -692,7 +710,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/auth-authz/" class="md-nav__link">
+      <a href="../auth-authz/" class="md-nav__link">
         
   
   
@@ -720,7 +738,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/disk-repair/" class="md-nav__link">
+      <a href="../disk-repair/" class="md-nav__link">
         
   
   
@@ -748,7 +766,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/backup.md" class="md-nav__link">
+      <a href="../backup.md" class="md-nav__link">
         
   
   
@@ -776,7 +794,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/monitoring/" class="md-nav__link">
+      <a href="../monitoring/" class="md-nav__link">
         
   
   
@@ -804,7 +822,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/metadata-management/" class="md-nav__link">
+      <a href="../metadata-management/" class="md-nav__link">
         
   
   
@@ -832,7 +850,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/multi-disk-storage/" class="md-nav__link">
+      <a href="../multi-disk-storage/" class="md-nav__link">
         
   
   
@@ -857,10 +875,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/performance/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Optimization
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -876,6 +921,81 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#part-buffer-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Part Buffer System
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quorum-based-writes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quorum-Based Writes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#streaming-downloads-with-prefetch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streaming Downloads with Prefetch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connection-pooling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection Pooling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thread-pool-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread Pool Isolation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -888,7 +1008,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/maintenance/" class="md-nav__link">
+      <a href="../maintenance/" class="md-nav__link">
         
   
   
@@ -916,7 +1036,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/configuration/" class="md-nav__link">
+      <a href="../configuration/" class="md-nav__link">
         
   
   
@@ -944,7 +1064,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/shannonstore-docs/1.0.0/features/network/" class="md-nav__link">
+      <a href="../network/" class="md-nav__link">
         
   
   
@@ -985,8 +1105,49 @@
               
               <article class="md-content__inner md-typeset">
                 
-  <h1>404 - Not found</h1>
+                  
 
+
+
+<h1 id="performance-optimization">Performance Optimization</h1>
+<h2 id="part-buffer-system">Part Buffer System</h2>
+<ul>
+<li>Dual-layer buffering for multipart uploads: in-memory LRU cache (MemoryPartBuffer, configurable max memory) with RocksDB overflow (LocalPartBufferStore).</li>
+<li>Buffered parts are envelope-encrypted (encrypted data + encrypted DEK + IV) for security.</li>
+<li>Parts are pre-assigned to EC shards during upload, enabling efficient CompleteMultipartUpload (metadata finalization only, no re-encoding).</li>
+</ul>
+<h2 id="quorum-based-writes">Quorum-Based Writes</h2>
+<ul>
+<li>S3 PUT operations wait for only dataShards count (e.g., 4 of 6) to acknowledge before returning success to the client.</li>
+<li>Parity shard writes continue in the background, reducing write latency while maintaining durability.</li>
+</ul>
+<h2 id="streaming-downloads-with-prefetch">Streaming Downloads with Prefetch</h2>
+<ul>
+<li>Large objects are streamed via CircularBufferInputStream (async producer-consumer pattern).</li>
+<li>Configurable prefetch queue fetches the next N parts while the client reads the current part, eliminating head-of-line blocking.</li>
+</ul>
+<h2 id="connection-pooling">Connection Pooling</h2>
+<ul>
+<li>Persistent NioClient connections to Data Nodes with configurable pool size (default: 10 per host) and acquire timeout (default: 10 seconds).</li>
+<li>Connection pool warmup option for better startup performance.</li>
+</ul>
+<h2 id="thread-pool-isolation">Thread Pool Isolation</h2>
+<ul>
+<li>Separate executor pools for: S3 request handling (default: 512 threads), chunk fetch operations, EC encoding/chunk uploads, and background maintenance tasks.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
               </article>
             </div>
           
@@ -1030,12 +1191,12 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "/shannonstore-docs/1.0.0", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "header.autohide"], "search": "/shannonstore-docs/1.0.0/assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "2.2.0", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "header.autohide"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "2.2.0", "provider": "mike"}}</script>
     
     
-      <script src="/shannonstore-docs/1.0.0/assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
-        <script src="/shannonstore-docs/1.0.0/javascripts/extra.js"></script>
+        <script src="../../javascripts/extra.js"></script>
       
     
   </body>
