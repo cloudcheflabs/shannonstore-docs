@@ -691,24 +691,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Identity & Access Management
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -725,91 +707,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#user-management" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        User Management
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#group-management" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Group Management
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#policy-system-aws-compatible" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Policy System (AWS-Compatible)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#policy-attachment" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Policy Attachment
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#access-key-management" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Access Key Management
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#default-initialization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Default Initialization
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1121,44 +1018,12 @@
 
 
 <h1 id="identity-access-management-iam">Identity &amp; Access Management (IAM)</h1>
-<p>ShannonStore implements a full IAM system compatible with AWS IAM policy format for fine-grained access control.</p>
-<h2 id="user-management">User Management</h2>
+<p>ShannonStore provides an AWS IAM-compatible access control system.</p>
 <ul>
-<li>Create, read, update, and delete users with unique user IDs.</li>
-<li>Password-based authentication for Admin UI access.</li>
-<li>Force password change on first login (requirePasswordChange flag).</li>
-<li>Users can belong to multiple groups simultaneously.</li>
-</ul>
-<h2 id="group-management">Group Management</h2>
-<ul>
-<li>Organize users into groups for collective permission management.</li>
-<li>Policies attached to groups automatically apply to all members.</li>
-<li>Default admin-group created on initialization with AdministratorAccess policy.</li>
-</ul>
-<h2 id="policy-system-aws-compatible">Policy System (AWS-Compatible)</h2>
-<ul>
-<li>Policies use the AWS IAM JSON format with Version, Statement, Effect (Allow/Deny), Action, and Resource fields.</li>
-<li>Wildcard matching: Supports * (any substring) and ? (single character) in both Action and Resource fields. Example: s3:Get* matches s3:GetObject and s3:GetBucketLocation.</li>
-<li>ARN format: Resources use arn:aws:s3:::bucket-name/key-prefix/* format.</li>
-<li>Explicit Deny: Deny statements always take precedence over Allow statements, matching AWS IAM behavior.</li>
-<li>Pattern matching uses regex caching with LRU eviction (max 10,000 patterns) for performance.</li>
-</ul>
-<h2 id="policy-attachment">Policy Attachment</h2>
-<ul>
-<li>Policies can be attached directly to users (attach-user-policy) or to groups (attach-group-policy).</li>
-<li>During authorization, all applicable policies (user-direct + group-inherited) are collected and evaluated together.</li>
-</ul>
-<h2 id="access-key-management">Access Key Management</h2>
-<ul>
-<li>Generate access key pairs (16-character access key ID + 32-character secret key) for programmatic S3 API access.</li>
-<li>Access keys have optional expiration dates and Active/Inactive status.</li>
-<li>Credentials downloadable as CSV files from the Admin UI.</li>
-<li>Access keys are indexed in memory (ConcurrentHashMap) for fast O(1) lookup during S3 request authorization.</li>
-</ul>
-<h2 id="default-initialization">Default Initialization</h2>
-<ul>
-<li>On first cluster start, the system creates: AdministratorAccess policy (allows all actions on all resources), admin-group with this policy attached, and admin user in the admin group
-  with forced password change.</li>
+<li>Users and groups can be managed through the Admin UI, with policies controlling what each user or group is allowed to do.</li>
+<li>Policies follow the standard AWS IAM JSON format, supporting wildcard matching and explicit Deny-over-Allow evaluation.</li>
+<li>Access key pairs can be generated for programmatic S3 API access, with support for expiration and status management.</li>
+<li>On first cluster start, a default admin user, group, and full-access policy are automatically created.</li>
 </ul>
 
 

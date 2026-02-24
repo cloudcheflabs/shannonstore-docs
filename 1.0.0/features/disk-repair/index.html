@@ -747,24 +747,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Disk Repair Service
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -781,58 +763,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#dead-disk-detection" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dead Disk Detection
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reconstruction-process" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reconstruction Process
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#operational-controls" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Operational Controls
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1088,30 +1018,12 @@
 
 
 <h1 id="disk-repair-service">Disk Repair Service</h1>
-<p>ShannonStore includes an automatic disk repair system that detects failed disks and reconstructs lost shards using erasure coding parity.</p>
-<h2 id="dead-disk-detection">Dead Disk Detection</h2>
+<p>ShannonStore includes an automatic disk repair system that detects failed disks and reconstructs lost shards using erasure coding.</p>
 <ul>
-<li>The repair service periodically scans all object metadata on partitions where the API node is PRIMARY.</li>
-<li>For each chunk, it checks whether the disk key (nodeAddress:diskPath) exists in the current set of healthy disks (reported by Data Nodes to ZooKeeper).</li>
-<li>A grace period (default: 300 seconds) prevents premature repairs for transient disk unavailability (e.g., temporary network issues or disk remounts).</li>
-</ul>
-<h2 id="reconstruction-process">Reconstruction Process</h2>
-<ol>
-<li>Collect Surviving Shards: Fetch surviving shards from healthy Data Nodes in parallel via TYPE_GET_CHUNK messages, with configurable timeout (default: 60 seconds).</li>
-<li>Verify Quorum: At least dataShards count of surviving shards must be available for reconstruction.</li>
-<li>Reconstruct Missing Shards: Uses ErasureCoder.reconstructShards() which inverts the submatrix formed by present shards and applies matrix multiplication to regenerate only the missing
-   shards — no need to reassemble the original data.</li>
-<li>Write Repaired Shards: Select new healthy disks using DiskPlacementStrategy (preferring different nodes, then different disks). Send repaired shards via TYPE_PUT_CHUNK with
-   FLAG_DISK_AWARE to target specific disks.</li>
-<li>Update Metadata: Modify ChunkInfo with the new node address and disk path, persist to RocksDB, and replicate to replica API nodes.</li>
-</ol>
-<h2 id="operational-controls">Operational Controls</h2>
-<ul>
-<li>Configurable scan interval (default: 60 seconds between repair cycles).</li>
-<li>Configurable maximum concurrent repair threads (default: 8).</li>
-<li>Minimum available bytes threshold (default: 100MB) to prevent writing to nearly-full disks.</li>
-<li>Manual trigger available via Admin UI or API endpoint.</li>
-<li>Complete audit trail: every repair operation is logged as a PartitionAction with timestamps, affected counts, and status.</li>
+<li>Periodically scans metadata to identify shards on disks that are no longer healthy, with a grace period to avoid reacting to transient issues.</li>
+<li>Surviving shards are fetched from healthy nodes, missing shards are reconstructed via erasure coding, and repaired shards are placed on new healthy disks.</li>
+<li>Metadata is updated to reflect the new shard locations and replicated to ensure consistency.</li>
+<li>Configurable scan interval, concurrency limits, and minimum disk space thresholds. Manual trigger is also available via Admin UI or API.</li>
 </ul>
 
 

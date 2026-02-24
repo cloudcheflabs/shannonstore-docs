@@ -943,24 +943,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Configuration Management
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -977,47 +959,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#priority-chain-highest-to-lowest" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Priority Chain (highest to lowest)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#variable-resolution" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Variable Resolution
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1077,20 +1018,12 @@
 
 
 <h1 id="configuration-management">Configuration Management</h1>
-<h2 id="priority-chain-highest-to-lowest">Priority Chain (highest to lowest)</h2>
-<ol>
-<li>System Properties: JVM -Dkey=value arguments (highest priority).</li>
-<li>Environment Variables: Auto-converted from property key format (dots → underscores, uppercase).</li>
-<li>External Config File: Specified via shannonstore.config.file property or SHANNONSTORE_CONFIG_FILE environment variable.</li>
-<li>Default Classpath Properties: shannonstore.properties bundled in the JAR (lowest priority).</li>
-</ol>
-<h2 id="variable-resolution">Variable Resolution</h2>
+<p>ShannonStore supports flexible configuration through a priority-based resolution chain.</p>
 <ul>
-<li>Supports ${variable} syntax in property values for DRY configuration (e.g., ${shannonstore.base.data.dir}/s3-metadata).</li>
-<li>Recursive resolution across all configuration sources.</li>
+<li><strong>Priority order</strong> (highest to lowest): System properties → Environment variables → External config file → Default classpath properties.</li>
+<li>Supports variable substitution (<code>${variable}</code> syntax) for DRY configuration.</li>
+<li>Over 150 configurable parameters covering cluster connectivity, storage, security, performance tuning, and more.</li>
 </ul>
-<p>150+ Configuration Parameters covering: ZooKeeper connection, S3/Admin ports, storage paths, thread pool sizes, EC shard counts, KMS settings, JWT token TTLs, RocksDB tuning, metrics
-collection intervals, disk repair thresholds, compression settings, and more.</p>
 
 
 

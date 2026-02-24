@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#erasure-coding-reed-solomon" class="md-skip">
+        <a href="#erasure-coding" class="md-skip">
           Skip to content
         </a>
       
@@ -607,24 +607,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Erasure Coding
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -641,69 +623,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#algorithm" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Algorithm
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shard-distribution-disk-based" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shard Distribution (Disk-Based)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reconstruction" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reconstruction
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1098,33 +1017,13 @@
 
 
 
-<h1 id="erasure-coding-reed-solomon">Erasure Coding (Reed-Solomon)</h1>
-<p>ShannonStore uses Reed-Solomon erasure coding to provide data durability without the storage overhead of full replication.</p>
-<h2 id="algorithm">Algorithm</h2>
+<h1 id="erasure-coding">Erasure Coding</h1>
+<p>ShannonStore uses Reed-Solomon erasure coding to protect data against hardware failures with minimal storage overhead.</p>
 <ul>
-<li>Implements Reed-Solomon coding over Galois Field GF(2^8) with primitive polynomial 0x11D (x⁸ + x⁴ + x³ + x² + 1).</li>
-<li>Uses a Cauchy encoding matrix where the top portion is an identity matrix (systematic encoding — data shards are stored unmodified) and the bottom portion consists of Cauchy matrix
-elements computed as 1/(x ⊕ y) in GF(2^8).</li>
-<li>Matrix inversion for reconstruction uses Gaussian elimination in GF(2^8).</li>
-</ul>
-<h2 id="configuration">Configuration</h2>
-<ul>
-<li>Default: 4 data shards + 2 parity shards (6 total). This means any 2 shards can be lost and the original data is still recoverable.</li>
-<li>Configurable via ecDataShards and ecParityShards properties.</li>
-<li>Storage overhead: 50% (6/4 = 1.5×), compared to 200-300% for 2-3× replication.</li>
-</ul>
-<h2 id="shard-distribution-disk-based">Shard Distribution (Disk-Based)</h2>
-<ul>
-<li>The DiskPlacementStrategy assigns shards across the cluster using a multi-pass algorithm:</li>
-<li>Pass 1: Select different nodes for each shard (maximizes fault tolerance across node failures).</li>
-<li>Pass 2: If more shards than nodes, allow same node but different disks (protects against disk failures).</li>
-<li>Pass 3: Fallback to reuse disks if necessary (logged as warning).</li>
-<li>Within each pass, disks are sorted by available space (descending) to balance storage utilization.</li>
-</ul>
-<h2 id="reconstruction">Reconstruction</h2>
-<ul>
-<li>When shards are missing (e.g., due to disk failure), ErasureCoder.reconstructShards() rebuilds them in-place without reassembling the original data — only the missing shards are
-regenerated, making repair operations efficient.</li>
+<li>Objects are split into data shards and parity shards. Even if some shards are lost, the original data can be fully recovered.</li>
+<li>Default configuration tolerates up to 2 simultaneous shard failures with only 50% storage overhead, compared to 200–300% for traditional replication.</li>
+<li>Shards are automatically spread across different nodes and disks to maximize fault tolerance.</li>
+<li>When failures occur, only the missing shards are regenerated — no need to reassemble the entire object.</li>
 </ul>
 
 

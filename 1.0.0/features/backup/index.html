@@ -826,10 +826,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#metadata-backup" class="md-nav__link">
+  <a href="#restore" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Metadata Backup
+        Restore
       
     </span>
   </a>
@@ -837,43 +837,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#iam-state-backup" class="md-nav__link">
+  <a href="#smart-rebalance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        IAM State Backup
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#kms-keystore-backup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        KMS Keystore Backup
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#restore-workflow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Restore Workflow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#smart-rebalance-5-phase-orchestration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Smart Rebalance (5-Phase Orchestration)
+        Smart Rebalance
       
     </span>
   </a>
@@ -1110,42 +1077,19 @@
 
 
 <h1 id="backup-restore">Backup &amp; Restore</h1>
-<p>ShannonStore provides comprehensive backup and restore capabilities for metadata, IAM state, and KMS keystore.</p>
-<h2 id="metadata-backup">Metadata Backup</h2>
+<p>ShannonStore provides comprehensive backup and restore for metadata, IAM state, and encryption keys.</p>
 <ul>
-<li>Each API Node exports its RocksDB index partitions as compressed binary data (ZipOutputStream).</li>
-<li>Backup chunks are distributed to Data Nodes with configurable replication factor.</li>
-<li>Chunk ID format: partition-backup-{apiNodeId}-{partitionId}-{timestamp} for traceability.</li>
-<li>Backup operations are asynchronous and tracked via PartitionAction logging.</li>
+<li><strong>Metadata Backup</strong>: Each API Node exports its metadata partitions as compressed data, distributed to Data Nodes with configurable replication.</li>
+<li><strong>IAM State Backup</strong>: All users, groups, policies, and access keys are serialized, encrypted, and stored on Data Nodes.</li>
+<li><strong>KMS Keystore Backup</strong>: Encrypted keystores are backed up to Data Nodes after key rotation events.</li>
 </ul>
-<h2 id="iam-state-backup">IAM State Backup</h2>
+<h2 id="restore">Restore</h2>
 <ul>
-<li>All users, groups, policies, and access keys serialized to JSON, encrypted with the KMS default key.</li>
-<li>Pushed to Data Nodes alongside metadata backups.</li>
-<li>Automatically restored on leader startup and synchronized to followers.</li>
+<li>Backups are downloaded from Data Nodes, imported into local stores, and in-memory caches are rebuilt.</li>
+<li>Restored metadata is replicated to replica nodes for consistency.</li>
 </ul>
-<h2 id="kms-keystore-backup">KMS Keystore Backup</h2>
-<ul>
-<li>Encrypted keystore uploaded to Data Nodes after key rotation events.</li>
-<li>Followers restore from Data Nodes during cluster join.</li>
-<li>End-to-end encryption ensures key material is never stored in plaintext outside memory.</li>
-</ul>
-<h2 id="restore-workflow">Restore Workflow</h2>
-<ol>
-<li>Download partition backups from Data Nodes.</li>
-<li>Decompress (ZipInputStream) and import into local RocksDB via IndexManager.</li>
-<li>Rebuild in-memory caches (latestCache, versionHistory).</li>
-<li>Replicate restored metadata to replica nodes.</li>
-<li>Task status tracked and reported: restore → success or failed.</li>
-</ol>
-<h2 id="smart-rebalance-5-phase-orchestration">Smart Rebalance (5-Phase Orchestration)</h2>
-<ol>
-<li>Enable maintenance mode (block S3 traffic).</li>
-<li>Flush all part buffers across the cluster.</li>
-<li>Backup metadata on all nodes.</li>
-<li>Rebalance partition assignments (leader-only operation).</li>
-<li>Restore metadata on affected nodes and disable maintenance mode.</li>
-</ol>
+<h2 id="smart-rebalance">Smart Rebalance</h2>
+<p>A 5-phase orchestrated workflow for safe partition rebalancing: enable maintenance mode → flush buffers → backup metadata → rebalance partitions → restore and resume operations.</p>
 
 
 

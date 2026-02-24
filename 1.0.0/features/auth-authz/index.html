@@ -770,10 +770,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#jwt-based-authentication-admin-uiapi" class="md-nav__link">
+  <a href="#admin-uiapi-authentication" class="md-nav__link">
     <span class="md-ellipsis">
       
-        JWT-Based Authentication (Admin UI/API)
+        Admin UI/API Authentication
       
     </span>
   </a>
@@ -792,10 +792,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#authorization-flow-s3-requests" class="md-nav__link">
+  <a href="#s3-authorization-flow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Authorization Flow (S3 Requests)
+        S3 Authorization Flow
       
     </span>
   </a>
@@ -1088,29 +1088,21 @@
 
 
 <h1 id="authentication-authorization">Authentication &amp; Authorization</h1>
-<h2 id="jwt-based-authentication-admin-uiapi">JWT-Based Authentication (Admin UI/API)</h2>
+<h2 id="admin-uiapi-authentication">Admin UI/API Authentication</h2>
 <ul>
-<li>Login returns an access token (JWT, 15-minute TTL) and a refresh token (UUID, 24-hour TTL).</li>
-<li>JWT signed with HMAC-SHA256, containing claims: subject (userId), isAdmin, requirePasswordChange, jti (unique token ID), iat, exp.</li>
-<li>Refresh tokens allow session extension without re-entering credentials.</li>
-<li>Explicit logout revokes the access token by tracking its jti until expiration.</li>
-<li>Background cleanup thread removes expired revoked tokens and refresh tokens every 3 hours.</li>
+<li>JWT-based authentication with short-lived access tokens and longer-lived refresh tokens.</li>
+<li>Supports explicit logout with token revocation.</li>
 </ul>
 <h2 id="s3-api-authentication">S3 API Authentication</h2>
 <ul>
-<li>Parses AWS Signature V4 and V2 Authorization headers to extract the access key.</li>
-<li>Validates the access key against the in-memory index (status = Active, not expired).</li>
+<li>Parses AWS Signature V4 and V2 headers to extract and validate access keys.</li>
 <li>On validation failure, attempts a cluster-wide IAM reload before rejecting the request.</li>
 </ul>
-<h2 id="authorization-flow-s3-requests">Authorization Flow (S3 Requests)</h2>
-<ol>
-<li>Extract access key from the Authorization header.</li>
-<li>Map the HTTP method + URI to an S3 action (e.g., PUT /bucket/key → s3:PutObject).</li>
-<li>Construct the resource ARN: arn:aws:s3:::bucket/key.</li>
-<li>Collect all applicable policies: user-attached policies + policies from all user's groups.</li>
-<li>Evaluate using PolicyEvaluator: explicit Deny wins → then check for Allow → default Deny (ABSTAIN).</li>
-<li>Return 403 Forbidden if not allowed; proceed with the operation if allowed.</li>
-</ol>
+<h2 id="s3-authorization-flow">S3 Authorization Flow</h2>
+<ul>
+<li>Each S3 request is mapped to an action and resource ARN, then evaluated against all applicable IAM policies (user-attached + group-inherited).</li>
+<li>Explicit Deny always wins; if no Allow is found, access is denied by default.</li>
+</ul>
 
 
 

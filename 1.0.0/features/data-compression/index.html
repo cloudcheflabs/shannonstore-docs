@@ -663,24 +663,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Data Compression
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -697,80 +679,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#supported-algorithms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Supported Algorithms
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mime-type-based-compression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MIME-Type Based Compression
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#auto-selection" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Auto-Selection
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#network-compression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Network Compression
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rocksdb-value-compression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        RocksDB Value Compression
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1111,32 +1019,11 @@
 
 <h1 id="data-compression">Data Compression</h1>
 <p>ShannonStore supports multiple compression algorithms to reduce storage costs and network bandwidth.</p>
-<h2 id="supported-algorithms">Supported Algorithms</h2>
 <ul>
-<li>SNAPPY: Optimized for speed with moderate compression ratio. Default choice for binary data.</li>
-<li>GZIP: Higher compression ratio, suitable for text-heavy content.</li>
-<li>ZSTD: Best compression ratio with good speed (level 3 by default). Falls back to GZIP if the zstd-jni library is unavailable.</li>
-<li>NONE: No compression applied.</li>
-</ul>
-<h2 id="mime-type-based-compression">MIME-Type Based Compression</h2>
-<ul>
-<li>Compression is selectively applied based on content type. Configurable list of compressible MIME types (e.g., text/*, application/json, application/xml).</li>
-<li>Binary formats (images, video, already-compressed archives) skip compression automatically.</li>
-</ul>
-<h2 id="auto-selection">Auto-Selection</h2>
-<ul>
-<li>When configured, the system samples the first 1KB of data to determine compressibility: if &gt;80% of bytes are printable ASCII, GZIP is selected; otherwise SNAPPY is used. Files under 1KB
-  skip compression entirely.</li>
-</ul>
-<h2 id="network-compression">Network Compression</h2>
-<ul>
-<li>Separate from storage compression, applied to inter-node chunk transfers.</li>
-<li>Threshold-based: only chunks above networkCompressionThreshold (default 1KB) are compressed.</li>
-<li>The FLAG_COMPRESSED flag in the message header signals compressed payloads, enabling transparent decompression on the receiving side.</li>
-</ul>
-<h2 id="rocksdb-value-compression">RocksDB Value Compression</h2>
-<ul>
-<li>Optional application-level compression of metadata values stored in RocksDB, avoiding double-compression with RocksDB's built-in compression.</li>
+<li><strong>Supported algorithms</strong>: SNAPPY (speed-optimized), GZIP (higher ratio for text), ZSTD (best overall ratio), or NONE.</li>
+<li>Compression is selectively applied based on MIME type — binary formats like images and video are automatically skipped.</li>
+<li>Auto-selection mode samples data content to choose the best algorithm automatically.</li>
+<li>Network compression is applied separately for inter-node transfers above a configurable threshold.</li>
 </ul>
 
 

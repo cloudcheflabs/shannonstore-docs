@@ -652,17 +652,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#communication" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Communication
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#two-port-architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1099,33 +1088,23 @@
 
 
 <h1 id="distributed-architecture">Distributed Architecture</h1>
-<p>ShannonStore follows a disaggregated architecture with clear separation between control plane and data plane:</p>
+<p>ShannonStore follows a disaggregated architecture with clear separation between control plane and data plane.</p>
 <h2 id="api-nodes-control-plane">API Nodes (Control Plane)</h2>
 <ul>
-<li>Handle all S3 protocol requests via the NIO HTTP server.</li>
-<li>Manage object metadata in partitioned RocksDB stores.</li>
-<li>Coordinate cluster operations (leader election, partition assignment, backup/restore).</li>
-<li>Run the Admin UI and Admin API on a separate Netty-based HTTP server.</li>
+<li>Handle S3 protocol requests, manage object metadata, and coordinate cluster operations (leader election, partition assignment, backup/restore).</li>
 <li>Perform erasure coding, encryption, and compression before distributing data to Data Nodes.</li>
+<li>Serve the Admin UI and Admin API on a dedicated port.</li>
 </ul>
 <h2 id="data-nodes-data-plane">Data Nodes (Data Plane)</h2>
 <ul>
 <li>Store raw data chunks (erasure-coded shards) on local disks.</li>
-<li>Serve chunk read/write requests from API Nodes via a custom binary NIO RPC protocol.</li>
-<li>Report disk health and capacity to ZooKeeper for cluster-aware placement decisions.</li>
-<li>Support multi-disk configurations with hash-based chunk distribution.</li>
-</ul>
-<h2 id="communication">Communication</h2>
-<ul>
-<li>API-to-Data Node communication uses a custom binary NIO protocol (Message) with a 19-byte header containing version, type, flags, and request ID fields. Message types include PUT_CHUNK,
-  GET_CHUNK, COMMIT, ROLLBACK, DELETE_CHUNK, and various metadata/IAM/KMS sync operations.</li>
-<li>API Nodes maintain persistent connection pools (ConnectionPool) to Data Nodes for efficient RPC, with configurable pool size and acquire timeouts.</li>
+<li>Serve chunk read/write requests from API Nodes and report disk health to the cluster.</li>
+<li>Support multi-disk configurations for scalable storage capacity.</li>
 </ul>
 <h2 id="two-port-architecture">Two-Port Architecture</h2>
 <ul>
-<li>S3 Port (default 8080): Raw NIO HTTP server optimized for high-throughput object storage operations.</li>
-<li>Admin Port (default 8888): Netty-based HTTP server for the Admin UI, REST API, and cluster management endpoints. This separation ensures administrative operations don't compete with data
-  path resources.</li>
+<li><strong>S3 Port</strong> (default 8080): High-throughput object storage operations.</li>
+<li><strong>Admin Port</strong> (default 8888): Admin UI, REST API, and cluster management. Separated to avoid contention with the data path.</li>
 </ul>
 
 

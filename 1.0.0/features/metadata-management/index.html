@@ -831,24 +831,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Metadata Management
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -865,69 +847,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#rocksdb-based-indexing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        RocksDB-Based Indexing
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#metadata-partitioning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Metadata Partitioning
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#two-tier-caching" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two-Tier Caching
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#replication" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Replication
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1099,30 +1018,12 @@
 
 
 <h1 id="metadata-management">Metadata Management</h1>
-<h2 id="rocksdb-based-indexing">RocksDB-Based Indexing</h2>
+<p>ShannonStore manages object metadata through a partitioned, replicated, and cached architecture.</p>
 <ul>
-<li>Object metadata (bucket, key, size, content type, version, chunk locations, etc.) stored in RocksDB with tunable parameters: 64MB write buffer, 128MB block cache, 10-bit bloom filters,
-  16KB block size.</li>
-<li>Application-level value compression (SNAPPY/GZIP/ZSTD) prevents double-compression with RocksDB's built-in compression.</li>
-</ul>
-<h2 id="metadata-partitioning">Metadata Partitioning</h2>
-<ul>
-<li>Configurable number of metadata partitions (default: 64).</li>
-<li>Partition formula: Math.abs((bucket + "/" + key).hashCode()) % numPartitions.</li>
-<li>Each partition has a primary API node and configurable replicas (default: 2).</li>
-<li>Partition-to-node assignment managed by PartitionManager and rebalanced when nodes join or leave.</li>
-</ul>
-<h2 id="two-tier-caching">Two-Tier Caching</h2>
-<ul>
-<li>In-memory cache (latestCache): ConcurrentHashMap for latest object versions, providing O(1) lookups without RocksDB I/O.</li>
-<li>RocksDB: Persistent storage with LRU block cache for warm data.</li>
-<li>TTL-based cache cleanup (configurable, default: 3600 seconds).</li>
-</ul>
-<h2 id="replication">Replication</h2>
-<ul>
-<li>Writes go to the primary API node for the partition, then replicate asynchronously to replicas.</li>
-<li>Async callbacks trigger replication for both writes and deletions.</li>
-<li>Read path: local cache → primary node → replica nodes (fallback chain).</li>
+<li>Metadata is stored in RocksDB and distributed across configurable partitions, each with a primary node and replicas for fault tolerance.</li>
+<li>A two-tier caching layer (in-memory + RocksDB block cache) provides fast lookups without disk I/O for frequently accessed objects.</li>
+<li>Partition assignments are automatically rebalanced when nodes join or leave the cluster.</li>
+<li>Writes replicate asynchronously to replicas; reads follow a fallback chain from local cache to primary to replicas.</li>
 </ul>
 
 

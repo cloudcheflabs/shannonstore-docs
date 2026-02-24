@@ -635,24 +635,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Encryption & Key Management
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -669,80 +651,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#kms-providers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        KMS Providers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#envelope-encryption" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Envelope Encryption
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#master-key-security" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Master Key Security
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#key-rotation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key Rotation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cluster-synchronization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cluster Synchronization
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1110,36 +1018,12 @@
 
 
 <h1 id="encryption-key-management-kms">Encryption &amp; Key Management (KMS)</h1>
-<p>ShannonStore provides enterprise-grade encryption with a distributed key management system.</p>
-<h2 id="kms-providers">KMS Providers</h2>
+<p>ShannonStore provides server-side encryption with a built-in distributed key management system.</p>
 <ul>
-<li>Cluster KMS (ClusterKmsProvider): Production implementation using RocksDB for key persistence and ZooKeeper for cluster-wide synchronization. Implements envelope encryption with
-  AES-256-GCM.</li>
-</ul>
-<h2 id="envelope-encryption">Envelope Encryption</h2>
-<ul>
-<li>Data Encryption Key (DEK): A random 256-bit AES key generated per encryption operation.</li>
-<li>Key Encryption Key (KEK): Derived from the master password using PBKDF2WithHmacSHA256 (200,000 iterations, 32-byte salt).</li>
-<li>Encryption flow: Data is encrypted with a random DEK using AES/GCM/NoPadding (128-bit tag, 12-byte IV). The DEK is then encrypted (wrapped) with the active KEK. The output envelope
-  contains: [version(4)] + [kekIV(12)] + [wrappedDekLen(4)] + [wrappedDek] + [dekIV(12)] + [encryptedData].</li>
-<li>Decryption flow: Parse envelope → look up KEK by version → unwrap DEK → decrypt data.</li>
-</ul>
-<h2 id="master-key-security">Master Key Security</h2>
-<ul>
-<li>The master key is stored in an environment variable (never in config files), specified by shannonstore.kms.master.key.env (default: SHANNONSTORE_MASTER_KEY).</li>
-<li>Derived using PBKDF2 with a random 32-byte salt and 200,000 iterations, producing a 256-bit KEK.</li>
-</ul>
-<h2 id="key-rotation">Key Rotation</h2>
-<ul>
-<li>Only the cluster leader can perform key rotations, preventing conflicts in distributed scenarios.</li>
-<li>Rotation creates a new KEK version while marking the old version as RETIRED (still available for decryption).</li>
-<li>Revoked keys prevent new encryption but maintain version history for existing data.</li>
-</ul>
-<h2 id="cluster-synchronization">Cluster Synchronization</h2>
-<ul>
-<li>The leader exports the encrypted keystore and broadcasts it to follower nodes.</li>
-<li>Followers listen for update signals and reload from the leader with retry logic (configurable retry count and sleep interval).</li>
-<li>Replicas that cannot find a key version will attempt re-sync from RocksDB before failing.</li>
+<li>Uses envelope encryption: data is encrypted with a per-object key, which is itself encrypted by a master-derived key (AES-256-GCM).</li>
+<li>The master key is stored as an environment variable and never written to config files.</li>
+<li>Key rotation is supported — new keys are created for future encryption while old keys remain available for decrypting existing data.</li>
+<li>Key state is automatically synchronized across all cluster nodes by the leader.</li>
 </ul>
 
 

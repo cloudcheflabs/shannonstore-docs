@@ -887,24 +887,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Performance Optimization
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -921,80 +903,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#part-buffer-system" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Part Buffer System
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quorum-based-writes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quorum-Based Writes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#streaming-downloads-with-prefetch" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Streaming Downloads with Prefetch
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#connection-pooling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Connection Pooling
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#thread-pool-isolation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Thread Pool Isolation
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1110,30 +1018,13 @@
 
 
 <h1 id="performance-optimization">Performance Optimization</h1>
-<h2 id="part-buffer-system">Part Buffer System</h2>
+<p>ShannonStore is designed for high throughput and low latency through several optimization strategies.</p>
 <ul>
-<li>Dual-layer buffering for multipart uploads: in-memory LRU cache (MemoryPartBuffer, configurable max memory) with RocksDB overflow (LocalPartBufferStore).</li>
-<li>Buffered parts are envelope-encrypted (encrypted data + encrypted DEK + IV) for security.</li>
-<li>Parts are pre-assigned to EC shards during upload, enabling efficient CompleteMultipartUpload (metadata finalization only, no re-encoding).</li>
-</ul>
-<h2 id="quorum-based-writes">Quorum-Based Writes</h2>
-<ul>
-<li>S3 PUT operations wait for only dataShards count (e.g., 4 of 6) to acknowledge before returning success to the client.</li>
-<li>Parity shard writes continue in the background, reducing write latency while maintaining durability.</li>
-</ul>
-<h2 id="streaming-downloads-with-prefetch">Streaming Downloads with Prefetch</h2>
-<ul>
-<li>Large objects are streamed via CircularBufferInputStream (async producer-consumer pattern).</li>
-<li>Configurable prefetch queue fetches the next N parts while the client reads the current part, eliminating head-of-line blocking.</li>
-</ul>
-<h2 id="connection-pooling">Connection Pooling</h2>
-<ul>
-<li>Persistent NioClient connections to Data Nodes with configurable pool size (default: 10 per host) and acquire timeout (default: 10 seconds).</li>
-<li>Connection pool warmup option for better startup performance.</li>
-</ul>
-<h2 id="thread-pool-isolation">Thread Pool Isolation</h2>
-<ul>
-<li>Separate executor pools for: S3 request handling (default: 512 threads), chunk fetch operations, EC encoding/chunk uploads, and background maintenance tasks.</li>
+<li><strong>Part Buffering</strong>: Multipart uploads use a dual-layer buffer (in-memory + disk overflow) with encryption, and parts are pre-assigned to erasure coding shards to avoid re-encoding on completion.</li>
+<li><strong>Quorum Writes</strong>: PUT operations return success as soon as enough data shards acknowledge, while parity shards continue writing in the background.</li>
+<li><strong>Streaming Prefetch</strong>: Large object downloads use async prefetching to eliminate blocking while the client reads data.</li>
+<li><strong>Connection Pooling</strong>: Persistent connections to Data Nodes are pooled and reused for efficient RPC communication.</li>
+<li><strong>Thread Pool Isolation</strong>: Separate thread pools for S3 requests, chunk operations, encoding, and background tasks prevent resource contention.</li>
 </ul>
 
 

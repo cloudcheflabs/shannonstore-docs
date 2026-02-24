@@ -969,24 +969,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Network & Internal Communication
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1003,58 +985,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#custom-binary-nio-rpc-protocol" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Custom Binary NIO RPC Protocol
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#network-compression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Network Compression
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#socket-tuning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Socket Tuning
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1086,23 +1016,11 @@
 
 
 <h1 id="network-internal-communication">Network &amp; Internal Communication</h1>
-<h2 id="custom-binary-nio-rpc-protocol">Custom Binary NIO RPC Protocol</h2>
+<p>ShannonStore nodes communicate via a custom binary NIO RPC protocol.</p>
 <ul>
-<li>19-byte message header: version (1), type (1), flags (2), requestId (8), bodyLength (4), reserved (3).</li>
-<li>Request-reply pattern with requestId correlation for concurrent operations.</li>
-<li>Flag-based features: FLAG_COMPRESSED (network compression), FLAG_COMMIT (immediate chunk commit), FLAG_DISK_AWARE (targeted disk placement).</li>
-<li>Message types for all cluster operations: chunk CRUD, metadata replication, IAM/KMS sync, backup/restore, metrics collection, maintenance mode, log retrieval.</li>
-</ul>
-<h2 id="network-compression">Network Compression</h2>
-<ul>
-<li>SNAPPY compression applied to payloads above configurable threshold.</li>
-<li>Transparent: sender sets FLAG_COMPRESSED, receiver automatically decompresses.</li>
-</ul>
-<h2 id="socket-tuning">Socket Tuning</h2>
-<ul>
-<li>Configurable TCP send/receive buffer sizes (default: 2MB each).</li>
-<li>TCP_NODELAY enabled for low-latency responses.</li>
-<li>Direct ByteBuffer option for reduced memory copying.</li>
+<li>A lightweight binary protocol with request-reply correlation enables efficient concurrent operations between nodes.</li>
+<li>Supports transparent network compression for payloads above a configurable threshold.</li>
+<li>TCP socket parameters are tunable for optimal throughput and low latency.</li>
 </ul>
 
 

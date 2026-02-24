@@ -915,24 +915,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Maintenance Mode
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -949,58 +931,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#activation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Activation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#behavior" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Behavior
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#use-cases" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Use Cases
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1089,22 +1019,9 @@
 
 <h1 id="maintenance-mode">Maintenance Mode</h1>
 <p>ShannonStore supports a global maintenance mode for safe cluster-wide operations.</p>
-<h2 id="activation">Activation</h2>
 <ul>
-<li>Toggled via Admin API: POST /admin/maintenance/mode?enabled=true|false.</li>
-<li>Broadcasts TYPE_MAINTENANCE_MODE_REQ to all API Nodes in the cluster.</li>
-</ul>
-<h2 id="behavior">Behavior</h2>
-<ul>
-<li>When active, all S3 API requests return 503 Service Unavailable with Retry-After: 30 header.</li>
-<li>Admin API operations continue to function normally.</li>
-<li>Part buffer flush can be triggered to ensure all buffered data is persisted before maintenance.</li>
-</ul>
-<h2 id="use-cases">Use Cases</h2>
-<ul>
-<li>Partition rebalancing (prevents data inconsistency during reassignment).</li>
-<li>Cluster-wide backup operations.</li>
-<li>Part of the Smart Rebalance workflow (phase 1: lock → phase 5: unlock).</li>
+<li>When activated, all S3 API requests are temporarily rejected while admin operations remain available.</li>
+<li>Used during partition rebalancing, cluster-wide backups, and other operations that require consistent cluster state.</li>
 </ul>
 
 

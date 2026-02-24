@@ -803,24 +803,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Monitoring & Metrics
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -837,80 +819,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#prometheus-integration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prometheus Integration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#time-series-metrics-storage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Time-Series Metrics Storage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#collected-metrics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Collected Metrics
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#retention-cleanup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Retention &amp; Cleanup
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#collection-service" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Collection Service
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1110,37 +1018,12 @@
 
 
 <h1 id="monitoring-metrics">Monitoring &amp; Metrics</h1>
-<h2 id="prometheus-integration">Prometheus Integration</h2>
+<p>ShannonStore provides built-in monitoring with Prometheus integration.</p>
 <ul>
-<li>/metrics endpoint exports metrics in Prometheus text format for scraping.</li>
-<li>Uses Micrometer registry (PrometheusMeterRegistry) for counters, gauges, and histograms.</li>
-<li>Covers S3 operation counts and latencies by method type.</li>
-</ul>
-<h2 id="time-series-metrics-storage">Time-Series Metrics Storage</h2>
-<ul>
-<li>Metrics stored in a dedicated RocksDB instance with time-series optimized key format: [8-byte timestamp (big-endian)]:[nodeId]:[metricName].</li>
-<li>SNAPPY compression and bloom filters (10 bits) enabled for efficient storage and retrieval.</li>
-<li>Prefix scan support for time-range queries.</li>
-</ul>
-<h2 id="collected-metrics">Collected Metrics</h2>
-<ul>
-<li>CPU usage: Percentage utilization per node.</li>
-<li>Memory usage: Bytes used per node.</li>
-<li>Disk usage: Per-mount-point capacity, used bytes, and available bytes on Data Nodes.</li>
-<li>S3 API statistics: Per-method (GET, PUT, DELETE, etc.) request count and mean latency.</li>
-<li>Metrics are encrypted with the KMS default key before storage.</li>
-</ul>
-<h2 id="retention-cleanup">Retention &amp; Cleanup</h2>
-<ul>
-<li>Configurable retention period (default: 7 days).</li>
-<li>Automated cleanup every 12 hours removes data older than the retention threshold.</li>
-<li>RocksDB compaction triggered after range deletion for space reclamation.</li>
-</ul>
-<h2 id="collection-service">Collection Service</h2>
-<ul>
-<li>MetricsCollectorService runs on a configurable interval (default: 30 seconds).</li>
-<li>Gathers metrics from all API and Data Nodes.</li>
-<li>Centralized collection on the leader node for aggregated queries.</li>
+<li>Exposes a <code>/metrics</code> endpoint for Prometheus scraping, covering S3 operation counts and latencies.</li>
+<li>Collects system metrics (CPU, memory, disk usage) and S3 API statistics from all nodes at configurable intervals.</li>
+<li>Metrics are stored internally with configurable retention (default: 7 days) and automatic cleanup.</li>
+<li>All stored metrics are encrypted at rest.</li>
 </ul>
 
 

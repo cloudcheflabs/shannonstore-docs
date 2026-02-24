@@ -859,24 +859,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Multi-Disk Storage
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -893,58 +875,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#hash-based-chunk-distribution" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Hash-Based Chunk Distribution
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#fallback-mechanisms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Fallback Mechanisms
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#disk-health-tracking" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Disk Health Tracking
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -1088,22 +1018,11 @@
 
 
 <h1 id="multi-disk-storage">Multi-Disk Storage</h1>
-<h2 id="hash-based-chunk-distribution">Hash-Based Chunk Distribution</h2>
+<p>ShannonStore Data Nodes support multiple local disks for scalable storage capacity.</p>
 <ul>
-<li>Data Nodes distribute chunks across multiple local directories using: index = (chunkId.hashCode() &amp; 0x7FFFFFFF) % rootDirs.length.</li>
-<li>This ensures even load balancing across disks without centralized coordination.</li>
-</ul>
-<h2 id="fallback-mechanisms">Fallback Mechanisms</h2>
-<ul>
-<li>Read: Tries the expected hash-based location first; falls back to scanning all directories if not found (handles disk topology changes).</li>
-<li>Write: Uses hash-based selection by default; supports targeted disk writes via FLAG_DISK_AWARE for repair operations.</li>
-<li>Migration: migrateChunkToCorrectLocation() moves chunks to their correct hash-based location after disk count changes.</li>
-</ul>
-<h2 id="disk-health-tracking">Disk Health Tracking</h2>
-<ul>
-<li>Data Nodes periodically report disk information to ZooKeeper via NodePayload.DiskInfo: path, total capacity, used bytes, available bytes.</li>
-<li>API Nodes query ZooKeeper for healthy disks (minimum 100MB available) when making placement decisions.</li>
-<li>Per-disk metrics visible in the Admin UI Dashboard.</li>
+<li>Chunks are evenly distributed across disks using hash-based placement for balanced utilization.</li>
+<li>Read and write operations include fallback mechanisms to handle disk topology changes gracefully.</li>
+<li>Disk health (capacity, usage, availability) is continuously tracked and reported to the cluster for placement decisions.</li>
 </ul>
 
 
