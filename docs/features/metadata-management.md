@@ -1,26 +1,8 @@
 # Metadata Management
 
-## RocksDB-Based Indexing
+ShannonStore manages object metadata through a partitioned, replicated, and cached architecture.
 
-- Object metadata (bucket, key, size, content type, version, chunk locations, etc.) stored in RocksDB with tunable parameters: 64MB write buffer, 128MB block cache, 10-bit bloom filters,
-  16KB block size.
-- Application-level value compression (SNAPPY/GZIP/ZSTD) prevents double-compression with RocksDB's built-in compression.
-
-## Metadata Partitioning
-
-- Configurable number of metadata partitions (default: 64).
-- Partition formula: Math.abs((bucket + "/" + key).hashCode()) % numPartitions.
-- Each partition has a primary API node and configurable replicas (default: 2).
-- Partition-to-node assignment managed by PartitionManager and rebalanced when nodes join or leave.
-
-## Two-Tier Caching
-
-- In-memory cache (latestCache): ConcurrentHashMap for latest object versions, providing O(1) lookups without RocksDB I/O.
-- RocksDB: Persistent storage with LRU block cache for warm data.
-- TTL-based cache cleanup (configurable, default: 3600 seconds).
-
-## Replication
-
-- Writes go to the primary API node for the partition, then replicate asynchronously to replicas.
-- Async callbacks trigger replication for both writes and deletions.
-- Read path: local cache → primary node → replica nodes (fallback chain).
+- Metadata is stored in RocksDB and distributed across configurable partitions, each with a primary node and replicas for fault tolerance.
+- A two-tier caching layer (in-memory + RocksDB block cache) provides fast lookups without disk I/O for frequently accessed objects.
+- Partition assignments are automatically rebalanced when nodes join or leave the cluster.
+- Writes replicate asynchronously to replicas; reads follow a fallback chain from local cache to primary to replicas.

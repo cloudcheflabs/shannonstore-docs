@@ -1,39 +1,16 @@
 # Backup & Restore
 
-ShannonStore provides comprehensive backup and restore capabilities for metadata, IAM state, and KMS keystore.
+ShannonStore provides comprehensive backup and restore for metadata, IAM state, and encryption keys.
 
-## Metadata Backup
+- **Metadata Backup**: Each API Node exports its metadata partitions as compressed data, distributed to Data Nodes with configurable replication.
+- **IAM State Backup**: All users, groups, policies, and access keys are serialized, encrypted, and stored on Data Nodes.
+- **KMS Keystore Backup**: Encrypted keystores are backed up to Data Nodes after key rotation events.
 
-- Each API Node exports its RocksDB index partitions as compressed binary data (ZipOutputStream).
-- Backup chunks are distributed to Data Nodes with configurable replication factor.
-- Chunk ID format: partition-backup-{apiNodeId}-{partitionId}-{timestamp} for traceability.
-- Backup operations are asynchronous and tracked via PartitionAction logging.
+## Restore
 
-## IAM State Backup
+- Backups are downloaded from Data Nodes, imported into local stores, and in-memory caches are rebuilt.
+- Restored metadata is replicated to replica nodes for consistency.
 
-- All users, groups, policies, and access keys serialized to JSON, encrypted with the KMS default key.
-- Pushed to Data Nodes alongside metadata backups.
-- Automatically restored on leader startup and synchronized to followers.
+## Smart Rebalance
 
-## KMS Keystore Backup
-
-- Encrypted keystore uploaded to Data Nodes after key rotation events.
-- Followers restore from Data Nodes during cluster join.
-- End-to-end encryption ensures key material is never stored in plaintext outside memory.
-
-## Restore Workflow
-
-1. Download partition backups from Data Nodes.
-2. Decompress (ZipInputStream) and import into local RocksDB via IndexManager.
-3. Rebuild in-memory caches (latestCache, versionHistory).
-4. Replicate restored metadata to replica nodes.
-5. Task status tracked and reported: restore → success or failed.
-
-## Smart Rebalance (5-Phase Orchestration)
-
-1. Enable maintenance mode (block S3 traffic).
-2. Flush all part buffers across the cluster.
-3. Backup metadata on all nodes.
-4. Rebalance partition assignments (leader-only operation).
-5. Restore metadata on affected nodes and disable maintenance mode.
-
+A 5-phase orchestrated workflow for safe partition rebalancing: enable maintenance mode → flush buffers → backup metadata → rebalance partitions → restore and resume operations.
