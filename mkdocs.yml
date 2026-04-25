@@ -40,6 +40,7 @@ nav:
       - "S3 Compatible API": features/s3-compatible-api.md
       - "Distributed Architecture": features/distributed-architecture.md
       - "Erasure Coding": features/ec.md
+      - "Data Integrity": features/data-integrity.md
       - "Encryption & Key Management": features/kms.md
       - "Data Compression": features/data-compression.md
       - "Identity & Access Management": features/iam.md
