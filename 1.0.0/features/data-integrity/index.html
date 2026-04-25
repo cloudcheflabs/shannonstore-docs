@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/kms/">
+        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/data-integrity/">
       
       
-        <link rel="prev" href="../data-integrity/">
+        <link rel="prev" href="../ec/">
       
       
-        <link rel="next" href="../data-compression/">
+        <link rel="next" href="../kms/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Encryption & Key Management - ShannonStore</title>
+        <title>Data Integrity - ShannonStore</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#encryption-key-management-kms" class="md-skip">
+        <a href="#data-integrity" class="md-skip">
           Skip to content
         </a>
       
@@ -113,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Encryption & Key Management
+              Data Integrity
             
           </span>
         </div>
@@ -623,10 +623,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../data-integrity/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Integrity
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -642,6 +669,48 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#per-shard-crc32c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-Shard CRC32C
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bitrot-scrubber-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bitrot Scrubber (optional)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -651,19 +720,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../kms/" class="md-nav__link">
         
   
   
@@ -679,7 +739,6 @@
   
 
       </a>
-      
     </li>
   
 
@@ -1045,13 +1104,20 @@
 
 
 
-<h1 id="encryption-key-management-kms">Encryption &amp; Key Management (KMS)</h1>
-<p>ShannonStore provides server-side encryption with a built-in distributed key management system.</p>
+<h1 id="data-integrity">Data Integrity</h1>
+<p>ShannonStore protects every stored byte against silent corruption (bitrot) with end-to-end checksums, and includes an optional background scrubber for proactive verification of cold data.</p>
+<h2 id="per-shard-crc32c">Per-Shard CRC32C</h2>
 <ul>
-<li>Uses envelope encryption: data is encrypted with a per-object key, which is itself encrypted by a master-derived key (AES-256-GCM).</li>
-<li>The master key is stored as an environment variable and never written to config files.</li>
-<li>Key rotation is supported — new keys are created for future encryption while old keys remain available for decrypting existing data.</li>
-<li>Key state is automatically synchronized across all cluster nodes by the leader.</li>
+<li>A CRC32C checksum is computed for each erasure-coded shard at write time and stored in the object's metadata, so it travels with the shard reference and is replicated alongside the metadata partition.</li>
+<li>On every read, the shard's bytes are re-checksummed before being passed to EC decode. A mismatch causes the shard to be treated as missing, and the original data is reconstructed from parity instead — the corrupt bytes never reach the client.</li>
+<li>Hardware-accelerated CRC32C keeps the cost negligible on the hot path; existing objects without recorded checksums fall through verification and remain readable until rewritten.</li>
+</ul>
+<h2 id="bitrot-scrubber-optional">Bitrot Scrubber (optional)</h2>
+<ul>
+<li>A background service that periodically reads every shard owned by the local API node, recomputes its CRC32C, and verifies it against the stored value. Mismatched shards are rebuilt from EC parity onto a healthy disk through the disk repair pipeline.</li>
+<li><strong>Disabled by default.</strong> Toggled at runtime from the Admin UI (Maintenance → Bitrot Scrubber); the on/off decision is persisted to a small state file so it survives API node restarts without redeployment.</li>
+<li>Configurable scan interval, per-node concurrency, and chunk-per-second rate limit keep scrubbing off the hot path of normal client traffic.</li>
+<li>Cycles can be triggered manually from the Admin UI for ad-hoc verification, and live counters (scanned / corrupt detected / repaired / failed) are visible while a scan is running.</li>
 </ul>
 
 

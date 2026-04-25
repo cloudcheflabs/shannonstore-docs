@@ -626,6 +626,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../data-integrity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Integrity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../kms/" class="md-nav__link">
         
   
@@ -1024,6 +1052,7 @@
 <li>Surviving shards are fetched from healthy nodes, missing shards are reconstructed via erasure coding, and repaired shards are placed on new healthy disks.</li>
 <li>Metadata is updated to reflect the new shard locations and replicated to ensure consistency.</li>
 <li>Configurable scan interval, concurrency limits, and minimum disk space thresholds. Manual trigger is also available via Admin UI or API.</li>
+<li>Repair is also invoked from the <a href="../data-integrity/">Bitrot Scrubber</a> when a shard's stored CRC32C does not match the bytes read back, so silent corruption is recovered through the same EC-parity reconstruction path as a dead disk.</li>
 </ul>
 
 

@@ -695,6 +695,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../data-integrity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Integrity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../kms/" class="md-nav__link">
         
   
@@ -1087,6 +1115,8 @@
 <li><strong>Range Requests</strong>: Partial object downloads for efficient large file access and resumable downloads.</li>
 <li><strong>AWS Authentication</strong>: Supports both AWS Signature V4 and legacy V2 authentication.</li>
 <li><strong>Chunked Transfer Encoding</strong>: Supports AWS SDK streaming upload format.</li>
+<li><strong>ETag</strong>: Returned on PUT, GET, HEAD, ListObjects, UploadPart, and CompleteMultipartUpload responses. Single-PUT objects use the MD5 of the plaintext body; multipart-completed objects use the standard <code>MD5(concatenation of part MD5s) + "-N"</code> composite form, so AWS SDKs and <code>aws s3 cp</code> can verify object integrity.</li>
+<li><strong>Content-MD5 Verification</strong>: When a client provides the <code>Content-MD5</code> request header on PUT or UploadPart, the server recomputes MD5 of the received body and rejects the write with <code>400 BadDigest</code> on mismatch.</li>
 </ul>
 <h2 id="server-architecture">Server Architecture</h2>
 <p>The S3 API runs on a custom NIO HTTP server with a two-port design:

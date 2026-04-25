@@ -14,7 +14,7 @@
         <link rel="prev" href="../distributed-architecture/">
       
       
-        <link rel="next" href="../kms/">
+        <link rel="next" href="../data-integrity/">
       
       
         
@@ -636,6 +636,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../data-integrity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Integrity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../kms/" class="md-nav__link">
         
   
@@ -1024,6 +1052,7 @@
 <li>Default configuration tolerates up to 2 simultaneous shard failures with only 50% storage overhead, compared to 200–300% for traditional replication.</li>
 <li>Shards are automatically spread across different nodes and disks to maximize fault tolerance.</li>
 <li>When failures occur, only the missing shards are regenerated — no need to reassemble the entire object.</li>
+<li>Each shard carries a CRC32C checksum (see <a href="../data-integrity/">Data Integrity</a>). Reconstruction never feeds a silently-corrupted shard into the decoder — mismatched shards are dropped and rebuilt from parity instead.</li>
 </ul>
 
 
