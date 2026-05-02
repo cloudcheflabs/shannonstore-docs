@@ -1,16 +1,13 @@
-# Backup & Restore
+# Backup &amp; Restore
 
-ShannonStore provides comprehensive backup and restore for metadata, IAM state, and encryption keys.
+!!! info "Redesign in progress"
+    The previous in-cluster backup mechanism — which stored encrypted IAM, KMS, and metadata snapshots inside Data Nodes as `_system_*` chunks — has been removed. ShannonStore is moving to an external-target design where backups are written to a separate S3 destination (a different bucket, region, or storage system), aligning disaster recovery with industry-standard offsite-backup practice.
 
-- **Metadata Backup**: Each API Node exports its metadata partitions as compressed data, distributed to Data Nodes with configurable replication.
-- **IAM State Backup**: All users, groups, policies, and access keys are serialized, encrypted, and stored on Data Nodes.
-- **KMS Keystore Backup**: Encrypted keystores are backed up to Data Nodes after key rotation events.
+This feature is in active design and not yet available. Until it ships, the cluster's runtime self-healing properties cover in-flight failures:
 
-## Restore
+- **EC parity reconstruction** — see [Erasure Coding](ec.md).
+- **Bitrot scrubbing** — see [Data Integrity](data-integrity.md).
+- **Disk repair service** — see [Disk Repair Service](disk-repair.md).
+- **Leader re-election with deterministic cluster-ready signaling** — see [Cluster Operations](../operations/operations.md).
 
-- Backups are downloaded from Data Nodes, imported into local stores, and in-memory caches are rebuilt.
-- Restored metadata is replicated to replica nodes for consistency.
-
-## Smart Rebalance
-
-A 5-phase orchestrated workflow for safe partition rebalancing: enable maintenance mode → flush buffers → backup metadata → rebalance partitions → restore and resume operations.
+For deployments that need offsite disaster recovery today, snapshot the leader's KMS and IAM RocksDB out-of-band as part of your existing backup tooling.
