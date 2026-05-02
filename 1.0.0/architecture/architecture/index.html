@@ -11,8 +11,10 @@
         <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/architecture/architecture/">
       
       
+        <link rel="prev" href="../..">
       
-        <link rel="next" href="../../intro/intro/">
+      
+        <link rel="next" href="../../installation/installation/">
       
       
         
@@ -48,6 +50,8 @@
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
     <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
@@ -210,6 +214,25 @@
   
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
     
   
   
@@ -236,11 +259,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../intro/intro/" class="md-tabs__link">
+        <a href="../../installation/installation/" class="md-tabs__link">
           
   
   
-  Getting Started
+  Installation
 
         </a>
       </li>
@@ -261,6 +284,26 @@
   
   
   Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../operations/operations/" class="md-tabs__link">
+          
+  
+  
+  Operations
 
         </a>
       </li>
@@ -306,6 +349,33 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -327,10 +397,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
             
   
   
@@ -348,8 +418,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_1">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -434,6 +504,56 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="ShannonStore Architecture">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#control-logic-layer-api-servers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Control &amp; Logic Layer (API Servers)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storage-layer-data-nodes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage Layer (Data Nodes)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#coordination-layer-zookeeper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coordination Layer (ZooKeeper)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#architectural-properties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural Properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -472,17 +592,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    Getting Started
+    Installation
   
 
     
@@ -493,12 +613,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Getting Started
+    Installation
   
 
           </label>
@@ -511,7 +631,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../../intro/intro/" class="md-nav__link">
+      <a href="../../installation/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Download & Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/getting-started/" class="md-nav__link">
         
   
   
@@ -559,10 +707,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
   
   
@@ -580,8 +728,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -850,34 +998,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../features/backup/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Backup & Restore
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../features/monitoring/" class="md-nav__link">
         
   
@@ -1074,6 +1194,93 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cluster Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -1092,38 +1299,48 @@
 
 
 <h1 id="architecture">Architecture</h1>
-<p>ShannonStore is a high-performance, S3-compatible object storage system designed for high availability
-and elastic scalability in modern data environments.</p>
+<p>ShannonStore is a high-performance, S3-compatible object storage system designed for high availability and elastic scalability in modern data environments. The cluster is composed of three logical tiers — a control &amp; logic tier, a storage tier, and a coordination tier — each scalable independently.</p>
 <h2 id="shannonstore-architecture">ShannonStore Architecture</h2>
 <p><img width="600" src="../../images/architecture/shannonstore-architecture.png" align="center"/></p>
-<p>Control &amp; Logic Layer (API Servers) is the "Brain" of ShannonStore. It interprets the S3 protocol and orchestrates data movement.</p>
+<h3 id="control-logic-layer-api-servers">Control &amp; Logic Layer (API Servers)</h3>
+<p>API Servers are the "brain" of ShannonStore. They terminate the S3 protocol, enforce security, and orchestrate data movement across the storage tier.</p>
 <ul>
-<li>S3 Protocol Handling: Processes RESTful requests and generates S3-compliant XML/JSON responses.</li>
-<li>Metadata Management (RocksDB): Manages object locations, sizes, and permissions. Metadata is logically divided into 64+ Partitions and distributed across the API cluster.</li>
-<li>Security (KMS &amp; IAM): Enforces granular Role-Based Access Control (RBAC) and ensures all data is encrypted at rest(SSE-S3, SSE-KMS support) and in transit using a distributed Key Management Service.</li>
-<li>Request Coordination:<ul>
-<li>Writes: Encodes incoming data into Erasure Coding (EC) shards (e.g., 2+1 or 4+2) and transmits them in parallel to Data Nodes.</li>
-<li>Reads: Retrieves shards from multiple Data Nodes and reconstructs the original data via EC decoding.</li>
+<li><strong>S3 protocol handling</strong> — Processes RESTful requests and emits S3-compliant XML/JSON responses, including SigV4 authentication, multipart upload, list-objects, and STS AssumeRole.</li>
+<li><strong>Metadata management (RocksDB)</strong> — Object locations, sizes, ETags, and per-part MD5 checksums are stored in a per-node RocksDB. The keyspace is split into 4096 partitions (configurable via <code>shannonstore.api.metadata.partitions</code>); each partition has a primary owner and configurable replicas, distributed across the API cluster.</li>
+<li><strong>Security</strong> — Granular Role-Based Access Control through users, groups, and policies. Data is encrypted at rest (SSE-S3, SSE-KMS) and in transit, with key material wrapped by a cluster-wide master key.</li>
+<li><strong>Request coordination</strong><ul>
+<li><strong>Writes:</strong> incoming object data is sliced into Erasure Coding shards (e.g., 2+1 or 4+2) and transmitted in parallel to Data Nodes.</li>
+<li><strong>Reads:</strong> shards are fetched from multiple Data Nodes and the original object is reconstructed via EC decoding. Missing or corrupt shards are reconstructed from parity.</li>
 </ul>
 </li>
 </ul>
-<p>Storage Layer (Data Nodes) is the "Warehouse" of the cluster, responsible for persisting the actual data fragments (chunks).</p>
+<h3 id="storage-layer-data-nodes">Storage Layer (Data Nodes)</h3>
+<p>Data Nodes are the "warehouse" of the cluster. They persist binary fragments to local disks and serve them to API Servers on demand.</p>
 <ul>
-<li>Chunk Store: Physically stores binary fragments received from API servers on local disks.</li>
-<li>High-Speed I/O: Utilizes NIO (Non-blocking I/O) communication to handle high-throughput, large-scale data transfers efficiently.</li>
-<li>Agnostic Storage: Data nodes are "metadata-blind." They focus solely on storing and retrieving bytes associated with a Chunk ID, which maximizes the system’s horizontal scalability.</li>
+<li><strong>Chunk store</strong> — Data is stored as plain files on the filesystem under hash-bucketed directories, not inside RocksDB. Chunks belong to one of the configured storage paths; multi-disk packing distributes them by disk to balance load.</li>
+<li><strong>High-throughput NIO</strong> — A non-blocking NIO server handles concurrent shard transfers with bounded buffers, sized for high-throughput, large-object workloads.</li>
+<li><strong>Metadata-blind</strong> — Data Nodes know nothing about object keys, ACLs, or encryption metadata; they store and retrieve bytes keyed by Chunk ID. This separation maximises horizontal scalability.</li>
+<li><strong>Bitrot scrubbing</strong> — A configurable background scrubber walks each disk, recomputes shard checksums, and triggers EC-based repair on mismatch.</li>
 </ul>
-<p>Coordination Layer (ZooKeeper) is the "Nervous System" that maintains cluster consensus and global state.</p>
+<h3 id="coordination-layer-zookeeper">Coordination Layer (ZooKeeper)</h3>
+<p>ZooKeeper is the "nervous system" of the cluster — the source of truth for membership and global cluster state.</p>
 <ul>
-<li>Service Discovery: Tracks the real-time availability of all API and Data nodes.</li>
-<li>Leader Election: Elects a Cluster Controller (Leader API node) responsible for partition assignments and centralized action history.</li>
-<li>Sticky Partitioning: Persists the Partition Assignment Map. This ensures that even after a restart, partitions remain mapped to the same nodes, preventing unnecessary data migration.</li>
+<li><strong>Service discovery</strong> — All API and Data nodes register under <code>/s3/discovery/{api,data}</code> with their address, ports, capacity, and ready flag.</li>
+<li><strong>Leader election</strong> — A Curator <code>LeaderLatch</code> under <code>/s3/masters/leader</code> elects exactly one API Server as the cluster controller. The leader owns partition assignment, IAM/KMS broadcast, and cluster-wide readiness signaling.</li>
+<li><strong>Cluster readiness signaling</strong> — Three persistent znodes coordinate startup and runtime gating:<ul>
+<li><code>/s3/active-leader</code> — the current leader’s ID, host, and ports. Read by Data Nodes to target the leader directly for KMS pulls.</li>
+<li><code>/s3/leader-ready</code> — flips to <code>true</code> once the new leader has finished its KMS/IAM init. Followers and Data Nodes block on this before pulling state.</li>
+<li><code>/s3/cluster-ready</code> — flips to <code>true</code> once <em>every</em> node has registered ready in ZK. Request handlers gate every incoming S3 request on this signal, so traffic is rejected with 503 during a leader transition or partial-readiness window.</li>
 </ul>
-<p>ShannonStore has the following architectural advantages.</p>
+</li>
+<li><strong>Sticky partitioning</strong> — <code>PartitionManager</code> persists the partition assignment map under <code>/s3/metadata-partitions</code>, so partitions remain mapped to the same nodes across restarts and unnecessary metadata migration is avoided.</li>
+</ul>
+<h3 id="architectural-properties">Architectural Properties</h3>
 <ul>
-<li>Independent Scalability: Storage capacity (Data Nodes) and processing power (API Servers) can be scaled independently.</li>
-<li>Fault Tolerance: The system survives Data Node failures via Erasure Coding and API Node failures via ZooKeeper-based failover.</li>
-<li>Recoverable State: All critical states (IAM, KMS, History) are backed up to the Data Nodes, making API servers functionally stateless and easily replaceable.</li>
+<li><strong>Independent scalability</strong> — Storage capacity (Data Nodes) and request throughput (API Servers) are scaled independently. Metadata partitioning lets the API tier scale beyond a single owner per key range.</li>
+<li><strong>Fault tolerance</strong> — Data Node and disk failures are masked by EC parity (configurable shard counts). API Server failures trigger ZooKeeper-mediated re-election, with the new leader publishing a fresh <code>/s3/active-leader</code> and <code>/s3/cluster-ready</code> cycle.</li>
+<li><strong>Single source of truth</strong> — The leader's local KMS and IAM RocksDB are the cluster’s canonical state. Followers and Data Nodes pull from the leader on every startup or restart and overwrite their local stores, so a transient out-of-sync follower self-corrects on its next boot.</li>
+<li><strong>Pluggable disaster recovery</strong> — In-cluster chunk-based backup of system state has been removed in favour of an external destination (e.g., a different S3 bucket). This keeps the runtime path lean and aligns disaster recovery with industry-standard offsite-backup practice.</li>
 </ul>
 
 
@@ -1163,6 +1380,7 @@ and elastic scalability in modern data environments.</p>
   
     <div class="md-copyright__highlight">
       © <script>document.write(new Date().getFullYear())</script> Cloud Chef Labs, Inc. All rights reserved. <a href="mailto:admin@cloudchef-labs.com">admin@cloudchef-labs.com</a>
+
     </div>
   
   

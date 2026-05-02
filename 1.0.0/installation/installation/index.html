@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/configuration/">
+        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/installation/installation/">
       
       
-        <link rel="prev" href="../maintenance/">
+        <link rel="prev" href="../../architecture/architecture/">
       
       
-        <link rel="next" href="../network/">
+        <link rel="next" href="../getting-started/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Configuration Management - ShannonStore</title>
+        <title>Download & Install - ShannonStore</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#configuration-management" class="md-skip">
+        <a href="#download-install" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Configuration Management
+              Download & Install
             
           </span>
         </div>
@@ -253,11 +253,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../installation/installation/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -273,13 +275,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../s3-compatible-api/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../features/s3-compatible-api/" class="md-tabs__link">
           
   
   
@@ -463,26 +463,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
@@ -500,7 +505,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -515,10 +520,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../installation/installation/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Download & Install
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -534,6 +566,131 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#download-the-release-archive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download the Release Archive
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#start-an-evaluation-cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Start an Evaluation Cluster
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-individual-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Individual Roles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Running Individual Roles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#zookeeper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ZooKeeper
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#api-server" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Server
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-node" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Node
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stopping-individual-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stopping individual roles
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verifying-the-cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying the Cluster
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -546,7 +703,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../installation/getting-started/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
@@ -578,31 +735,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
   
   
@@ -620,7 +772,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -638,7 +790,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../s3-compatible-api/" class="md-nav__link">
+      <a href="../../features/s3-compatible-api/" class="md-nav__link">
         
   
   
@@ -666,7 +818,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../distributed-architecture/" class="md-nav__link">
+      <a href="../../features/distributed-architecture/" class="md-nav__link">
         
   
   
@@ -694,7 +846,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ec/" class="md-nav__link">
+      <a href="../../features/ec/" class="md-nav__link">
         
   
   
@@ -722,7 +874,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../data-integrity/" class="md-nav__link">
+      <a href="../../features/data-integrity/" class="md-nav__link">
         
   
   
@@ -750,7 +902,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../kms/" class="md-nav__link">
+      <a href="../../features/kms/" class="md-nav__link">
         
   
   
@@ -778,7 +930,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../data-compression/" class="md-nav__link">
+      <a href="../../features/data-compression/" class="md-nav__link">
         
   
   
@@ -806,7 +958,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../iam/" class="md-nav__link">
+      <a href="../../features/iam/" class="md-nav__link">
         
   
   
@@ -834,7 +986,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../auth-authz/" class="md-nav__link">
+      <a href="../../features/auth-authz/" class="md-nav__link">
         
   
   
@@ -862,7 +1014,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../disk-repair/" class="md-nav__link">
+      <a href="../../features/disk-repair/" class="md-nav__link">
         
   
   
@@ -890,7 +1042,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../monitoring/" class="md-nav__link">
+      <a href="../../features/monitoring/" class="md-nav__link">
         
   
   
@@ -918,7 +1070,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../metadata-management/" class="md-nav__link">
+      <a href="../../features/metadata-management/" class="md-nav__link">
         
   
   
@@ -946,7 +1098,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../multi-disk-storage/" class="md-nav__link">
+      <a href="../../features/multi-disk-storage/" class="md-nav__link">
         
   
   
@@ -974,7 +1126,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../performance/" class="md-nav__link">
+      <a href="../../features/performance/" class="md-nav__link">
         
   
   
@@ -1002,7 +1154,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../maintenance/" class="md-nav__link">
+      <a href="../../features/maintenance/" class="md-nav__link">
         
   
   
@@ -1027,19 +1179,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../features/configuration/" class="md-nav__link">
         
   
   
@@ -1055,7 +1198,6 @@
   
 
       </a>
-      
     </li>
   
 
@@ -1068,7 +1210,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../network/" class="md-nav__link">
+      <a href="../../features/network/" class="md-nav__link">
         
   
   
@@ -1200,13 +1342,118 @@
 
 
 
-<h1 id="configuration-management">Configuration Management</h1>
-<p>ShannonStore supports flexible configuration through a priority-based resolution chain.</p>
+<h1 id="download-install">Download &amp; Install</h1>
+<p>This page walks through downloading the ShannonStore distribution and bringing up an evaluation cluster on a single machine. For a guided first-object workflow with the AWS CLI, continue to <a href="../getting-started/">Getting Started</a>. For ongoing operations of an existing cluster, see <a href="../../operations/operations/">Cluster Operations</a>.</p>
+<h2 id="prerequisites">Prerequisites</h2>
 <ul>
-<li><strong>Priority order</strong> (highest to lowest): System properties → Environment variables → External config file → Default classpath properties.</li>
-<li>Supports variable substitution (<code>${variable}</code> syntax) for DRY configuration.</li>
-<li>Over 150 configurable parameters covering cluster connectivity, storage, security, performance tuning, and more.</li>
+<li><strong>Java 17</strong> — ShannonStore is written in Java and ships as a tarball; Java 17 (or newer) must be on <code>PATH</code>.</li>
+<li><strong>A 32+ character master key</strong> — used to derive the cluster's root encryption key. Set as the environment variable <code>SHANNONSTORE_MASTER_KEY</code> before starting any node.</li>
+<li><strong>macOS or Linux</strong> — the supplied start scripts are bash and assume a POSIX shell.</li>
 </ul>
+<h2 id="download-the-release-archive">Download the Release Archive</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl -L -O https://github.com/cloudcheflabs/shannonstore-pack/releases/download/shannonstore-archive/shannonstore-1.0.0.tar.gz
+</code></pre></div>
+<p>Extract the archive and change into the resulting directory:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>tar zxvf shannonstore-1.0.0.tar.gz
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>cd shannonstore-1.0.0
+</code></pre></div>
+<p>The archive ships with the layout below:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bin/</code></td>
+<td>Start/stop scripts for ZooKeeper, API Servers, and Data Nodes</td>
+</tr>
+<tr>
+<td><code>lib/</code></td>
+<td>All JARs needed to run the API Server and Data Node main classes</td>
+</tr>
+<tr>
+<td><code>conf/</code></td>
+<td><code>shannonstore.properties</code> defaults and <code>logback.xml</code></td>
+</tr>
+<tr>
+<td><code>admin-ui/</code></td>
+<td>Built admin SPA, served by the API Server's admin port</td>
+</tr>
+<tr>
+<td><code>data/</code></td>
+<td>Default data directory used by Data Nodes (<code>data/node1-disk-a</code>, etc.)</td>
+</tr>
+<tr>
+<td><code>logs/</code></td>
+<td>Default log destination</td>
+</tr>
+</tbody>
+</table>
+<h2 id="start-an-evaluation-cluster">Start an Evaluation Cluster</h2>
+<p>The bundled helper script brings up an embedded ZooKeeper, three Data Nodes, and one API Server in a single command — useful for kicking the tires on a laptop:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>export SHANNONSTORE_MASTER_KEY=&quot;ShannonStoreMasterKey1200303003abc&quot;
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>bin/start-example-servers.sh
+</code></pre></div>
+<blockquote>
+<p>The master key must be at least 32 characters. The same value must be supplied to <strong>every</strong> ShannonStore process (API or Data) in a real deployment — losing it means losing access to all encrypted data.</p>
+</blockquote>
+<p>After a few seconds the cluster is ready. The API Server listens on:</p>
+<table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>8080</code></td>
+<td>S3 API (raw NIO HTTP) — point S3 clients here</td>
+</tr>
+<tr>
+<td><code>8888</code></td>
+<td>Admin port (Netty HTTP, includes the admin UI at <code>/admin</code>)</td>
+</tr>
+<tr>
+<td><code>9000</code></td>
+<td>Internal NIO RPC (peer API ↔ API and API ↔ Data communication)</td>
+</tr>
+</tbody>
+</table>
+<p>Data Nodes are wired to NIO ports <code>9001</code>, <code>9002</code>, <code>9003</code>, each with two storage directories on local disk.</p>
+<p>To stop the example cluster:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>bin/stop-example-servers.sh
+</code></pre></div>
+<h2 id="running-individual-roles">Running Individual Roles</h2>
+<p>For a real deployment you start each role separately and point them at an external ZooKeeper. Each script reads <code>conf/shannonstore.properties</code> and accepts <code>-D</code> overrides on the command line.</p>
+<h3 id="zookeeper">ZooKeeper</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>bin/start-zk.sh
+</code></pre></div>
+<p>Production deployments usually point at a separately-managed ensemble. Set the connect string via <code>shannonstore.zk.connect</code> in the properties file or the environment variable <code>SHANNONSTORE_ZK_CONNECT</code>.</p>
+<h3 id="api-server">API Server</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>bin/start-api-server.sh \
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>  -Dshannonstore.api.s3.port=8080 \
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  -Dshannonstore.api.admin.port=8888 \
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  -Dshannonstore.nio.port=9000
+</code></pre></div>
+<p>Repeat with different port triples on each host (or container) to scale the API tier horizontally. All API Servers join the same <code>/s3/masters/leader</code> Curator latch — exactly one becomes leader.</p>
+<h3 id="data-node">Data Node</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>bin/start-data-node.sh \
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  -Dshannonstore.nio.port=9001 \
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>  -Dshannonstore.data.storage.dirs=/var/lib/shannonstore/disk-a,/var/lib/shannonstore/disk-b
+</code></pre></div>
+<p>Each Data Node can pack chunks across multiple storage directories — typically one per disk — to balance load and tolerate single-disk failures. See <a href="../../features/multi-disk-storage/">Multi-Disk Storage</a> for details.</p>
+<h3 id="stopping-individual-roles">Stopping individual roles</h3>
+<p>Each <code>start-*.sh</code> writes a PID file under <code>bin/</code>, and a matching <code>stop-*.sh</code> reads it to shut the process down gracefully. Use these in your service manager (systemd, k8s lifecycle hooks, etc.) instead of sending raw signals.</p>
+<h2 id="verifying-the-cluster">Verifying the Cluster</h2>
+<p>Once nodes are up, the admin port exposes a health endpoint:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>curl http://localhost:8888/admin/health
+</code></pre></div>
+<p>While a node is still pulling KMS/IAM from the leader, this returns <code>503</code> with a <code>STARTING</code> payload. Once the cluster-wide readiness znode flips to <code>true</code>, the same endpoint returns <code>200 UP</code>. The same gate applies to the S3 port — clients receive <code>503 Retry-After: 5</code> until the cluster is ready.</p>
+<p>For the next step — creating a bucket, an access key, and uploading an object — continue to <a href="../getting-started/">Getting Started</a>.</p>
 
 
 
