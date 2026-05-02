@@ -32,10 +32,12 @@ theme:
 
 
 nav:
+  - "Home": index.md
   - "Architecture":
       - "ShannonStore Architecture": architecture/architecture.md
-  - "Getting Started":
-      - "Getting Started": intro/intro.md
+  - "Installation":
+      - "Download & Install": installation/installation.md
+      - "Getting Started": installation/getting-started.md
   - "Features":
       - "S3 Compatible API": features/s3-compatible-api.md
       - "Distributed Architecture": features/distributed-architecture.md
@@ -46,7 +48,6 @@ nav:
       - "Identity & Access Management": features/iam.md
       - "Authentication & Authorization": features/auth-authz.md
       - "Disk Repair Service": features/disk-repair.md
-      - "Backup & Restore": features/backup.md
       - "Monitoring & Metrics": features/monitoring.md
       - "Metadata Management": features/metadata-management.md
       - "Multi-Disk Storage": features/multi-disk-storage.md
@@ -54,6 +55,8 @@ nav:
       - "Maintenance Mode": features/maintenance.md
       - "Configuration Management": features/configuration.md
       - "Network & Internal Communication": features/network.md
+  - "Operations":
+      - "Cluster Operations": operations/operations.md
 
 
 extra:
@@ -61,6 +64,10 @@ extra:
   version:
     provider: mike
     default: 2.2.0
+
+
+extra_css:
+  - stylesheets/extra.css
 
 
 extra_javascript:

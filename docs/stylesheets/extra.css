@@ -1,0 +1,10 @@
+/* Hide auto-generated page title h1 that has no id (landing page) */
+.md-content__inner > h1:not([id]) {
+  display: none;
+}
+
+/* Header logo: bigger, original colors preserved */
+.md-header__button.md-logo img {
+  height: 2.4rem;
+  width: auto;
+}
