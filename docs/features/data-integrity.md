@@ -2,15 +2,10 @@
 
 ShannonStore protects every stored byte against silent corruption (bitrot) with end-to-end checksums, and includes an optional background scrubber for proactive verification of cold data.
 
-## Per-Shard CRC32C
+## End-to-end checksums
 
-- A CRC32C checksum is computed for each erasure-coded shard at write time and stored in the object's metadata, so it travels with the shard reference and is replicated alongside the metadata to every HRW owner of the key.
-- On every read, the shard's bytes are re-checksummed before being passed to EC decode. A mismatch causes the shard to be treated as missing, and the original data is reconstructed from parity instead — the corrupt bytes never reach the client.
-- Hardware-accelerated CRC32C keeps the cost negligible on the hot path; existing objects without recorded checksums fall through verification and remain readable until rewritten.
+Every shard is checksummed when written and verified on every read. If a shard fails verification, the original data is reconstructed from erasure-coded parity instead — the corrupt bytes never reach the client. Verification is hardware-accelerated and adds no measurable latency to the hot path.
 
 ## Bitrot Scrubber (optional)
 
-- A background service that periodically reads every shard belonging to keys this API node currently owns under HRW, recomputes its CRC32C, and verifies it against the stored value. Mismatched shards are rebuilt from EC parity onto a healthy disk through the disk repair pipeline. The HRW gate avoids R-fold duplicate scrubbing across replicas.
-- **Disabled by default.** Toggled at runtime from the Admin UI (Maintenance → Bitrot Scrubber); the on/off decision is persisted to a small state file so it survives API node restarts without redeployment.
-- Configurable scan interval, per-node concurrency, and chunk-per-second rate limit keep scrubbing off the hot path of normal client traffic.
-- Cycles can be triggered manually from the Admin UI for ad-hoc verification, and live counters (scanned / corrupt detected / repaired / failed) are visible while a scan is running.
+A background scrubber periodically reads every shard the cluster holds, verifies its checksum, and rebuilds anything corrupted from parity. Disabled by default; toggle from the admin UI per node, or trigger an ad-hoc cycle. Live counters (scanned / corrupt / repaired / failed) are visible while a scan runs. Scan interval and rate limit are configurable so scrubbing never competes with normal client traffic.

@@ -47,11 +47,11 @@ After a few seconds the cluster is ready. The API Server listens on:
 
 | Port | Purpose |
 |---|---|
-| `8080` | S3 API (raw NIO HTTP) — point S3 clients here |
-| `8888` | Admin port (Netty HTTP, includes the admin UI at `/admin`) |
-| `9000` | Internal NIO RPC (peer API ↔ API and API ↔ Data communication) |
+| `8080` | S3 API — point S3 clients here |
+| `8888` | Admin UI and admin API (browse `/admin`) |
+| `9000` | Internal cluster communication |
 
-Data Nodes are wired to NIO ports `9001`, `9002`, `9003`, each with two storage directories on local disk.
+Data Nodes use ports `9001`, `9002`, `9003`, each with two storage directories on local disk.
 
 To stop the example cluster:
 
@@ -80,7 +80,7 @@ bin/start-api-server.sh \
   -Dshannonstore.nio.port=9000
 ```
 
-Repeat with different port triples on each host (or container) to scale the API tier horizontally. All API Servers join the same `/s3/masters/leader` Curator latch — exactly one becomes leader.
+Repeat with different port triples on each host (or container) to scale the API tier horizontally. The cluster automatically elects exactly one API Server as leader.
 
 ### Data Node
 
@@ -104,6 +104,6 @@ Once nodes are up, the admin port exposes a health endpoint:
 curl http://localhost:8888/admin/health
 ```
 
-While a node is still pulling KMS/IAM from the leader, this returns `503` with a `STARTING` payload. Once the cluster-wide readiness znode flips to `true`, the same endpoint returns `200 UP`. The same gate applies to the S3 port — clients receive `503 Retry-After: 5` until the cluster is ready.
+While the cluster is still starting up, this endpoint reports the node as not ready. Once every API Server has synchronised state from the leader and at least one Data Node is registered, the endpoint reports the node as ready and the S3 port begins accepting client requests.
 
 For the next step — creating a bucket, an access key, and uploading an object — continue to [Getting Started](getting-started.md).

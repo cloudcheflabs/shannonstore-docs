@@ -1,33 +1,23 @@
 # Metadata Management
 
-ShannonStore manages object metadata via a vbucket-on-HRW model with per-shard RocksDB sub-stores.
+ShannonStore's object metadata (which chunk lives on which disk, sizes, ETags, versions) is distributed and replicated across the API tier so any node can serve any request and a single node failure never loses access to your objects.
 
-## Placement model
+## How keys are placed
 
-- Every key is hashed to one of **65,536 fixed vbuckets** (Murmur3 mod 65,536).
-- Each vbucket's **top-R API nodes** by HRW (Rendezvous Hashing) score are its owners; the highest-scoring is the primary, the rest are replicas. Default `R = 2` (`shannonstore.api.metadata.replication.factor`).
-- Per-key ownership lookup is O(1) — the vbucket→owner table is cached and only invalidated when the live API node set changes.
-- Adding or removing a node moves only ~1/N of vbuckets (HRW invariant), and every key inside a moved vbucket moves together.
+Each `(bucket, key)` is owned by a fixed number of API nodes (default **2**). When a node joins or leaves the cluster, only the small fraction of keys whose ownership changed is moved — there is no full rebalance window or migration tool to run.
 
-## Storage layout (per API node)
+## Storage on each node
 
-- Metadata lives in **N RocksDB sub-stores**, one per shard, where each shard owns a contiguous vbucket range. Default `N = 16` (`shannonstore.api.metadata.rocksdb.shards`); 65,536 must be evenly divisible.
-- Shards can be **striped across multiple disks** via `shannonstore.api.metadata.rocksdb.dirs=/disk1,/disk2,...` — shard `i` lands on `dirs[i % len]/shard-i/`, so compaction and IO are isolated per disk.
-- An in-memory LRU caches the most recently-read entries (`shannonstore.api.metadata.latest.cache.size`).
+Metadata on each API node is split into multiple internal stores so that compaction and disk IO don't pile up on a single store as the cluster grows. These stores can be **striped across multiple physical disks** to scale IO further — useful for very large deployments.
 
-## Replication
+## Replication & freshness
 
-- Default mode: **`PULL`** (`shannonstore.api.metadata.replication.mode`). The primary commits locally and acks the client; replicas pull new entries every 500 ms (`shannonstore.api.metadata.pull.interval.ms`) using a per-peer cursor and HRW-scoped filtering.
-- Optional modes: `SYNC` (primary waits for every replica ACK) and `ASYNC_PUSH` (primary fans out off the hot path).
-- New or restarting nodes pull a one-shot **bootstrap snapshot** from every peer after `cluster-ready`, so they start with everything they own under HRW.
+The default replication mode is **PULL**: writes commit on one node and are acknowledged immediately, while replicas catch up asynchronously. This gives the lowest write latency. Optional **synchronous** mode is available when stronger freshness is required.
 
-## Membership change
+## Membership changes
 
-- Node added/removed → vbucket ownership shifts → new owners pull missing keys via the PULL cycle (or push fan-out in SYNC/ASYNC_PUSH).
-- A periodic **reconciliation sweep** (off by default; `shannonstore.api.metadata.reconcile.enabled`) drops local copies that this node is no longer an owner of, after verifying the current primary holds the same-or-newer copy. Cassandra's `nodetool cleanup` equivalent.
+Adding or removing an API node automatically reshuffles only the affected keys. Joining nodes pull what they're now responsible for; leaving nodes' keys are immediately picked up by the surviving owners. An optional periodic sweep can clean up local copies of keys a node no longer owns (Cassandra-style cleanup) — disabled by default, opt-in from the admin UI.
 
-## Read path
+## Reads
 
-- Local hit → return.
-- Local miss + I am an owner: in `SYNC` mode return null (every owner committed before the client ack); in `PULL`/`ASYNC_PUSH` modes fall back to the primary so a client GET that nginx routed to a lagging owner doesn't see a spurious 404.
-- Local miss + I am not an owner → fetch from the primary via the metadata fetch RPC.
+Reads are served locally if the node holds the key. Otherwise the node fetches it from the responsible peer transparently — clients never need to know which node holds what.

@@ -6,9 +6,9 @@ This page covers running a ShannonStore cluster in steady state: starting and st
 
 A ShannonStore deployment is composed of three process types:
 
-- **ZooKeeper ensemble** — used for cluster coordination, leader election, and discovery. The release archive ships an embedded single-node ZooKeeper for evaluation; production deployments use a dedicated ensemble (typically three or five nodes).
-- **API Server** — terminates the S3 protocol, owns metadata under HRW + vbucket placement, and orchestrates EC writes/reads. Two or more API Servers may run for high availability; one is elected leader for KMS/IAM ownership.
-- **Data Node** — owns chunks on local disks. Hosts the chunk store, KMS provider RocksDB warm cache, and the bitrot scrubber.
+- **ZooKeeper** — provides cluster coordination and discovery. The release archive ships an embedded single-node ZooKeeper for evaluation; production deployments use a dedicated ensemble.
+- **API Server** — terminates the S3 protocol, holds and replicates metadata, and orchestrates erasure-coded reads and writes. Two or more API Servers run for high availability; one is elected leader for IAM and KMS ownership.
+- **Data Node** — stores object shards on local disks. Multiple disks per node are supported.
 
 All three are managed by shell scripts under `bin/` in the release archive.
 
@@ -16,68 +16,56 @@ All three are managed by shell scripts under `bin/` in the release archive.
 
 ### API Server
 
-```agsl
-bin/start-api-server.sh
 ```
-
-The script applies the JVM options from `conf/jvm.conf`, writes a PID to `bin/api-server-<s3-port>.pid`, and redirects stdout/stderr to `logs/shannonstore-api-<s3-port>.log`. The API Server binds three ports: the S3 port (`shannonstore.api.s3.port`, default `8080`), the admin HTTP port (`shannonstore.api.admin.port`, default `8888`), and the internal NIO port (`shannonstore.nio.port`, default `9000`).
-
-To stop gracefully:
-
-```agsl
+bin/start-api-server.sh
 bin/stop-api-server.sh
 ```
 
+The API Server listens on three ports: the S3 port (default 8080), the admin port (default 8888), and an internal cluster port. Configure them and other runtime options in `conf/shannonstore.properties`; logs and PID files land under `logs/` and `bin/`.
+
 ### Data Node
 
-```agsl
-bin/start-data-node.sh
 ```
-
-Listens on `shannonstore.nio.port` (default per Data Node) and uses one or more storage directories listed in `shannonstore.data.storage.dirs`. PID file goes to `bin/data-node-<port>.pid`.
-
-```agsl
+bin/start-data-node.sh
 bin/stop-data-node.sh
 ```
 
+Configure the storage directories in `conf/shannonstore.properties` — multiple paths give multi-disk capacity in a single node.
+
 ### ZooKeeper
 
-The bundled embedded ZooKeeper is for evaluation only. In production, point all roles at a managed ensemble via `shannonstore.zk.connect`.
+The bundled embedded ZooKeeper is for evaluation only. In production, point all roles at a managed ensemble.
 
 ## Cluster Bootstrap and Restart
 
-ShannonStore enforces a deterministic, ZK-coordinated bootstrap on every start and restart:
+Bootstrap is fully automatic and deterministic:
 
-1. **Each node connects to ZooKeeper** and registers itself under `/s3/discovery/{api,data}` with `ready=false`.
-2. **Leader election** completes on the API tier via Curator `LeaderLatch`. Exactly one API Server wins, deterministically — non-leaders identify their role by polling `leaderLatch.getLeader()` rather than relying on a timeout-based fallback.
-3. **The leader initialises its state** — KMS keys are generated on first cluster bootstrap, or loaded from local RocksDB on restart. IAM is initialised with default users on first bootstrap, or kept from local RocksDB on restart. The leader publishes `/s3/active-leader` with its endpoints and flips `/s3/leader-ready=true`.
-4. **Followers and Data Nodes pull from the leader.** Followers fetch KMS and IAM bundles from the leader API and *overwrite* their local RocksDB — the leader is the single source of truth on every restart. Data Nodes read `/s3/active-leader` and pull KMS from that specific leader.
-5. **Each non-leader registers `ready=true`** in its discovery payload once the pull completes.
-6. **The leader waits for all nodes to flip ready=true**, then publishes `/s3/cluster-ready=true`. Until that znode is `true`, every API request handler returns `503 Retry-After: 5`. After it flips, traffic flows.
+1. The cluster elects a leader from the API tier. After a restart, the previous leader tends to win re-election (sticky leadership) so cluster state moves as little as possible.
+2. The leader initialises its own state. Default `admin/admin` credentials are created **only on the very first cluster bootstrap** — never again, even if the leader's local state somehow looks empty.
+3. Followers and Data Nodes wait until the leader is ready, then synchronise IAM and KMS from the leader (the single source of truth) and report themselves ready.
+4. The leader waits until every API node is ready **and at least one data node is registered and ready**, then opens the cluster to client traffic.
 
-If the current leader is restarted, the surviving followers re-elect, the new leader resets `/s3/cluster-ready=false` for the duration of its own init, and the cycle repeats. This guarantees clients never see partial-readiness state.
+Until the cluster is open, S3 and admin requests are rejected with `503 Retry-After: 5`. The wait has no timeout — a cluster brought up without any data nodes simply stays closed until one comes up. Health and login endpoints stay reachable throughout so operators can probe and sign in.
+
+If the leader restarts, surviving followers re-elect (with sticky-leader bias) and the cycle repeats. Clients never see a half-initialised cluster.
+
+### Runtime synchronisation
+
+After bootstrap, every IAM or KMS change runs on the leader and is pushed to all other nodes immediately. Admin requests that mutate IAM (login, password change, access keys, bucket create/delete, STS) automatically route to the leader if they land on a follower.
 
 ## Observability
 
 ### Admin UI
 
-Browse `http://<api-host>:<admin-port>/admin` to see the cluster snapshot — leader identity, registered nodes, per-node HRW ownership counts (Topology page → HRW Placement), per-disk capacity and usage, KMS state, and the reconciliation sweep stats. The UI is served by the API Server's admin port; any API Server can serve it.
+Browse the admin port at `/admin` to see the cluster snapshot — leader identity, registered nodes, per-node ownership distribution, per-disk capacity and usage, KMS state, and reconciliation sweep stats. Any API Server can serve the UI.
 
 ### Health Endpoint
 
-```agsl
-curl http://<api-host>:<admin-port>/admin/health
-```
+`/admin/health` returns 200 when the node is fully ready, 503 otherwise. Suitable for container readiness probes.
 
-Returns `200 UP` once the node has finished init and the cluster-wide readiness znode is `true`. Returns `503 STARTING` while the node is still bootstrapping. Suitable for container readiness probes.
+### Metrics & Logs
 
-### Metrics
-
-The admin UI surfaces aggregated cluster metrics. Per-node metrics are collected by the leader every minute and stored in a metrics RocksDB; see [Monitoring &amp; Metrics](../features/monitoring.md) for retention and the underlying schema.
-
-### Logs
-
-Each role writes to `logs/shannonstore-<role>-<port>.log` via Logback. The default appender is async file with size-and-time rolling (3 GiB cap by default). For high-throughput production you can switch to a ring-buffer mode by setting `SHANNONSTORE_LOG_MODE=RING_BUFFER`, which keeps the most recent N lines in memory for live admin-UI tailing without the I/O overhead of file logging.
+The admin UI surfaces aggregated cluster metrics; see [Monitoring & Metrics](../features/monitoring.md). Each role writes to a rolling log file under `logs/`; high-throughput deployments can switch to a memory-buffered mode for live admin-UI tailing without disk I/O.
 
 ## Maintenance Operations
 
@@ -85,42 +73,40 @@ The admin UI exposes operational actions under the **Nodes** page. They are all 
 
 ### Maintenance Mode
 
-Toggling **Maintenance Mode** rejects new S3 writes cluster-wide while allowing reads, in-flight requests to drain, and internal RPCs to continue. Use it before invasive operations like scheduled disk replacement or evacuating a node — but **not** for adding/removing API or data nodes, which HRW handles automatically without a maintenance window.
+Toggling **Maintenance Mode** rejects new S3 writes cluster-wide while allowing reads, in-flight requests to drain, and internal RPCs to continue. Use it before invasive operations like scheduled disk replacement or evacuating a node — but **not** for adding/removing API or data nodes, which the cluster handles automatically without a maintenance window.
 
 See [Maintenance Mode](../features/maintenance.md).
 
-### HRW Reconciliation Sweep
+### Reconciliation Sweep
 
-After a node is added or removed, vbucket ownership shifts and some keys' previous owners are no longer responsible for them. A periodic reconciliation sweep (off by default; toggle from the admin UI's HRW Placement page) drops those stale local copies after verifying the current primary holds the same-or-newer copy. Cassandra's `nodetool cleanup` equivalent.
-
-See [Metadata Management](../features/metadata-management.md).
+After a node is added or removed, ownership shifts and some keys' previous owners are no longer responsible for them. A periodic sweep (off by default; toggle from the admin UI) drops those stale local copies after verifying the current owner has the same-or-newer copy. Equivalent to Cassandra's `nodetool cleanup`.
 
 ### Disk Repair
 
-When a disk fails, the admin UI's **Disk Repair** action scans for chunks affected by the dead disk and reconstructs them from EC parity onto the remaining healthy disks. See [Disk Repair Service](../features/disk-repair.md).
+When a disk fails, the admin UI's **Disk Repair** action scans for affected shards and reconstructs them from parity onto the remaining healthy disks. See [Disk Repair Service](../features/disk-repair.md).
 
 ### Bitrot Scrubbing
 
-A background scrubber on each Data Node walks each disk on a configurable interval, recomputes per-shard CRC32C checksums, and triggers EC repair on mismatch. Disabled by default; enable via the admin UI per-node toggle. See [Data Integrity](../features/data-integrity.md).
+A background scrubber walks each disk on a configurable interval, verifies shard checksums, and triggers parity-based repair on mismatch. Disabled by default; enable per-node from the admin UI. See [Data Integrity](../features/data-integrity.md).
 
 ## Disaster Recovery
 
-**Backup and restore is moving to an external destination** (e.g., a different S3 bucket or object store). The previous in-cluster chunk-based backup mechanism — which stored encrypted IAM, KMS, and metadata snapshots inside Data Nodes — has been removed in favour of this external-target design. The replacement is in active design; for now, deployments should snapshot the leader's KMS and IAM RocksDB out-of-band as part of their existing backup tooling.
+**Backup and restore is moving to an external destination** (e.g., a different S3 bucket). The previous in-cluster backup mechanism has been removed. For now, snapshot the leader's IAM and KMS state out-of-band as part of your existing backup tooling.
 
-The cluster's runtime self-healing properties (EC parity reconstruction, bitrot scrubbing, disk repair, leader re-election) remain unchanged and continue to handle in-flight failures without operator intervention.
+Runtime self-healing — parity reconstruction, bitrot scrubbing, disk repair, leader re-election — continues to handle in-flight failures without operator intervention.
 
 ## Scaling
 
-- **Adding an API Server** — start a new node pointing at the same ZK ensemble and master key. It joins as a follower, pulls KMS/IAM from the leader, and immediately runs a one-shot bootstrap snapshot pull from every peer to materialise the metadata it now owns under HRW. No maintenance window required. Once the cluster is steady, enable the reconciliation sweep on the older nodes to free metadata they no longer own.
-- **Adding a Data Node** — start a new Data Node pointing at the same ZK ensemble. It registers with `ready=false`, pulls KMS from the leader, and becomes available for new chunk writes immediately. New chunks land on the new node according to HRW; existing chunks stay on their original Data Nodes (replacement happens lazily as objects are rewritten or the disk repair flow runs).
-- **Removing a node** — drain new writes via Maintenance Mode (optional), stop the process. HRW automatically re-routes new writes to the surviving nodes; existing data on the lost node is reconstructible from EC parity (data) or replicated copies (metadata, when R ≥ 2).
+- **Adding an API Server** — start a new node pointing at the same ZooKeeper and master key. It joins as a follower, synchronises IAM/KMS from the leader, and immediately picks up the metadata it now owns. No maintenance window required. Once the cluster is steady, enable the reconciliation sweep on older nodes to free metadata they no longer own.
+- **Adding a Data Node** — start a new Data Node pointing at the same ZooKeeper. It becomes available for new chunk writes immediately. Existing chunks stay on their original disks.
+- **Removing a node** — optionally drain new writes via Maintenance Mode, then stop the process. The cluster automatically re-routes new writes to the survivors; data on the lost node is reconstructible from parity (data) or replicated copies (metadata).
 
 ## Upgrades
 
-ShannonStore supports rolling upgrades for compatible versions. JSON-serialised state (`ObjectMetadata`, `NodePayload`, IAM snapshots) carries `@JsonIgnoreProperties(ignoreUnknown=true)`, so an old node can read a newer node's payload without deserialisation errors. The recommended upgrade sequence:
+ShannonStore supports rolling upgrades for compatible versions. The recommended sequence:
 
-1. Upgrade Data Nodes one at a time. After each restart, wait for the node's `ready=true` signal before continuing.
-2. Upgrade API followers one at a time. Each upgraded follower will pull fresh KMS/IAM from the (still-old) leader on restart.
-3. Upgrade the leader last. It steps down, a follower takes over, and the upgraded process rejoins as a follower.
+1. Upgrade Data Nodes one at a time, waiting for each to report ready.
+2. Upgrade API followers one at a time.
+3. Upgrade the leader last; it steps down, a follower takes over, and the upgraded process rejoins as a follower.
 
-Across the upgrade, `/s3/cluster-ready` will briefly flip false during each leader transition; clients see short `503 Retry-After` windows, not stale data.
+Across the upgrade, the cluster briefly closes during each leader transition; clients see short 503 windows, never stale data.
