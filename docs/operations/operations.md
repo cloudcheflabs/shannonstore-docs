@@ -7,7 +7,7 @@ This page covers running a ShannonStore cluster in steady state: starting and st
 A ShannonStore deployment is composed of three process types:
 
 - **ZooKeeper ensemble** — used for cluster coordination, leader election, and discovery. The release archive ships an embedded single-node ZooKeeper for evaluation; production deployments use a dedicated ensemble (typically three or five nodes).
-- **API Server** — terminates the S3 protocol, owns metadata partitions, and orchestrates EC writes/reads. Two or more API Servers may run for high availability; one is elected leader for KMS/IAM ownership.
+- **API Server** — terminates the S3 protocol, owns metadata under HRW + vbucket placement, and orchestrates EC writes/reads. Two or more API Servers may run for high availability; one is elected leader for KMS/IAM ownership.
 - **Data Node** — owns chunks on local disks. Hosts the chunk store, KMS provider RocksDB warm cache, and the bitrot scrubber.
 
 All three are managed by shell scripts under `bin/` in the release archive.
@@ -61,7 +61,7 @@ If the current leader is restarted, the surviving followers re-elect, the new le
 
 ### Admin UI
 
-Browse `http://<api-host>:<admin-port>/admin` to see the cluster snapshot — leader identity, registered nodes, partition primary/replica map, per-disk capacity and usage, KMS state, and recent partition actions. The UI is served by the API Server's admin port; any API Server can serve it.
+Browse `http://<api-host>:<admin-port>/admin` to see the cluster snapshot — leader identity, registered nodes, per-node HRW ownership counts (Topology page → HRW Placement), per-disk capacity and usage, KMS state, and the reconciliation sweep stats. The UI is served by the API Server's admin port; any API Server can serve it.
 
 ### Health Endpoint
 
@@ -85,23 +85,19 @@ The admin UI exposes operational actions under the **Nodes** page. They are all 
 
 ### Maintenance Mode
 
-Toggling **Maintenance Mode** rejects new S3 writes cluster-wide while allowing reads, in-flight requests to drain, and internal RPCs to continue. Use it before invasive operations — partition rebalance, scheduled disk replacement, or evacuating a node.
+Toggling **Maintenance Mode** rejects new S3 writes cluster-wide while allowing reads, in-flight requests to drain, and internal RPCs to continue. Use it before invasive operations like scheduled disk replacement or evacuating a node — but **not** for adding/removing API or data nodes, which HRW handles automatically without a maintenance window.
 
 See [Maintenance Mode](../features/maintenance.md).
 
-### Smart Rebalance
+### HRW Reconciliation Sweep
 
-A three-phase orchestrated workflow that safely redistributes partitions when the API tier is scaled up or down:
+After a node is added or removed, vbucket ownership shifts and some keys' previous owners are no longer responsible for them. A periodic reconciliation sweep (off by default; toggle from the admin UI's HRW Placement page) drops those stale local copies after verifying the current primary holds the same-or-newer copy. Cassandra's `nodetool cleanup` equivalent.
 
-1. **Lock S3 traffic** — enable Maintenance Mode across the cluster.
-2. **Flush buffers** — push any in-memory part buffers to Data Nodes so nothing in flight is lost.
-3. **Cluster map update** — call `/admin/maintenance/partition/rebalance` on the leader, then disable Maintenance Mode.
-
-After rebalance, partitions whose ownership changed pull their metadata from the previous owner via the metadata pull protocol — no explicit "backup then restore" step is needed.
+See [Metadata Management](../features/metadata-management.md).
 
 ### Disk Repair
 
-When a disk fails, the admin UI's **Disk Repair** action scans for chunks affected by the dead disk and reconstructs them from EC parity onto the remaining healthy disks. The repair is logged in the partition action history and surfaced in the maintenance status feed. See [Disk Repair Service](../features/disk-repair.md).
+When a disk fails, the admin UI's **Disk Repair** action scans for chunks affected by the dead disk and reconstructs them from EC parity onto the remaining healthy disks. See [Disk Repair Service](../features/disk-repair.md).
 
 ### Bitrot Scrubbing
 
@@ -115,9 +111,9 @@ The cluster's runtime self-healing properties (EC parity reconstruction, bitrot 
 
 ## Scaling
 
-- **Adding an API Server** — start a new node pointing at the same ZK ensemble and master key. It joins as a follower, pulls KMS/IAM from the leader, and is eligible for partition reassignment on the next rebalance. Run **Smart Rebalance** to redistribute partitions onto the new node.
-- **Adding a Data Node** — start a new Data Node pointing at the same ZK ensemble. It registers with `ready=false`, pulls KMS from the leader, and becomes available for new chunk writes. Existing chunks are not migrated; they remain on their original Data Nodes until rebalanced.
-- **Removing a node** — drain new writes via Maintenance Mode, run **Smart Rebalance** (for an API Server) or evacuate chunks via the disk repair flow (for a Data Node), then stop the process.
+- **Adding an API Server** — start a new node pointing at the same ZK ensemble and master key. It joins as a follower, pulls KMS/IAM from the leader, and immediately runs a one-shot bootstrap snapshot pull from every peer to materialise the metadata it now owns under HRW. No maintenance window required. Once the cluster is steady, enable the reconciliation sweep on the older nodes to free metadata they no longer own.
+- **Adding a Data Node** — start a new Data Node pointing at the same ZK ensemble. It registers with `ready=false`, pulls KMS from the leader, and becomes available for new chunk writes immediately. New chunks land on the new node according to HRW; existing chunks stay on their original Data Nodes (replacement happens lazily as objects are rewritten or the disk repair flow runs).
+- **Removing a node** — drain new writes via Maintenance Mode (optional), stop the process. HRW automatically re-routes new writes to the surviving nodes; existing data on the lost node is reconstructible from EC parity (data) or replicated copies (metadata, when R ≥ 2).
 
 ## Upgrades
 
