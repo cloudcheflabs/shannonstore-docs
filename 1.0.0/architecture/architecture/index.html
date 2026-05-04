@@ -1305,41 +1305,36 @@
 <h3 id="control-logic-layer-api-servers">Control &amp; Logic Layer (API Servers)</h3>
 <p>API Servers are the "brain" of ShannonStore. They terminate the S3 protocol, enforce security, and orchestrate data movement across the storage tier.</p>
 <ul>
-<li><strong>S3 protocol handling</strong> — Processes RESTful requests and emits S3-compliant XML/JSON responses, including SigV4 authentication, multipart upload, list-objects, and STS AssumeRole.</li>
-<li><strong>Metadata management (RocksDB)</strong> — Object locations, sizes, ETags, and per-part MD5 checksums are stored in per-shard RocksDB sub-stores on every API node. Keys are first hashed to one of 65,536 fixed vbuckets (Murmur3 mod 65,536); each vbucket's top-R API nodes by HRW (Rendezvous Hashing) score are its owners (default <code>R = 2</code>). Per node, vbuckets are grouped into N RocksDB sub-stores (default <code>N = 16</code>) that can be striped across multiple disks via <code>shannonstore.api.metadata.rocksdb.dirs</code>.</li>
-<li><strong>Security</strong> — Granular Role-Based Access Control through users, groups, and policies. Data is encrypted at rest (SSE-S3, SSE-KMS) and in transit, with key material wrapped by a cluster-wide master key.</li>
-<li><strong>Request coordination</strong><ul>
-<li><strong>Writes:</strong> incoming object data is sliced into Erasure Coding shards (e.g., 2+1 or 4+2) and transmitted in parallel to Data Nodes.</li>
-<li><strong>Reads:</strong> shards are fetched from multiple Data Nodes and the original object is reconstructed via EC decoding. Missing or corrupt shards are reconstructed from parity.</li>
-</ul>
-</li>
+<li><strong>S3 protocol handling</strong> — Standard S3 over HTTPS: SigV4 authentication, multipart upload, list-objects, and STS AssumeRole.</li>
+<li><strong>Metadata management</strong> — Object location and metadata is distributed across the API tier and replicated for durability. Adding or removing an API node moves only the small fraction of keys whose ownership changed — no cluster-wide rebalance window.</li>
+<li><strong>Security</strong> — Role-based access control through users, groups, and policies. Data is encrypted at rest (SSE-S3, SSE-KMS) and in transit, with key material wrapped by a cluster-wide master key.</li>
+<li><strong>Erasure coding</strong> — Each object is split into data + parity shards on write and reconstructed from any healthy subset on read. Disk loss is transparent to the client.</li>
 </ul>
 <h3 id="storage-layer-data-nodes">Storage Layer (Data Nodes)</h3>
 <p>Data Nodes are the "warehouse" of the cluster. They persist binary fragments to local disks and serve them to API Servers on demand.</p>
 <ul>
-<li><strong>Chunk store</strong> — Data is stored as plain files on the filesystem under hash-bucketed directories, not inside RocksDB. Chunks belong to one of the configured storage paths; multi-disk packing distributes them by disk to balance load.</li>
-<li><strong>High-throughput NIO</strong> — A non-blocking NIO server handles concurrent shard transfers with bounded buffers, sized for high-throughput, large-object workloads.</li>
-<li><strong>Metadata-blind</strong> — Data Nodes know nothing about object keys, ACLs, or encryption metadata; they store and retrieve bytes keyed by Chunk ID. This separation maximises horizontal scalability.</li>
-<li><strong>Bitrot scrubbing</strong> — A configurable background scrubber walks each disk, recomputes shard checksums, and triggers EC-based repair on mismatch.</li>
+<li>Stored on plain files across multiple disks for high throughput and predictable behaviour.</li>
+<li>Concurrent shard transfers via an asynchronous network layer.</li>
+<li>Data Nodes know nothing about object keys, ACLs, or encryption metadata — they store and retrieve bytes by chunk identifier. This separation lets the storage tier scale independently of the request tier.</li>
+<li>A background scrubber checks data integrity over time and repairs silent corruption automatically.</li>
 </ul>
 <h3 id="coordination-layer-zookeeper">Coordination Layer (ZooKeeper)</h3>
-<p>ZooKeeper is the "nervous system" of the cluster — the source of truth for membership and global cluster state.</p>
+<p>ZooKeeper provides cluster membership, leader election, and the readiness signal that gates client traffic.</p>
 <ul>
-<li><strong>Service discovery</strong> — All API and Data nodes register under <code>/s3/discovery/{api,data}</code> with their address, ports, capacity, and ready flag.</li>
-<li><strong>Leader election</strong> — A Curator <code>LeaderLatch</code> under <code>/s3/masters/leader</code> elects exactly one API Server as the cluster controller. The leader owns IAM/KMS broadcast and cluster-wide readiness signaling. A persistent <code>/s3/coordinator-leader-id</code> znode + startup deference window biases re-elections so the same node tends to win after restart (sticky leader).</li>
-<li><strong>Cluster readiness signaling</strong> — Three persistent znodes coordinate startup and runtime gating:<ul>
-<li><code>/s3/active-leader</code> — the current leader’s ID, host, and ports. Read by Data Nodes to target the leader directly for KMS pulls.</li>
-<li><code>/s3/leader-ready</code> — flips to <code>true</code> once the new leader has finished its KMS/IAM init. Followers and Data Nodes block on this before pulling state.</li>
-<li><code>/s3/cluster-ready</code> — flips to <code>true</code> once <em>every</em> node has registered ready in ZK. Request handlers gate every incoming S3 request on this signal, so traffic is rejected with 503 during a leader transition or partial-readiness window.</li>
+<li><strong>Service discovery</strong> — every node registers itself and its readiness state.</li>
+<li><strong>Sticky leader election</strong> — exactly one API node is elected leader; on restart, the previous leader tends to win re-election so the cluster minimises state movement.</li>
+<li><strong>Cluster opening guarantees</strong>:<ul>
+<li>Traffic is accepted only after every API node and at least one data node is ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.</li>
+<li>Default <code>admin/admin</code> credentials are created only on the very first bootstrap, never again. A leader whose local state looks empty for any local reason refuses to recreate defaults — your real IAM cannot be silently overwritten.</li>
 </ul>
 </li>
 </ul>
 <h3 id="architectural-properties">Architectural Properties</h3>
 <ul>
-<li><strong>Independent scalability</strong> — Storage capacity (Data Nodes) and request throughput + metadata capacity (API Servers) scale independently. HRW + 65,536 vbuckets means adding an API node moves only ~1/N of vbuckets, so scaling out doesn't require an offline rebalance.</li>
-<li><strong>Fault tolerance</strong> — Data Node and disk failures are masked by EC parity (configurable D + P). API Server failures trigger ZooKeeper-mediated re-election; surviving owners under HRW + replication factor R cover the lost node's metadata.</li>
-<li><strong>Single source of truth</strong> — The leader's local KMS and IAM RocksDB are the cluster's canonical state. Followers and Data Nodes pull from the leader on every startup or restart and overwrite their local stores. IAM mutations always route to the leader (followers proxy via HTTP), so its RocksDB cannot be overwritten by a stale follower's snapshot.</li>
-<li><strong>Pluggable disaster recovery</strong> — In-cluster chunk-based backup of system state has been removed in favour of an external destination (e.g., a different S3 bucket). This keeps the runtime path lean and aligns disaster recovery with industry-standard offsite-backup practice.</li>
+<li><strong>Independent scalability</strong> — Storage capacity (Data Nodes) and request + metadata capacity (API Servers) scale independently. Membership changes move only the affected slice of data.</li>
+<li><strong>Fault tolerance</strong> — Data Node and disk failures are masked by erasure-coded parity. API Server failures trigger automatic re-election; surviving replicas cover the lost node's metadata until it returns.</li>
+<li><strong>Single source of truth</strong> — IAM and KMS state always live on the leader. Followers and Data Nodes synchronise from the leader on every restart and on every change at runtime.</li>
+<li><strong>Pluggable disaster recovery</strong> — In-cluster system-state backup has been removed in favour of an external destination (e.g., a different S3 bucket), aligning disaster recovery with standard offsite-backup practice.</li>
 </ul>
 
 

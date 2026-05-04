@@ -1201,11 +1201,11 @@
 
 
 <h1 id="network-internal-communication">Network &amp; Internal Communication</h1>
-<p>ShannonStore nodes communicate via a custom binary NIO RPC protocol.</p>
+<p>ShannonStore nodes communicate over a high-performance internal channel optimised for cluster traffic.</p>
 <ul>
-<li>A lightweight binary protocol with request-reply correlation enables efficient concurrent operations between nodes.</li>
-<li>Supports transparent network compression for payloads above a configurable threshold.</li>
-<li>TCP socket parameters are tunable for optimal throughput and low latency.</li>
+<li>Lightweight, concurrent request/reply between nodes — designed for low overhead at high fan-out.</li>
+<li>Transparent compression of larger payloads to reduce inter-node bandwidth.</li>
+<li>Tunable transport parameters for throughput- or latency-sensitive deployments.</li>
 </ul>
 
 

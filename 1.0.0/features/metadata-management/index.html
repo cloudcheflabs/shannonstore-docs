@@ -978,10 +978,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#placement-model" class="md-nav__link">
+  <a href="#how-keys-are-placed" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Placement model
+        How keys are placed
       
     </span>
   </a>
@@ -989,10 +989,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#storage-layout-per-api-node" class="md-nav__link">
+  <a href="#storage-on-each-node" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Storage layout (per API node)
+        Storage on each node
       
     </span>
   </a>
@@ -1000,10 +1000,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#replication" class="md-nav__link">
+  <a href="#replication-freshness" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Replication
+        Replication &amp; freshness
       
     </span>
   </a>
@@ -1011,10 +1011,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#membership-change" class="md-nav__link">
+  <a href="#membership-changes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Membership change
+        Membership changes
       
     </span>
   </a>
@@ -1022,10 +1022,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#read-path" class="md-nav__link">
+  <a href="#reads" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Read path
+        Reads
       
     </span>
   </a>
@@ -1293,37 +1293,17 @@
 
 
 <h1 id="metadata-management">Metadata Management</h1>
-<p>ShannonStore manages object metadata via a vbucket-on-HRW model with per-shard RocksDB sub-stores.</p>
-<h2 id="placement-model">Placement model</h2>
-<ul>
-<li>Every key is hashed to one of <strong>65,536 fixed vbuckets</strong> (Murmur3 mod 65,536).</li>
-<li>Each vbucket's <strong>top-R API nodes</strong> by HRW (Rendezvous Hashing) score are its owners; the highest-scoring is the primary, the rest are replicas. Default <code>R = 2</code> (<code>shannonstore.api.metadata.replication.factor</code>).</li>
-<li>Per-key ownership lookup is O(1) — the vbucket→owner table is cached and only invalidated when the live API node set changes.</li>
-<li>Adding or removing a node moves only ~1/N of vbuckets (HRW invariant), and every key inside a moved vbucket moves together.</li>
-</ul>
-<h2 id="storage-layout-per-api-node">Storage layout (per API node)</h2>
-<ul>
-<li>Metadata lives in <strong>N RocksDB sub-stores</strong>, one per shard, where each shard owns a contiguous vbucket range. Default <code>N = 16</code> (<code>shannonstore.api.metadata.rocksdb.shards</code>); 65,536 must be evenly divisible.</li>
-<li>Shards can be <strong>striped across multiple disks</strong> via <code>shannonstore.api.metadata.rocksdb.dirs=/disk1,/disk2,...</code> — shard <code>i</code> lands on <code>dirs[i % len]/shard-i/</code>, so compaction and IO are isolated per disk.</li>
-<li>An in-memory LRU caches the most recently-read entries (<code>shannonstore.api.metadata.latest.cache.size</code>).</li>
-</ul>
-<h2 id="replication">Replication</h2>
-<ul>
-<li>Default mode: <strong><code>PULL</code></strong> (<code>shannonstore.api.metadata.replication.mode</code>). The primary commits locally and acks the client; replicas pull new entries every 500 ms (<code>shannonstore.api.metadata.pull.interval.ms</code>) using a per-peer cursor and HRW-scoped filtering.</li>
-<li>Optional modes: <code>SYNC</code> (primary waits for every replica ACK) and <code>ASYNC_PUSH</code> (primary fans out off the hot path).</li>
-<li>New or restarting nodes pull a one-shot <strong>bootstrap snapshot</strong> from every peer after <code>cluster-ready</code>, so they start with everything they own under HRW.</li>
-</ul>
-<h2 id="membership-change">Membership change</h2>
-<ul>
-<li>Node added/removed → vbucket ownership shifts → new owners pull missing keys via the PULL cycle (or push fan-out in SYNC/ASYNC_PUSH).</li>
-<li>A periodic <strong>reconciliation sweep</strong> (off by default; <code>shannonstore.api.metadata.reconcile.enabled</code>) drops local copies that this node is no longer an owner of, after verifying the current primary holds the same-or-newer copy. Cassandra's <code>nodetool cleanup</code> equivalent.</li>
-</ul>
-<h2 id="read-path">Read path</h2>
-<ul>
-<li>Local hit → return.</li>
-<li>Local miss + I am an owner: in <code>SYNC</code> mode return null (every owner committed before the client ack); in <code>PULL</code>/<code>ASYNC_PUSH</code> modes fall back to the primary so a client GET that nginx routed to a lagging owner doesn't see a spurious 404.</li>
-<li>Local miss + I am not an owner → fetch from the primary via the metadata fetch RPC.</li>
-</ul>
+<p>ShannonStore's object metadata (which chunk lives on which disk, sizes, ETags, versions) is distributed and replicated across the API tier so any node can serve any request and a single node failure never loses access to your objects.</p>
+<h2 id="how-keys-are-placed">How keys are placed</h2>
+<p>Each <code>(bucket, key)</code> is owned by a fixed number of API nodes (default <strong>2</strong>). When a node joins or leaves the cluster, only the small fraction of keys whose ownership changed is moved — there is no full rebalance window or migration tool to run.</p>
+<h2 id="storage-on-each-node">Storage on each node</h2>
+<p>Metadata on each API node is split into multiple internal stores so that compaction and disk IO don't pile up on a single store as the cluster grows. These stores can be <strong>striped across multiple physical disks</strong> to scale IO further — useful for very large deployments.</p>
+<h2 id="replication-freshness">Replication &amp; freshness</h2>
+<p>The default replication mode is <strong>PULL</strong>: writes commit on one node and are acknowledged immediately, while replicas catch up asynchronously. This gives the lowest write latency. Optional <strong>synchronous</strong> mode is available when stronger freshness is required.</p>
+<h2 id="membership-changes">Membership changes</h2>
+<p>Adding or removing an API node automatically reshuffles only the affected keys. Joining nodes pull what they're now responsible for; leaving nodes' keys are immediately picked up by the surviving owners. An optional periodic sweep can clean up local copies of keys a node no longer owns (Cassandra-style cleanup) — disabled by default, opt-in from the admin UI.</p>
+<h2 id="reads">Reads</h2>
+<p>Reads are served locally if the node holds the key. Otherwise the node fetches it from the responsible peer transparently — clients never need to know which node holds what.</p>
 
 
 

@@ -1411,19 +1411,19 @@
 <tbody>
 <tr>
 <td><code>8080</code></td>
-<td>S3 API (raw NIO HTTP) — point S3 clients here</td>
+<td>S3 API — point S3 clients here</td>
 </tr>
 <tr>
 <td><code>8888</code></td>
-<td>Admin port (Netty HTTP, includes the admin UI at <code>/admin</code>)</td>
+<td>Admin UI and admin API (browse <code>/admin</code>)</td>
 </tr>
 <tr>
 <td><code>9000</code></td>
-<td>Internal NIO RPC (peer API ↔ API and API ↔ Data communication)</td>
+<td>Internal cluster communication</td>
 </tr>
 </tbody>
 </table>
-<p>Data Nodes are wired to NIO ports <code>9001</code>, <code>9002</code>, <code>9003</code>, each with two storage directories on local disk.</p>
+<p>Data Nodes use ports <code>9001</code>, <code>9002</code>, <code>9003</code>, each with two storage directories on local disk.</p>
 <p>To stop the example cluster:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>bin/stop-example-servers.sh
 </code></pre></div>
@@ -1439,7 +1439,7 @@
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  -Dshannonstore.api.admin.port=8888 \
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  -Dshannonstore.nio.port=9000
 </code></pre></div>
-<p>Repeat with different port triples on each host (or container) to scale the API tier horizontally. All API Servers join the same <code>/s3/masters/leader</code> Curator latch — exactly one becomes leader.</p>
+<p>Repeat with different port triples on each host (or container) to scale the API tier horizontally. The cluster automatically elects exactly one API Server as leader.</p>
 <h3 id="data-node">Data Node</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>bin/start-data-node.sh \
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  -Dshannonstore.nio.port=9001 \
@@ -1452,7 +1452,7 @@
 <p>Once nodes are up, the admin port exposes a health endpoint:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>curl http://localhost:8888/admin/health
 </code></pre></div>
-<p>While a node is still pulling KMS/IAM from the leader, this returns <code>503</code> with a <code>STARTING</code> payload. Once the cluster-wide readiness znode flips to <code>true</code>, the same endpoint returns <code>200 UP</code>. The same gate applies to the S3 port — clients receive <code>503 Retry-After: 5</code> until the cluster is ready.</p>
+<p>While the cluster is still starting up, this endpoint reports the node as not ready. Once every API Server has synchronised state from the leader and at least one Data Node is registered, the endpoint reports the node as ready and the S3 port begins accepting client requests.</p>
 <p>For the next step — creating a bucket, an access key, and uploading an object — continue to <a href="../getting-started/">Getting Started</a>.</p>
 
 

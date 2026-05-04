@@ -1182,16 +1182,16 @@
 <h1 id="backup-restore">Backup &amp; Restore</h1>
 <div class="admonition info">
 <p class="admonition-title">Redesign in progress</p>
-<p>The previous in-cluster backup mechanism — which stored encrypted IAM, KMS, and metadata snapshots inside Data Nodes as <code>_system_*</code> chunks — has been removed. ShannonStore is moving to an external-target design where backups are written to a separate S3 destination (a different bucket, region, or storage system), aligning disaster recovery with industry-standard offsite-backup practice.</p>
+<p>The previous in-cluster backup mechanism has been removed. ShannonStore is moving to an external-target design where backups are written to a separate destination (a different bucket, region, or storage system), aligning disaster recovery with industry-standard offsite-backup practice.</p>
 </div>
 <p>This feature is in active design and not yet available. Until it ships, the cluster's runtime self-healing properties cover in-flight failures:</p>
 <ul>
-<li><strong>EC parity reconstruction</strong> — see <a href="../ec/">Erasure Coding</a>.</li>
+<li><strong>Erasure coding parity reconstruction</strong> — see <a href="../ec/">Erasure Coding</a>.</li>
 <li><strong>Bitrot scrubbing</strong> — see <a href="../data-integrity/">Data Integrity</a>.</li>
 <li><strong>Disk repair service</strong> — see <a href="../disk-repair/">Disk Repair Service</a>.</li>
-<li><strong>Leader re-election with deterministic cluster-ready signaling</strong> — see <a href="../../operations/operations/">Cluster Operations</a>.</li>
+<li><strong>Automatic leader re-election with deterministic readiness signaling</strong> — see <a href="../../operations/operations/">Cluster Operations</a>.</li>
 </ul>
-<p>For deployments that need offsite disaster recovery today, snapshot the leader's KMS and IAM RocksDB out-of-band as part of your existing backup tooling.</p>
+<p>For deployments that need offsite disaster recovery today, snapshot the leader's identity and key state out-of-band as part of your existing backup tooling.</p>
 
 
 
