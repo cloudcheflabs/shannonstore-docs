@@ -14,8 +14,6 @@ ShannonStore provides a fully compatible Amazon S3 REST API, allowing applicatio
 - **ETag**: Returned on PUT, GET, HEAD, ListObjects, UploadPart, and CompleteMultipartUpload responses. Single-PUT objects use the MD5 of the plaintext body; multipart-completed objects use the standard `MD5(concatenation of part MD5s) + "-N"` composite form, so AWS SDKs and `aws s3 cp` can verify object integrity.
 - **Content-MD5 Verification**: When a client provides the `Content-MD5` request header on PUT or UploadPart, the server recomputes MD5 of the received body and rejects the write with `400 BadDigest` on mismatch.
 
-## Server Architecture
+## Two-port design
 
-The S3 API runs on a custom NIO HTTP server with a two-port design:
-- **S3 Port** (default 8080): Optimized for high-throughput object storage operations.
-- **Admin Port** (default 8888): Serves the Admin UI, REST API, and cluster management endpoints.
+Object storage and admin/management traffic run on separate ports (defaults 8080 and 8888), so admin tooling and cluster operations never compete with the data path.
