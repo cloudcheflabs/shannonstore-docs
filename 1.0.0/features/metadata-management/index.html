@@ -927,6 +927,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata Management
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -943,6 +961,80 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#placement-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Placement model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storage-layout-per-api-node" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage layout (per API node)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#replication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Replication
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#membership-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Membership change
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read path
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1201,12 +1293,36 @@
 
 
 <h1 id="metadata-management">Metadata Management</h1>
-<p>ShannonStore manages object metadata through a partitioned, replicated, and cached architecture.</p>
+<p>ShannonStore manages object metadata via a vbucket-on-HRW model with per-shard RocksDB sub-stores.</p>
+<h2 id="placement-model">Placement model</h2>
 <ul>
-<li>Metadata is stored in RocksDB and distributed across configurable partitions, each with a primary node and replicas for fault tolerance.</li>
-<li>A two-tier caching layer (in-memory + RocksDB block cache) provides fast lookups without disk I/O for frequently accessed objects.</li>
-<li>Partition assignments are automatically rebalanced when nodes join or leave the cluster.</li>
-<li>Writes replicate asynchronously to replicas; reads follow a fallback chain from local cache to primary to replicas.</li>
+<li>Every key is hashed to one of <strong>65,536 fixed vbuckets</strong> (Murmur3 mod 65,536).</li>
+<li>Each vbucket's <strong>top-R API nodes</strong> by HRW (Rendezvous Hashing) score are its owners; the highest-scoring is the primary, the rest are replicas. Default <code>R = 2</code> (<code>shannonstore.api.metadata.replication.factor</code>).</li>
+<li>Per-key ownership lookup is O(1) — the vbucket→owner table is cached and only invalidated when the live API node set changes.</li>
+<li>Adding or removing a node moves only ~1/N of vbuckets (HRW invariant), and every key inside a moved vbucket moves together.</li>
+</ul>
+<h2 id="storage-layout-per-api-node">Storage layout (per API node)</h2>
+<ul>
+<li>Metadata lives in <strong>N RocksDB sub-stores</strong>, one per shard, where each shard owns a contiguous vbucket range. Default <code>N = 16</code> (<code>shannonstore.api.metadata.rocksdb.shards</code>); 65,536 must be evenly divisible.</li>
+<li>Shards can be <strong>striped across multiple disks</strong> via <code>shannonstore.api.metadata.rocksdb.dirs=/disk1,/disk2,...</code> — shard <code>i</code> lands on <code>dirs[i % len]/shard-i/</code>, so compaction and IO are isolated per disk.</li>
+<li>An in-memory LRU caches the most recently-read entries (<code>shannonstore.api.metadata.latest.cache.size</code>).</li>
+</ul>
+<h2 id="replication">Replication</h2>
+<ul>
+<li>Default mode: <strong><code>PULL</code></strong> (<code>shannonstore.api.metadata.replication.mode</code>). The primary commits locally and acks the client; replicas pull new entries every 500 ms (<code>shannonstore.api.metadata.pull.interval.ms</code>) using a per-peer cursor and HRW-scoped filtering.</li>
+<li>Optional modes: <code>SYNC</code> (primary waits for every replica ACK) and <code>ASYNC_PUSH</code> (primary fans out off the hot path).</li>
+<li>New or restarting nodes pull a one-shot <strong>bootstrap snapshot</strong> from every peer after <code>cluster-ready</code>, so they start with everything they own under HRW.</li>
+</ul>
+<h2 id="membership-change">Membership change</h2>
+<ul>
+<li>Node added/removed → vbucket ownership shifts → new owners pull missing keys via the PULL cycle (or push fan-out in SYNC/ASYNC_PUSH).</li>
+<li>A periodic <strong>reconciliation sweep</strong> (off by default; <code>shannonstore.api.metadata.reconcile.enabled</code>) drops local copies that this node is no longer an owner of, after verifying the current primary holds the same-or-newer copy. Cassandra's <code>nodetool cleanup</code> equivalent.</li>
+</ul>
+<h2 id="read-path">Read path</h2>
+<ul>
+<li>Local hit → return.</li>
+<li>Local miss + I am an owner: in <code>SYNC</code> mode return null (every owner committed before the client ack); in <code>PULL</code>/<code>ASYNC_PUSH</code> modes fall back to the primary so a client GET that nginx routed to a lagging owner doesn't see a spurious 404.</li>
+<li>Local miss + I am not an owner → fetch from the primary via the metadata fetch RPC.</li>
 </ul>
 
 

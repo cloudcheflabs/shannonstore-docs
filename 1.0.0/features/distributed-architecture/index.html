@@ -748,6 +748,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#cluster-coordination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cluster coordination
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#two-port-architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1274,15 +1285,25 @@
 <p>ShannonStore follows a disaggregated architecture with clear separation between control plane and data plane.</p>
 <h2 id="api-nodes-control-plane">API Nodes (Control Plane)</h2>
 <ul>
-<li>Handle S3 protocol requests, manage object metadata, and coordinate cluster operations (leader election, partition assignment, backup/restore).</li>
+<li>Handle S3 protocol requests, manage object metadata, and coordinate cluster operations (leader election, IAM/KMS state).</li>
 <li>Perform erasure coding, encryption, and compression before distributing data to Data Nodes.</li>
+<li>Use <strong>HRW (Rendezvous Hashing) with a 65,536 vbucket layer</strong> to assign each (bucket,key) to its top-R owner nodes for metadata replication, and to assign each chunk to its top-(D+P) data-node disks.</li>
 <li>Serve the Admin UI and Admin API on a dedicated port.</li>
 </ul>
 <h2 id="data-nodes-data-plane">Data Nodes (Data Plane)</h2>
 <ul>
-<li>Store raw data chunks (erasure-coded shards) on local disks.</li>
+<li>Store erasure-coded shards as plain files on local disks.</li>
 <li>Serve chunk read/write requests from API Nodes and report disk health to the cluster.</li>
 <li>Support multi-disk configurations for scalable storage capacity.</li>
+</ul>
+<h2 id="cluster-coordination">Cluster coordination</h2>
+<ul>
+<li>ZooKeeper holds the live membership (<code>/shannonstore-{api,data}</code>) and three readiness signals:</li>
+<li><code>/s3/leader-ready</code> — the leader has finished its own KMS/IAM init and peers may pull state from it.</li>
+<li><code>/s3/cluster-ready</code> — every API + data node has registered ready=true. S3 and admin paths reject requests with HTTP 503 until this flips true (a peer may still be initialising before this).</li>
+<li><code>/s3/coordinator-leader-id</code> — sticky leader hint so the same node tends to win re-elections after restart.</li>
+<li>Followers and data nodes block on <code>/s3/leader-ready</code> before pulling KMS/IAM from the leader.</li>
+<li>IAM mutations (login/password, IAM keys, bucket creation, STS) are forwarded to the leader so its RocksDB is the single source of truth; followers never push their own IAM snapshot.</li>
 </ul>
 <h2 id="two-port-architecture">Two-Port Architecture</h2>
 <ul>

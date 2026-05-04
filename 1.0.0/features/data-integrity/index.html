@@ -1263,13 +1263,13 @@
 <p>ShannonStore protects every stored byte against silent corruption (bitrot) with end-to-end checksums, and includes an optional background scrubber for proactive verification of cold data.</p>
 <h2 id="per-shard-crc32c">Per-Shard CRC32C</h2>
 <ul>
-<li>A CRC32C checksum is computed for each erasure-coded shard at write time and stored in the object's metadata, so it travels with the shard reference and is replicated alongside the metadata partition.</li>
+<li>A CRC32C checksum is computed for each erasure-coded shard at write time and stored in the object's metadata, so it travels with the shard reference and is replicated alongside the metadata to every HRW owner of the key.</li>
 <li>On every read, the shard's bytes are re-checksummed before being passed to EC decode. A mismatch causes the shard to be treated as missing, and the original data is reconstructed from parity instead — the corrupt bytes never reach the client.</li>
 <li>Hardware-accelerated CRC32C keeps the cost negligible on the hot path; existing objects without recorded checksums fall through verification and remain readable until rewritten.</li>
 </ul>
 <h2 id="bitrot-scrubber-optional">Bitrot Scrubber (optional)</h2>
 <ul>
-<li>A background service that periodically reads every shard owned by the local API node, recomputes its CRC32C, and verifies it against the stored value. Mismatched shards are rebuilt from EC parity onto a healthy disk through the disk repair pipeline.</li>
+<li>A background service that periodically reads every shard belonging to keys this API node currently owns under HRW, recomputes its CRC32C, and verifies it against the stored value. Mismatched shards are rebuilt from EC parity onto a healthy disk through the disk repair pipeline. The HRW gate avoids R-fold duplicate scrubbing across replicas.</li>
 <li><strong>Disabled by default.</strong> Toggled at runtime from the Admin UI (Maintenance → Bitrot Scrubber); the on/off decision is persisted to a small state file so it survives API node restarts without redeployment.</li>
 <li>Configurable scan interval, per-node concurrency, and chunk-per-second rate limit keep scrubbing off the hot path of normal client traffic.</li>
 <li>Cycles can be triggered manually from the Admin UI for ad-hoc verification, and live counters (scanned / corrupt detected / repaired / failed) are visible while a scan is running.</li>

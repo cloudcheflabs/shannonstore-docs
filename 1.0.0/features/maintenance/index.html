@@ -1203,8 +1203,9 @@
 <h1 id="maintenance-mode">Maintenance Mode</h1>
 <p>ShannonStore supports a global maintenance mode for safe cluster-wide operations.</p>
 <ul>
-<li>When activated, all S3 API requests are temporarily rejected while admin operations remain available.</li>
-<li>Used during partition rebalancing, cluster-wide backups, and other operations that require consistent cluster state.</li>
+<li>When activated, all S3 API requests are temporarily rejected (HTTP 503 with <code>Retry-After</code>) while admin operations remain available.</li>
+<li>Used to flush in-flight buffers (<code>/admin/maintenance/flush</code>) before disruptive operations and to gate the cluster while administrators inspect or repair state.</li>
+<li>Membership changes (adding/removing API or data nodes) do <strong>not</strong> require maintenance mode — HRW + vbucket placement recomputes ownership automatically and the metadata pull cycle / bootstrap snapshot fills the new node in. Maintenance mode is a defensive lever, not a routine operation.</li>
 </ul>
 
 

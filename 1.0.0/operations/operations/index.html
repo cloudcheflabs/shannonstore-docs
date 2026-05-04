@@ -1359,10 +1359,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#smart-rebalance" class="md-nav__link">
+  <a href="#hrw-reconciliation-sweep" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Smart Rebalance
+        HRW Reconciliation Sweep
       
     </span>
   </a>
@@ -1468,7 +1468,7 @@
 <p>A ShannonStore deployment is composed of three process types:</p>
 <ul>
 <li><strong>ZooKeeper ensemble</strong> — used for cluster coordination, leader election, and discovery. The release archive ships an embedded single-node ZooKeeper for evaluation; production deployments use a dedicated ensemble (typically three or five nodes).</li>
-<li><strong>API Server</strong> — terminates the S3 protocol, owns metadata partitions, and orchestrates EC writes/reads. Two or more API Servers may run for high availability; one is elected leader for KMS/IAM ownership.</li>
+<li><strong>API Server</strong> — terminates the S3 protocol, owns metadata under HRW + vbucket placement, and orchestrates EC writes/reads. Two or more API Servers may run for high availability; one is elected leader for KMS/IAM ownership.</li>
 <li><strong>Data Node</strong> — owns chunks on local disks. Hosts the chunk store, KMS provider RocksDB warm cache, and the bitrot scrubber.</li>
 </ul>
 <p>All three are managed by shell scripts under <code>bin/</code> in the release archive.</p>
@@ -1501,7 +1501,7 @@
 <p>If the current leader is restarted, the surviving followers re-elect, the new leader resets <code>/s3/cluster-ready=false</code> for the duration of its own init, and the cycle repeats. This guarantees clients never see partial-readiness state.</p>
 <h2 id="observability">Observability</h2>
 <h3 id="admin-ui">Admin UI</h3>
-<p>Browse <code>http://&lt;api-host&gt;:&lt;admin-port&gt;/admin</code> to see the cluster snapshot — leader identity, registered nodes, partition primary/replica map, per-disk capacity and usage, KMS state, and recent partition actions. The UI is served by the API Server's admin port; any API Server can serve it.</p>
+<p>Browse <code>http://&lt;api-host&gt;:&lt;admin-port&gt;/admin</code> to see the cluster snapshot — leader identity, registered nodes, per-node HRW ownership counts (Topology page → HRW Placement), per-disk capacity and usage, KMS state, and the reconciliation sweep stats. The UI is served by the API Server's admin port; any API Server can serve it.</p>
 <h3 id="health-endpoint">Health Endpoint</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>curl http://&lt;api-host&gt;:&lt;admin-port&gt;/admin/health
 </code></pre></div>
@@ -1513,18 +1513,13 @@
 <h2 id="maintenance-operations">Maintenance Operations</h2>
 <p>The admin UI exposes operational actions under the <strong>Nodes</strong> page. They are all admin-authenticated and proxy to the targeted node.</p>
 <h3 id="maintenance-mode">Maintenance Mode</h3>
-<p>Toggling <strong>Maintenance Mode</strong> rejects new S3 writes cluster-wide while allowing reads, in-flight requests to drain, and internal RPCs to continue. Use it before invasive operations — partition rebalance, scheduled disk replacement, or evacuating a node.</p>
+<p>Toggling <strong>Maintenance Mode</strong> rejects new S3 writes cluster-wide while allowing reads, in-flight requests to drain, and internal RPCs to continue. Use it before invasive operations like scheduled disk replacement or evacuating a node — but <strong>not</strong> for adding/removing API or data nodes, which HRW handles automatically without a maintenance window.</p>
 <p>See <a href="../../features/maintenance/">Maintenance Mode</a>.</p>
-<h3 id="smart-rebalance">Smart Rebalance</h3>
-<p>A three-phase orchestrated workflow that safely redistributes partitions when the API tier is scaled up or down:</p>
-<ol>
-<li><strong>Lock S3 traffic</strong> — enable Maintenance Mode across the cluster.</li>
-<li><strong>Flush buffers</strong> — push any in-memory part buffers to Data Nodes so nothing in flight is lost.</li>
-<li><strong>Cluster map update</strong> — call <code>/admin/maintenance/partition/rebalance</code> on the leader, then disable Maintenance Mode.</li>
-</ol>
-<p>After rebalance, partitions whose ownership changed pull their metadata from the previous owner via the metadata pull protocol — no explicit "backup then restore" step is needed.</p>
+<h3 id="hrw-reconciliation-sweep">HRW Reconciliation Sweep</h3>
+<p>After a node is added or removed, vbucket ownership shifts and some keys' previous owners are no longer responsible for them. A periodic reconciliation sweep (off by default; toggle from the admin UI's HRW Placement page) drops those stale local copies after verifying the current primary holds the same-or-newer copy. Cassandra's <code>nodetool cleanup</code> equivalent.</p>
+<p>See <a href="../../features/metadata-management/">Metadata Management</a>.</p>
 <h3 id="disk-repair">Disk Repair</h3>
-<p>When a disk fails, the admin UI's <strong>Disk Repair</strong> action scans for chunks affected by the dead disk and reconstructs them from EC parity onto the remaining healthy disks. The repair is logged in the partition action history and surfaced in the maintenance status feed. See <a href="../../features/disk-repair/">Disk Repair Service</a>.</p>
+<p>When a disk fails, the admin UI's <strong>Disk Repair</strong> action scans for chunks affected by the dead disk and reconstructs them from EC parity onto the remaining healthy disks. See <a href="../../features/disk-repair/">Disk Repair Service</a>.</p>
 <h3 id="bitrot-scrubbing">Bitrot Scrubbing</h3>
 <p>A background scrubber on each Data Node walks each disk on a configurable interval, recomputes per-shard CRC32C checksums, and triggers EC repair on mismatch. Disabled by default; enable via the admin UI per-node toggle. See <a href="../../features/data-integrity/">Data Integrity</a>.</p>
 <h2 id="disaster-recovery">Disaster Recovery</h2>
@@ -1532,9 +1527,9 @@
 <p>The cluster's runtime self-healing properties (EC parity reconstruction, bitrot scrubbing, disk repair, leader re-election) remain unchanged and continue to handle in-flight failures without operator intervention.</p>
 <h2 id="scaling">Scaling</h2>
 <ul>
-<li><strong>Adding an API Server</strong> — start a new node pointing at the same ZK ensemble and master key. It joins as a follower, pulls KMS/IAM from the leader, and is eligible for partition reassignment on the next rebalance. Run <strong>Smart Rebalance</strong> to redistribute partitions onto the new node.</li>
-<li><strong>Adding a Data Node</strong> — start a new Data Node pointing at the same ZK ensemble. It registers with <code>ready=false</code>, pulls KMS from the leader, and becomes available for new chunk writes. Existing chunks are not migrated; they remain on their original Data Nodes until rebalanced.</li>
-<li><strong>Removing a node</strong> — drain new writes via Maintenance Mode, run <strong>Smart Rebalance</strong> (for an API Server) or evacuate chunks via the disk repair flow (for a Data Node), then stop the process.</li>
+<li><strong>Adding an API Server</strong> — start a new node pointing at the same ZK ensemble and master key. It joins as a follower, pulls KMS/IAM from the leader, and immediately runs a one-shot bootstrap snapshot pull from every peer to materialise the metadata it now owns under HRW. No maintenance window required. Once the cluster is steady, enable the reconciliation sweep on the older nodes to free metadata they no longer own.</li>
+<li><strong>Adding a Data Node</strong> — start a new Data Node pointing at the same ZK ensemble. It registers with <code>ready=false</code>, pulls KMS from the leader, and becomes available for new chunk writes immediately. New chunks land on the new node according to HRW; existing chunks stay on their original Data Nodes (replacement happens lazily as objects are rewritten or the disk repair flow runs).</li>
+<li><strong>Removing a node</strong> — drain new writes via Maintenance Mode (optional), stop the process. HRW automatically re-routes new writes to the surviving nodes; existing data on the lost node is reconstructible from EC parity (data) or replicated copies (metadata, when R ≥ 2).</li>
 </ul>
 <h2 id="upgrades">Upgrades</h2>
 <p>ShannonStore supports rolling upgrades for compatible versions. JSON-serialised state (<code>ObjectMetadata</code>, <code>NodePayload</code>, IAM snapshots) carries <code>@JsonIgnoreProperties(ignoreUnknown=true)</code>, so an old node can read a newer node's payload without deserialisation errors. The recommended upgrade sequence:</p>
