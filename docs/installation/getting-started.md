@@ -14,7 +14,7 @@ The first sign-in uses the bootstrap credentials `admin` / `admin`. The UI immed
 
 <img width="1200" src="../../images/getting-started/dashboard.png"/>
 
-The dashboard shows the leader API server, registered Data Nodes, partition assignment, KMS state, and per-disk capacity.
+The dashboard shows the leader API server, registered Data Nodes, per-node HRW ownership counts, KMS state, and per-disk capacity.
 
 ## Create a Bucket and an Access Key
 
