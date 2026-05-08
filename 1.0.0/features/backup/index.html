@@ -11,6 +11,10 @@
         <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/backup/">
       
       
+        <link rel="prev" href="../maintenance/">
+      
+      
+        <link rel="next" href="../configuration/">
       
       
         
@@ -111,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Backup &amp; Restore
+              Backup & Restore
             
           </span>
         </div>
@@ -269,10 +273,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../s3-compatible-api/" class="md-tabs__link">
           
   
@@ -572,26 +578,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -609,7 +620,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1016,6 +1027,158 @@
                 
   
   
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & Restore
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & Restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-gets-backed-up" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Gets Backed Up
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#incremental-by-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incremental by Design
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#history-retention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        History Retention
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compared-to-object-level-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compared to Object-Level Tools
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#restore" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restore
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
   
   
     <li class="md-nav__item">
@@ -1180,18 +1343,50 @@
 
 
 <h1 id="backup-restore">Backup &amp; Restore</h1>
-<div class="admonition info">
-<p class="admonition-title">Redesign in progress</p>
-<p>The previous in-cluster backup mechanism has been removed. ShannonStore is moving to an external-target design where backups are written to a separate destination (a different bucket, region, or storage system), aligning disaster recovery with industry-standard offsite-backup practice.</p>
-</div>
-<p>This feature is in active design and not yet available. Until it ships, the cluster's runtime self-healing properties cover in-flight failures:</p>
+<p>ShannonStore can periodically ship the entire cluster's state — IAM, KMS, metadata indexes, and every data node's chunk store — to an external S3-compatible target on a schedule. The backup is incremental and opt-in.</p>
+<p>The destination is any AWS-compatible S3 endpoint: another ShannonStore cluster, MinIO, AWS S3, or similar. Pointing it at a different cluster gives you a true offsite copy.</p>
+<h2 id="what-gets-backed-up">What Gets Backed Up</h2>
+<p>A single backup run captures both halves of the cluster's state under one shared backup id, so any single restore reassembles a consistent point in time:</p>
 <ul>
-<li><strong>Erasure coding parity reconstruction</strong> — see <a href="../ec/">Erasure Coding</a>.</li>
-<li><strong>Bitrot scrubbing</strong> — see <a href="../data-integrity/">Data Integrity</a>.</li>
-<li><strong>Disk repair service</strong> — see <a href="../disk-repair/">Disk Repair Service</a>.</li>
-<li><strong>Automatic leader re-election with deterministic readiness signaling</strong> — see <a href="../../operations/operations/">Cluster Operations</a>.</li>
+<li><strong>API server (leader)</strong> — IAM RocksDB, KMS RocksDB, metadata / index RocksDB, metrics &amp; history stores.</li>
+<li><strong>Every data node</strong> — the raw chunk-store directories (one per configured storage disk).</li>
 </ul>
-<p>For deployments that need offsite disaster recovery today, snapshot the leader's identity and key state out-of-band as part of your existing backup tooling.</p>
+<p>Each node uploads its own slice directly to the external S3, so the leader doesn't become a bottleneck and ShannonStore's internal S3 API isn't on the backup path.</p>
+<h2 id="configuration">Configuration</h2>
+<p>The <code>S3 Backup</code> page in the admin UI exposes the full configuration:</p>
+<ul>
+<li><strong>Enabled</strong> — master switch (default: off).</li>
+<li><strong>S3 endpoint, region, bucket, prefix</strong> — the destination.</li>
+<li><strong>Access key / secret key</strong> — long-lived static credentials for the destination.</li>
+<li><strong>Path-style addressing</strong> — required for ShannonStore / MinIO destinations.</li>
+<li><strong>Interval (minutes)</strong> — how often the scheduled backup runs.</li>
+<li><strong>Retention (days)</strong> — how long the visible history is kept (default 30).</li>
+</ul>
+<p>The same page also has a <strong>Test Connection</strong> button (probes the destination bucket) and a <strong>Backup now</strong> button (triggers an immediate backup).</p>
+<h2 id="incremental-by-design">Incremental by Design</h2>
+<p>Files are content-addressed: anything whose <code>(path, size, mtime)</code> hasn't changed is matched against the destination and skipped. The cost in steady state is one HEAD per file plus uploads of just the parts that actually changed. A re-run with no cluster activity uploads zero bytes.</p>
+<h2 id="history-retention">History Retention</h2>
+<p>Past runs show up in the admin UI and age out by the <strong>Retention (days)</strong> policy. When an entry passes retention it disappears from the visible list; the underlying objects stay in S3 unless an S3 lifecycle rule removes them. This keeps storage cleanup explicit — operators decide when to actually reclaim space.</p>
+<h2 id="compared-to-object-level-tools">Compared to Object-Level Tools</h2>
+<p><code>aws s3 sync</code> from one ShannonStore to another also works as a <em>data</em> export — it copies the user-visible objects through ShannonStore's S3 API. This built-in backup is a <em>cluster-state</em> copy: it includes the metadata, IAM, and KMS state without which a restored cluster wouldn't have any users, keys, or buckets at all. It also runs in parallel from each node directly to the destination, without re-assembling chunks through the S3 protocol on the way out.</p>
+<p>The two are complementary — pick "object sync" for data export, "S3 Backup" for disaster recovery.</p>
+<h2 id="restore">Restore</h2>
+<p>The same <code>S3 Backup</code> admin page lists the backup history. Each successful entry has a <strong>Restore</strong> button that points the cluster back at that snapshot.</p>
+<p>The flow is:</p>
+<ol>
+<li>Operator clicks <strong>Restore</strong> on the chosen history row.</li>
+<li>The leader API server pulls every file in that backup's manifest into staging directories that sit <em>next to</em> the live RocksDB / chunk-store dirs (e.g. <code>iam.restore-pending/</code>).</li>
+<li>The leader fans out the same request to every data node, which stages its own slice in parallel.</li>
+<li>The admin UI reports per-node staging results and asks the operator to <strong>restart the cluster</strong>.</li>
+<li>On the next process start, each component checks for staged dirs, archives the live one to <code>*.restore-old-&lt;ts&gt;/</code>, and atomically renames the staged dir into place.</li>
+</ol>
+<p>The two-stage design (stage now, swap on restart) avoids hot-swapping directories that RocksDB and the chunk store hold open file handles on. Old snapshots remain on disk as <code>*.restore-old-&lt;ts&gt;</code> until the operator removes them, so a restore is reversible by hand.</p>
+<p>Restore is leader-driven and writes through the same fan-out as backup; followers can read but not initiate.</p>
+<h2 id="limitations">Limitations</h2>
+<ul>
+<li>A node whose <code>advertisedHost</code> has changed since the backup will not find its manifest. Bring up the replacement node with the original host name first, or re-take a baseline backup before mutating cluster identity.</li>
+<li>The cluster restart in step 5 is operator-driven on purpose — the swap is a coordinated cluster-wide action, not a per-node one.</li>
+</ul>
 
 
 

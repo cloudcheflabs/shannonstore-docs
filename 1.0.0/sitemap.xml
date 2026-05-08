@@ -2,90 +2,90 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/architecture/architecture/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/auth-authz/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/backup/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/configuration/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/data-compression/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/data-integrity/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/disk-repair/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/distributed-architecture/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/ec/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/iam/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/kms/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/maintenance/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/metadata-management/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/monitoring/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/multi-disk-storage/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/network/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/performance/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/s3-compatible-api/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/installation/getting-started/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/installation/installation/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
     <url>
          <loc>https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/operations/operations/</loc>
-         <lastmod>2026-05-04</lastmod>
+         <lastmod>2026-05-08</lastmod>
     </url>
 </urlset>
