@@ -9,8 +9,8 @@ ShannonStore provides a fully compatible Amazon S3 REST API, allowing applicatio
 - **Multipart Upload**: Upload large objects in parallel parts, assembled on completion.
 - **Object Versioning**: Per-bucket versioning with unique version IDs, version history, and delete markers.
 - **Range Requests**: Partial object downloads for efficient large file access and resumable downloads.
-- **AWS Authentication**: Supports both AWS Signature V4 and legacy V2 authentication.
-- **Chunked Transfer Encoding**: Supports AWS SDK streaming upload format.
+- **AWS Authentication**: Supports both AWS Signature V4 and legacy V2 authentication. SigV4 verification handles partition-encoded keys (Iceberg / Hive-style `year=2026/month=05/...`) under default AWS SDK settings — no client-side workaround required.
+- **Chunked Transfer Encoding**: Supports AWS SDK streaming upload format for both regular and partition-encoded keys.
 - **ETag**: Returned on PUT, GET, HEAD, ListObjects, UploadPart, and CompleteMultipartUpload responses. Single-PUT objects use the MD5 of the plaintext body; multipart-completed objects use the standard `MD5(concatenation of part MD5s) + "-N"` composite form, so AWS SDKs and `aws s3 cp` can verify object integrity.
 - **Content-MD5 Verification**: When a client provides the `Content-MD5` request header on PUT or UploadPart, the server recomputes MD5 of the received body and rejects the write with `400 BadDigest` on mismatch.
 

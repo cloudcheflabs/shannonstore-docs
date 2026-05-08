@@ -53,6 +53,7 @@ nav:
       - "Multi-Disk Storage": features/multi-disk-storage.md
       - "Performance Optimization": features/performance.md
       - "Maintenance Mode": features/maintenance.md
+      - "Backup & Restore": features/backup.md
       - "Configuration Management": features/configuration.md
       - "Network & Internal Communication": features/network.md
   - "Operations":
