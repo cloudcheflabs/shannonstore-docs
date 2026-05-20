@@ -58,6 +58,7 @@ nav:
       - "Network & Internal Communication": features/network.md
   - "Operations":
       - "Cluster Operations": operations/operations.md
+      - "Nginx Reverse Proxy": operations/nginx-proxy.md
 
 
 extra:
