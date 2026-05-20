@@ -8,13 +8,11 @@
       
       
       
-        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/architecture/architecture/">
+        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/operations/nginx-proxy/">
       
       
-        <link rel="prev" href="../..">
+        <link rel="prev" href="../operations/">
       
-      
-        <link rel="next" href="../../installation/installation/">
       
       
         
@@ -25,7 +23,7 @@
     
     
       
-        <title>ShannonStore Architecture - ShannonStore</title>
+        <title>Nginx Reverse Proxy - ShannonStore</title>
       
     
     
@@ -78,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture" class="md-skip">
+        <a href="#nginx-reverse-proxy" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +113,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ShannonStore Architecture
+              Nginx Reverse Proxy
             
           </span>
         </div>
@@ -233,13 +231,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../architecture/architecture/" class="md-tabs__link">
           
   
   
@@ -295,11 +291,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../operations/operations/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../operations/" class="md-tabs__link">
           
   
   
@@ -376,31 +374,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
   
@@ -418,7 +411,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -433,37 +426,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ShannonStore Architecture
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../architecture/architecture/" class="md-nav__link">
         
   
   
@@ -479,87 +445,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#shannonstore-architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ShannonStore Architecture
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="ShannonStore Architecture">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#control-logic-layer-api-servers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Control &amp; Logic Layer (API Servers)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#storage-layer-data-nodes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Storage Layer (Data Nodes)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#coordination-layer-zookeeper" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Coordination Layer (ZooKeeper)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#architectural-properties" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Architectural Properties
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1226,26 +1111,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   
@@ -1263,7 +1153,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1281,7 +1171,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../operations/operations/" class="md-nav__link">
+      <a href="../operations/" class="md-nav__link">
         
   
   
@@ -1306,10 +1196,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../operations/nginx-proxy/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nginx Reverse Proxy
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1325,6 +1242,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-an-nginx-ingress" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why an nginx ingress
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-directives-and-why-they-matter-for-s3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key directives — and why they matter for S3
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deploying" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deploying
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1354,44 +1335,136 @@
 
 
 
-<h1 id="architecture">Architecture</h1>
-<p>ShannonStore is a high-performance, S3-compatible object storage system designed for high availability and elastic scalability in modern data environments. The cluster is composed of three logical tiers — a control &amp; logic tier, a storage tier, and a coordination tier — each scalable independently.</p>
-<h2 id="shannonstore-architecture">ShannonStore Architecture</h2>
-<p><img width="600" src="../../images/architecture/shannonstore-architecture.png" align="center"/></p>
-<h3 id="control-logic-layer-api-servers">Control &amp; Logic Layer (API Servers)</h3>
-<p>API Servers are the "brain" of ShannonStore. They terminate the S3 protocol, enforce security, and orchestrate data movement across the storage tier.</p>
+<h1 id="nginx-reverse-proxy">Nginx Reverse Proxy</h1>
+<p>A production ShannonStore cluster runs multiple API Servers — each exposing both the S3 port (default 8080) and the Admin port (default 8888). Putting <strong>nginx in front</strong> gives clients one stable entry point, load-balances across API Servers, and centralises the few transport tweaks that matter for an object store.</p>
+<h2 id="why-an-nginx-ingress">Why an nginx ingress</h2>
 <ul>
-<li><strong>S3 protocol handling</strong> — Standard S3 over HTTPS: SigV4 authentication, multipart upload, list-objects, and STS AssumeRole.</li>
-<li><strong>Metadata management</strong> — Object location and metadata is distributed across the API tier and replicated for durability. Adding or removing an API node moves only the small fraction of keys whose ownership changed — no cluster-wide rebalance window.</li>
-<li><strong>Security</strong> — Role-based access control through users, groups, and policies. Data is encrypted at rest (SSE-S3, SSE-KMS) and in transit, with key material wrapped by a cluster-wide master key.</li>
-<li><strong>Erasure coding</strong> — Each object is split into data + parity shards on write and reconstructed from any healthy subset on read. Disk loss is transparent to the client.</li>
+<li><strong>Single endpoint</strong> — clients (S3 SDKs, browsers, monitoring) hit one host:port; you can add or replace API Servers without changing client config.</li>
+<li><strong>High availability</strong> — nginx upstreams round-robin across api-server instances; an unhealthy server is taken out of rotation automatically.</li>
+<li><strong>Two ports unified</strong> — the same listener routes <code>/admin</code> and <code>/metrics</code> to the Admin upstream, and everything else to the S3 upstream — clients don't track two ports.</li>
+<li><strong>Large-upload friendly</strong> — defaults in distributions cap request bodies at 1 MB and buffer the whole body to disk, which breaks S3 multipart uploads of large objects. The config below removes those caps.</li>
 </ul>
-<h3 id="storage-layer-data-nodes">Storage Layer (Data Nodes)</h3>
-<p>Data Nodes are the "warehouse" of the cluster. They persist binary fragments to local disks and serve them to API Servers on demand.</p>
+<h2 id="key-directives-and-why-they-matter-for-s3">Key directives — and why they matter for S3</h2>
+<table>
+<thead>
+<tr>
+<th>Directive</th>
+<th>Setting</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>client_max_body_size</code></td>
+<td><strong><code>0</code></strong> (unlimited)</td>
+<td>S3 PUT / UploadPart can be many GB. The nginx default (1 MB) rejects them with <code>413 Request Entity Too Large</code>. <code>0</code> disables the limit.</td>
+</tr>
+<tr>
+<td><code>proxy_request_buffering</code></td>
+<td><code>off</code></td>
+<td>Stream the request body straight to the upstream instead of spooling to disk first — keeps large uploads moving and bounds memory/disk.</td>
+</tr>
+<tr>
+<td><code>proxy_buffering</code></td>
+<td><code>off</code></td>
+<td>Mirror on the response side — stream downloads through, don't buffer.</td>
+</tr>
+<tr>
+<td><code>proxy_send_timeout</code> / <code>proxy_read_timeout</code> / <code>send_timeout</code></td>
+<td><code>3600s</code></td>
+<td>Long transfers (huge objects, slow networks) need long timeouts.</td>
+</tr>
+<tr>
+<td><code>proxy_http_version 1.1</code> + <code>Connection ""</code></td>
+<td>enable upstream keepalive</td>
+<td>Required for <code>keepalive</code> in the upstream block to do anything.</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>client_max_body_size 0</code> is <strong>the critical one</strong> — without it the S3 API is unusable for objects above the nginx default.</p>
+<h2 id="reference-configuration">Reference configuration</h2>
+<p>The cluster's tests/CI ship a ready-to-use config at <code>tests/nginx.conf</code> in the ShannonStore repo. The complete file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># --- Unlimited request body size — required for large S3 uploads ---</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">client_max_body_size</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># --- Disable buffering for large upload/download stability ---</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="k">proxy_request_buffering</span><span class="w"> </span><span class="no">off</span><span class="p">;</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="k">proxy_buffering</span><span class="w"> </span><span class="no">off</span><span class="p">;</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># --- 1. S3 API Upstream ---</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="k">upstream</span><span class="w"> </span><span class="s">shannon_s3</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">api-server-1</span><span class="p">:</span><span class="mi">8080</span><span class="p">;</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">api-server-2</span><span class="p">:</span><span class="mi">8080</span><span class="p">;</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">localhost</span><span class="p">:</span><span class="mi">8080</span><span class="w"> </span><span class="s">backup</span><span class="p">;</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">localhost</span><span class="p">:</span><span class="mi">8081</span><span class="w"> </span><span class="s">backup</span><span class="p">;</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="kn">keepalive</span><span class="w"> </span><span class="mi">64</span><span class="p">;</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="p">}</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="c1"># --- 2. Admin API &amp; UI Upstream ---</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="k">upstream</span><span class="w"> </span><span class="s">shannon_admin</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">api-server-1</span><span class="p">:</span><span class="mi">8888</span><span class="p">;</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">api-server-2</span><span class="p">:</span><span class="mi">8888</span><span class="p">;</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">localhost</span><span class="p">:</span><span class="mi">8888</span><span class="w"> </span><span class="s">backup</span><span class="p">;</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">localhost</span><span class="p">:</span><span class="mi">8889</span><span class="w"> </span><span class="s">backup</span><span class="p">;</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="kn">keepalive</span><span class="w"> </span><span class="mi">16</span><span class="p">;</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="p">}</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="k">server</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="mi">80</span><span class="p">;</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">    </span><span class="kn">server_name</span><span class="w"> </span><span class="s">localhost</span><span class="p">;</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">    </span><span class="c1"># Long transfers / slow networks</span>
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">    </span><span class="kn">proxy_connect_timeout</span><span class="w">  </span><span class="s">60s</span><span class="p">;</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="w">    </span><span class="kn">proxy_send_timeout</span><span class="w">     </span><span class="s">3600s</span><span class="p">;</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="w">    </span><span class="kn">proxy_read_timeout</span><span class="w">     </span><span class="s">3600s</span><span class="p">;</span>
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a><span class="w">    </span><span class="kn">send_timeout</span><span class="w">           </span><span class="s">3600s</span><span class="p">;</span>
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="w">    </span><span class="c1"># Pass-through request metadata</span>
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Host</span><span class="w">              </span><span class="nv">$http_host</span><span class="p">;</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Real-IP</span><span class="w">         </span><span class="nv">$remote_addr</span><span class="p">;</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-For</span><span class="w">   </span><span class="nv">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-Proto</span><span class="w"> </span><span class="nv">$scheme</span><span class="p">;</span>
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a><span class="w">    </span><span class="c1"># Upstream keepalive (HTTP/1.1 required)</span>
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a><span class="w">    </span><span class="kn">proxy_http_version</span><span class="w"> </span><span class="mi">1</span><span class="s">.1</span><span class="p">;</span>
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Connection</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">;</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a><span class="w">    </span><span class="c1"># Admin UI + Admin API</span>
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/admin</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="w">        </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://shannon_admin</span><span class="p">;</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="w">        </span><span class="c1"># WebSocket upgrade — preserved for any live admin tooling</span>
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="w">        </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Upgrade</span><span class="w"> </span><span class="nv">$http_upgrade</span><span class="p">;</span>
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="w">        </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Connection</span><span class="w"> </span><span class="s">&quot;upgrade&quot;</span><span class="p">;</span>
+<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>
+<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a><span class="w">    </span><span class="c1"># Prometheus metrics</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/metrics</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a><span class="w">        </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://shannon_admin</span><span class="p">;</span>
+<a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a>
+<a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a><span class="w">    </span><span class="c1"># S3 API — everything else</span>
+<a id="__codelineno-0-60" name="__codelineno-0-60" href="#__codelineno-0-60"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-61" name="__codelineno-0-61" href="#__codelineno-0-61"></a><span class="w">        </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://shannon_s3</span><span class="p">;</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62" href="#__codelineno-0-62"></a><span class="w">        </span><span class="c1"># Stream large objects through nginx</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63" href="#__codelineno-0-63"></a><span class="w">        </span><span class="kn">proxy_request_buffering</span><span class="w"> </span><span class="no">off</span><span class="p">;</span>
+<a id="__codelineno-0-64" name="__codelineno-0-64" href="#__codelineno-0-64"></a><span class="w">        </span><span class="kn">proxy_buffering</span><span class="w"> </span><span class="no">off</span><span class="p">;</span>
+<a id="__codelineno-0-65" name="__codelineno-0-65" href="#__codelineno-0-65"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66" href="#__codelineno-0-66"></a><span class="p">}</span>
+</code></pre></div>
+<p><code>shannon_s3</code> carries S3 PUT/GET/multipart traffic; <code>shannon_admin</code> carries the Admin UI, the Admin REST API, and the Prometheus <code>/metrics</code> endpoint. <code>localhost:8080-8081</code> / <code>localhost:8888-8889</code> <code>backup</code> entries cover a local/single-host deployment where api-server-1/2 hostnames aren't resolvable.</p>
+<h2 id="deploying">Deploying</h2>
 <ul>
-<li>Stored on plain files across multiple disks for high throughput and predictable behaviour.</li>
-<li>Concurrent shard transfers via an asynchronous network layer.</li>
-<li>Data Nodes know nothing about object keys, ACLs, or encryption metadata — they store and retrieve bytes by chunk identifier. This separation lets the storage tier scale independently of the request tier.</li>
-<li>A background scrubber checks data integrity over time and repairs silent corruption automatically.</li>
+<li><strong>Docker Compose</strong> — drop the file at <code>nginx/nginx.conf</code> and mount it into an <code>nginx:alpine</code> service:
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">nginx</span><span class="p">:</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx:alpine</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">ports</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;80:80&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">volumes</span><span class="p">:</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./nginx/nginx.conf:/etc/nginx/conf.d/shannonstore.conf:ro</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="nt">depends_on</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">api-server-1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">api-server-2</span><span class="p p-Indicator">]</span>
+</code></pre></div></li>
+<li><strong>Standalone nginx</strong> — drop it under <code>/etc/nginx/conf.d/shannonstore.conf</code> and reload (<code>nginx -s reload</code>).</li>
 </ul>
-<h3 id="coordination-layer-zookeeper">Coordination Layer (ZooKeeper)</h3>
-<p>ZooKeeper provides cluster membership, leader election, and the readiness signal that gates client traffic.</p>
-<ul>
-<li><strong>Service discovery</strong> — every node registers itself and its readiness state.</li>
-<li><strong>Sticky leader election</strong> — exactly one API node is elected leader; on restart, the previous leader tends to win re-election so the cluster minimises state movement.</li>
-<li><strong>Cluster opening guarantees</strong>:<ul>
-<li>Traffic is accepted only after every API node and at least one data node is ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.</li>
-<li>Default <code>admin/admin</code> credentials are created only on the very first bootstrap, never again. A leader whose local state looks empty for any local reason refuses to recreate defaults — your real IAM cannot be silently overwritten.</li>
-</ul>
-</li>
-</ul>
-<h3 id="architectural-properties">Architectural Properties</h3>
-<ul>
-<li><strong>Independent scalability</strong> — Storage capacity (Data Nodes) and request + metadata capacity (API Servers) scale independently. Membership changes move only the affected slice of data.</li>
-<li><strong>Fault tolerance</strong> — Data Node and disk failures are masked by erasure-coded parity. API Server failures trigger automatic re-election; surviving replicas cover the lost node's metadata until it returns.</li>
-<li><strong>Single source of truth</strong> — IAM and KMS state always live on the leader. Followers and Data Nodes synchronise from the leader on every restart and on every change at runtime.</li>
-<li><strong>Pluggable disaster recovery</strong> — In-cluster system-state backup has been removed in favour of an external destination (e.g., a different S3 bucket), aligning disaster recovery with standard offsite-backup practice.</li>
-</ul>
+<p>Point S3 SDKs at <code>http://&lt;nginx-host&gt;/</code> and the Admin UI at <code>http://&lt;nginx-host&gt;/admin</code>. The cluster's <a href="../operations/#cluster-bootstrap-and-restart">readiness gate</a> still applies — nginx returns whatever the upstream returns, so a not-yet-open cluster will respond <code>503</code> through the proxy too.</p>
 
 
 
