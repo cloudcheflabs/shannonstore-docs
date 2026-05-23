@@ -54,16 +54,6 @@ admin's next login (the `requirePasswordChange` flag is set automatically).
 ```bash
 # Inside the api node host or container:
 bin/shannonstore-cli.sh iam:reset-password
-
-# Or with the packaged docker image:
-docker exec shannonstore-api /app/bin/shannonstore-cli.sh iam:reset-password
-```
-
-When stdout is piped or redirected, the password alone is printed — suitable
-for capturing in automation:
-
-```bash
-NEW_PW=$(docker exec shannonstore-api /app/bin/shannonstore-cli.sh iam:reset-password)
 ```
 
 ## Input modes
