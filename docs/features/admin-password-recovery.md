@@ -37,12 +37,12 @@ rotation.
 
 | Property | Value |
 |---|---|
-| **Socket path** | `data/admin.sock` (mode `600`) |
+| **Socket path** | `data/s3-metadata/admin.sock` (mode `600`) |
 | **Authentication** | OS file permission — same user as the api node process |
 | **Network surface** | none — Unix domain socket only |
 | **Downtime** | none — applied in-process on the live api node |
 | **Cluster sync** | automatic — IAM state propagates to peer nodes via the existing sync path |
-| **Audit log** | `data/iam-audit/reset.log` (mode `600`, append-only) |
+| **Audit log** | `data/s3-metadata/iam-audit/reset.log` (mode `600`, append-only) |
 | **Post-reset state** | `requirePasswordChange = true` (forced rotation on next login) |
 
 ## Quick start
@@ -78,25 +78,33 @@ in this order:
 
 1. `--socket /path/to/admin.sock` command-line flag
 2. `SHANNONSTORE_ADMIN_SOCKET` environment variable
-3. `<base data dir>/admin.sock` (default — same parent as the IAM RocksDB)
+3. First existing socket among:
+   - `<base_dir>/data/s3-metadata/admin.sock`
+   - `<base_dir>/data/admin.sock`
+   - `/data/s3-metadata/admin.sock`
+   - `/data/admin.sock`
+4. Fallback: `<base_dir>/data/s3-metadata/admin.sock`
 
-The api node creates the socket beside its IAM directory: if
-`shannonstore.api.iam.rocksdb.dir = ./data/s3-metadata/iam` then the socket
+The api node creates the socket beside its IAM directory: with the default
+`shannonstore.api.iam.rocksdb.dir = ./data/s3-metadata/iam`, the socket
 lives at `./data/s3-metadata/admin.sock` and the audit log at
-`./data/s3-metadata/iam-audit/reset.log`.
+`./data/s3-metadata/iam-audit/reset.log`. If you override the IAM RocksDB
+dir, both paths move with it.
 
 ## Security model
 
 **1. The socket is OS-gated.**
-At startup the api node creates `data/admin.sock` with mode `600` (owner
-read/write only). Even other unprivileged users on the same host cannot
-connect. There is no token, no shared secret, no network listener.
+At startup the api node creates `data/s3-metadata/admin.sock` with mode
+`600` (owner read/write only). Even other unprivileged users on the same
+host cannot connect. There is no token, no shared secret, no network
+listener.
 
 **2. The audit log records every reset.**
-Every successful reset appends a JSON line to `data/iam-audit/reset.log`
-(mode `600`). The plaintext password is **never** logged — only the first
-8 characters of its hash, the user, whether it was server-generated, and
-the OS user that invoked the CLI.
+Every successful reset appends a JSON line to
+`data/s3-metadata/iam-audit/reset.log` (mode `600`). The plaintext
+password is **never** logged — only the first 8 characters of its hash,
+the user, whether it was server-generated, and the OS user that invoked
+the CLI.
 
 ```json
 {"ts":"2026-05-23T16:00:46.922Z","event":"iam.reset-password","user":"admin","generated":true,"hashFp":"OYV/Ojf/","invokedAs":"root"}
