@@ -1449,7 +1449,7 @@ rotation.</p>
 <tbody>
 <tr>
 <td><strong>Socket path</strong></td>
-<td><code>data/admin.sock</code> (mode <code>600</code>)</td>
+<td><code>data/s3-metadata/admin.sock</code> (mode <code>600</code>)</td>
 </tr>
 <tr>
 <td><strong>Authentication</strong></td>
@@ -1469,7 +1469,7 @@ rotation.</p>
 </tr>
 <tr>
 <td><strong>Audit log</strong></td>
-<td><code>data/iam-audit/reset.log</code> (mode <code>600</code>, append-only)</td>
+<td><code>data/s3-metadata/iam-audit/reset.log</code> (mode <code>600</code>, append-only)</td>
 </tr>
 <tr>
 <td><strong>Post-reset state</strong></td>
@@ -1525,22 +1525,30 @@ in this order:</p>
 <ol>
 <li><code>--socket /path/to/admin.sock</code> command-line flag</li>
 <li><code>SHANNONSTORE_ADMIN_SOCKET</code> environment variable</li>
-<li><code>&lt;base data dir&gt;/admin.sock</code> (default — same parent as the IAM RocksDB)</li>
+<li>First existing socket among:</li>
+<li><code>&lt;base_dir&gt;/data/s3-metadata/admin.sock</code></li>
+<li><code>&lt;base_dir&gt;/data/admin.sock</code></li>
+<li><code>/data/s3-metadata/admin.sock</code></li>
+<li><code>/data/admin.sock</code></li>
+<li>Fallback: <code>&lt;base_dir&gt;/data/s3-metadata/admin.sock</code></li>
 </ol>
-<p>The api node creates the socket beside its IAM directory: if
-<code>shannonstore.api.iam.rocksdb.dir = ./data/s3-metadata/iam</code> then the socket
+<p>The api node creates the socket beside its IAM directory: with the default
+<code>shannonstore.api.iam.rocksdb.dir = ./data/s3-metadata/iam</code>, the socket
 lives at <code>./data/s3-metadata/admin.sock</code> and the audit log at
-<code>./data/s3-metadata/iam-audit/reset.log</code>.</p>
+<code>./data/s3-metadata/iam-audit/reset.log</code>. If you override the IAM RocksDB
+dir, both paths move with it.</p>
 <h2 id="security-model">Security model</h2>
 <p><strong>1. The socket is OS-gated.</strong>
-At startup the api node creates <code>data/admin.sock</code> with mode <code>600</code> (owner
-read/write only). Even other unprivileged users on the same host cannot
-connect. There is no token, no shared secret, no network listener.</p>
+At startup the api node creates <code>data/s3-metadata/admin.sock</code> with mode
+<code>600</code> (owner read/write only). Even other unprivileged users on the same
+host cannot connect. There is no token, no shared secret, no network
+listener.</p>
 <p><strong>2. The audit log records every reset.</strong>
-Every successful reset appends a JSON line to <code>data/iam-audit/reset.log</code>
-(mode <code>600</code>). The plaintext password is <strong>never</strong> logged — only the first
-8 characters of its hash, the user, whether it was server-generated, and
-the OS user that invoked the CLI.</p>
+Every successful reset appends a JSON line to
+<code>data/s3-metadata/iam-audit/reset.log</code> (mode <code>600</code>). The plaintext
+password is <strong>never</strong> logged — only the first 8 characters of its hash,
+the user, whether it was server-generated, and the OS user that invoked
+the CLI.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span><span class="nt">&quot;ts&quot;</span><span class="p">:</span><span class="s2">&quot;2026-05-23T16:00:46.922Z&quot;</span><span class="p">,</span><span class="nt">&quot;event&quot;</span><span class="p">:</span><span class="s2">&quot;iam.reset-password&quot;</span><span class="p">,</span><span class="nt">&quot;user&quot;</span><span class="p">:</span><span class="s2">&quot;admin&quot;</span><span class="p">,</span><span class="nt">&quot;generated&quot;</span><span class="p">:</span><span class="kc">true</span><span class="p">,</span><span class="nt">&quot;hashFp&quot;</span><span class="p">:</span><span class="s2">&quot;OYV/Ojf/&quot;</span><span class="p">,</span><span class="nt">&quot;invokedAs&quot;</span><span class="p">:</span><span class="s2">&quot;root&quot;</span><span class="p">}</span>
 </code></pre></div>
 <p><strong>3. The new password is exposed exactly once.</strong>
