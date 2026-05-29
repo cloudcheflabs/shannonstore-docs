@@ -1006,10 +1006,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-keys-are-placed" class="md-nav__link">
+  <a href="#local-storage-layout" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How keys are placed
+        Local storage layout
       
     </span>
   </a>
@@ -1017,10 +1017,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#storage-on-each-node" class="md-nav__link">
+  <a href="#hrw-routing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Storage on each node
+        HRW routing
       
     </span>
   </a>
@@ -1028,10 +1028,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#replication-freshness" class="md-nav__link">
+  <a href="#replication-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Replication &amp; freshness
+        Replication modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Replication modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pull-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PULL (default)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SYNC
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#async_push" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ASYNC_PUSH
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read-path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read path
       
     </span>
   </a>
@@ -1050,10 +1100,54 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reads" class="md-nav__link">
+  <a href="#change-log" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reads
+        Change log
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#snapshot-replication-for-bucketiam-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Snapshot replication for bucket/IAM state
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#object-metadata-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object metadata shape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
       
     </span>
   </a>
@@ -1377,17 +1471,222 @@
 
 
 <h1 id="metadata-management">Metadata Management</h1>
-<p>ShannonStore's object metadata (which chunk lives on which disk, sizes, ETags, versions) is distributed and replicated across the API tier so any node can serve any request and a single node failure never loses access to your objects.</p>
-<h2 id="how-keys-are-placed">How keys are placed</h2>
-<p>Each <code>(bucket, key)</code> is owned by a fixed number of API nodes (default <strong>2</strong>). When a node joins or leaves the cluster, only the small fraction of keys whose ownership changed is moved — there is no full rebalance window or migration tool to run.</p>
-<h2 id="storage-on-each-node">Storage on each node</h2>
-<p>Metadata on each API node is split into multiple internal stores so that compaction and disk IO don't pile up on a single store as the cluster grows. These stores can be <strong>striped across multiple physical disks</strong> to scale IO further — useful for very large deployments.</p>
-<h2 id="replication-freshness">Replication &amp; freshness</h2>
-<p>The default replication mode is <strong>PULL</strong>: writes commit on one node and are acknowledged immediately, while replicas catch up asynchronously. This gives the lowest write latency. Optional <strong>synchronous</strong> mode is available when stronger freshness is required.</p>
+<p>Object metadata — the rows that say "key <code>X</code> in bucket <code>Y</code> has version <code>V</code>, lives on data nodes <code>[n1, n2, n3, n4, n5, n6]</code> at disk paths <code>[p1, …, p6]</code> with checksums <code>[c1, …, c6]</code> and an EC layout of k=4 m=2" — is the addressing layer that turns the cluster from a JBOD of unidentifiable bytes into an S3 endpoint. ShannonStore stores this metadata in a RocksDB-backed index on every API node, replicated across the API tier via a configurable mode (<code>PULL</code> / <code>SYNC</code> / <code>ASYNC_PUSH</code>), so any node can serve any request and a single node failure never hides an object.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   Client PUT
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>        │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>        ▼
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   ┌──────────────────────────────────────────────────────┐
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   │  API node — writeMetadata(meta)                       │
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   │    1. persist to local IndexManager                  │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   │    2. trigger replication per current mode           │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   │       ─ PULL:  enqueue change-log entry              │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   │       ─ SYNC:  block until all owners ack            │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   │       ─ ASYNC_PUSH: fire-and-forget to peers         │
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   └──────────────────────────────────────────────────────┘
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                       │
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>   ┌───────────────────┴──────────────────────────────────┐
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>   │  Owner set for (bucket, key)                          │
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>   │   = top-2 HRW(api_nodes, key)                         │
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>   │   (replication factor configurable; default 2)        │
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>   └────────────────────┬─────────────────────────────────┘
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>                        │
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>        ┌───────────────┴─────────────────┐
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>        ▼                                 ▼
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>   API node owner-1                  API node owner-2
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>   ShardedIndexStore on               ShardedIndexStore on
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>   one or more local disks            one or more local disks
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>   (RocksDB per shard)                (RocksDB per shard)
+</code></pre></div>
+<p>The index is <strong>sharded</strong> at the local-disk level so RocksDB compaction never piles up on a single store, and <strong>replicated</strong> at the cluster level so every owner can serve a read without consulting a leader.</p>
+<h2 id="local-storage-layout">Local storage layout</h2>
+<p>Each API node runs a <code>ShardedIndexStore</code> that hashes <code>(bucket, key)</code> to one of N internal RocksDB shards. The shards can be <strong>striped across multiple physical disks</strong> via configuration — useful for very large deployments where a single SSD can't keep up with the read/write rate on the index.</p>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Random read</td>
+<td>shard chosen by hash, single RocksDB <code>Get</code></td>
+</tr>
+<tr>
+<td>Range scan (ListObjects)</td>
+<td>reverse index keyed by <code>bucket + prefix</code> for efficient prefix walks</td>
+</tr>
+<tr>
+<td>Compaction</td>
+<td>RocksDB level-based; sharded so concurrent compactions don't conflict</td>
+</tr>
+<tr>
+<td>Encryption at rest</td>
+<td>values KMS-encrypted before <code>db.put()</code>, decrypted after <code>db.get()</code></td>
+</tr>
+<tr>
+<td>Backup</td>
+<td>shard files snapshot as one set, see <a href="../backup/">Backup &amp; Restore</a></td>
+</tr>
+</tbody>
+</table>
+<p>Per-disk striping uses the same <code>shannonstore.api.index.rocksdb.path</code> form as the single-disk variant, but accepts a comma-separated list. The store opens one column family per disk and rotates writes across them.</p>
+<p>A small but important detail: the in-memory part-buffer index is <strong>not</strong> in the same store. Multipart uploads in flight live in a separate RocksDB at <code>shannonstore.api.part.buffer.rocksdb.path</code>. This separation keeps the hot path on the main index uncluttered by transient state that only matters until <code>CompleteMultipartUpload</code> lands.</p>
+<h2 id="hrw-routing">HRW routing</h2>
+<p><code>(bucket, key) → owner set</code> is decided by Highest Random Weight (Rendezvous) hashing:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>owners = top-N (api_nodes sorted by hash(node_id, bucket, key) desc)
+</code></pre></div>
+<p>with N = replication factor (default 2). HRW has two properties that matter:</p>
+<ul>
+<li><strong>Stable under churn</strong>. Adding a new API node moves only the fraction of keys whose top-N shifted — typically <code>2 / (existing+1)</code> keys reshuffle to include the new node. No "rebalance window" exists; ownership migration is a side-effect of the next write or read against each affected key.</li>
+<li><strong>Decentralised</strong>. Any node can compute who owns any key given the same <code>api_nodes</code> membership view. No leader is consulted on the read path.</li>
+</ul>
+<h2 id="replication-modes">Replication modes</h2>
+<p>Three modes are available, configurable via <code>shannonstore.api.metadata.replication.mode</code>:</p>
+<h3 id="pull-default"><code>PULL</code> (default)</h3>
+<p>Writes commit locally, then enqueue a change-log entry. Owners pull their share at their own pace through a periodic catch-up loop.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>   Write on node A → commit local → reply 200 OK
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>                                      │
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>                                      └─► (later) owners pull through
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>                                          change-log replay
+</code></pre></div>
+<ul>
+<li><strong>Strengths</strong>: lowest write latency, naturally fault-tolerant — a dead peer doesn't slow writers, the change-log waits.</li>
+<li><strong>Trade-off</strong>: a reader landing on a not-yet-pulled owner gets a brief miss window that triggers a transparent fetch from the writer.</li>
+</ul>
+<h3 id="sync"><code>SYNC</code></h3>
+<p>Write commits locally, then blocks until every owner acknowledges receipt before replying.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>   Write on node A → commit local → push to owners → wait for ack
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>                                                       │
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>                                                       └─► reply 200 OK
+</code></pre></div>
+<ul>
+<li><strong>Strengths</strong>: read-after-write across the owner set is immediate. Every owner has the latest state by the time the client sees success.</li>
+<li><strong>Trade-off</strong>: write latency is <code>max(owner_ack_time)</code>, so a slow peer slows every write. Use when strict freshness is required for cross-region or cross-AZ readers.</li>
+</ul>
+<h3 id="async_push"><code>ASYNC_PUSH</code></h3>
+<p>Write commits locally and fires push messages to peers without waiting for acks.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>   Write on node A → commit local → fire-and-forget to owners
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>                                  │
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>                                  └─► reply 200 OK
+</code></pre></div>
+<ul>
+<li><strong>Strengths</strong>: similar latency to PULL with less control-flow overhead — peers see the update sooner than PULL on a quiet cluster.</li>
+<li><strong>Trade-off</strong>: lost messages aren't retried automatically. Used when the IAM/bucket-state sync channel is reliable and pull catch-up is overkill.</li>
+</ul>
+<p>The default <code>PULL</code> is the safe choice for nearly every workload. <code>SYNC</code> is appropriate for cross-AZ deployments where read-your-writes must hold across owners; <code>ASYNC_PUSH</code> is rarely the right answer outside of tightly observed environments.</p>
+<h2 id="read-path">Read path</h2>
+<p>A read for <code>(bucket, key)</code>:</p>
+<ol>
+<li>Compute the HRW owner set.</li>
+<li>If the local node is in the owner set, look up the local RocksDB — return immediately on hit.</li>
+<li>If the local node is <em>not</em> in the owner set, fetch the metadata over the internal NIO plane from any of the owners.</li>
+<li>The remote-fetch path includes a small cache (LRU on <code>(bucket, key) → metadata</code>) so subsequent reads against the same key on a non-owner don't keep round-tripping.</li>
+</ol>
+<p>The cache is invalidated on receipt of any replicated update touching the key. Operators can size the cache via configuration; default is sufficient for most read-heavy workloads.</p>
 <h2 id="membership-changes">Membership changes</h2>
-<p>Adding or removing an API node automatically reshuffles only the affected keys. Joining nodes pull what they're now responsible for; leaving nodes' keys are immediately picked up by the surviving owners. An optional periodic sweep can clean up local copies of keys a node no longer owns (Cassandra-style cleanup) — disabled by default, opt-in from the admin UI.</p>
-<h2 id="reads">Reads</h2>
-<p>Reads are served locally if the node holds the key. Otherwise the node fetches it from the responsible peer transparently — clients never need to know which node holds what.</p>
+<p>When an API node joins or leaves the cluster:</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Effect on metadata</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>New API node joins</td>
+<td>HRW shifts; the new node is now a top-N owner for some fraction of keys; pulls those keys' metadata from current owners through the change-log catch-up</td>
+</tr>
+<tr>
+<td>Existing API node leaves</td>
+<td>HRW shifts; surviving owners absorb the keys the leaving node held; new replicas chosen from the remaining nodes pull the metadata; a "Cassandra-style cleanup" sweep can be enabled to drop local copies of keys an owner no longer holds</td>
+</tr>
+<tr>
+<td>Leader change</td>
+<td>irrelevant to metadata reads/writes; the leader matters only for IAM and KMS state</td>
+</tr>
+</tbody>
+</table>
+<p>The cleanup sweep is <strong>opt-in</strong> because it costs read amplification during the sweep window — the safer default is to let local copies linger until they're naturally evicted. Operators with disk-space constraints turn the sweep on; clusters with plenty of disk leave it off.</p>
+<h2 id="change-log">Change log</h2>
+<p>A bounded ring buffer of recent metadata changes lives on each API node — <code>MetadataChangelog</code>. The PULL replication mode reads this log on owners to catch up; <code>ASYNC_PUSH</code> writes synthesize log entries on receipt. The log is sized by entry count (configurable) and is purely a coordination mechanism — durability of the metadata itself is provided by the RocksDB write, not by the change log.</p>
+<p>When an owner falls far enough behind that the change log on the writer has rolled past the owner's last-seen position, the owner falls back to a full snapshot fetch through <code>listAllObjects</code> on the writer. This is the only path that costs O(cluster-size) bytes for a single peer to catch up; it's rare in practice and is logged loudly when it happens.</p>
+<h2 id="snapshot-replication-for-bucketiam-state">Snapshot replication for bucket/IAM state</h2>
+<p>The object index above is per-<code>(bucket, key)</code>. The bucket-level configuration (versioning, ACLs) and IAM state (users, groups, policies, access keys) are smaller and ride a different channel: the full <code>BucketManager</code> and <code>AuthManager</code> snapshot is exported as a single blob on every mutation, KMS-encrypted, and broadcast to peer API nodes. Followers swap in the new blob atomically.</p>
+<p>The two channels are kept separate because object metadata is per-key and high-throughput; bucket/IAM state is small and low-throughput. Mixing them would have either over-replicated the small state or under-replicated the large state.</p>
+<h2 id="object-metadata-shape">Object metadata shape</h2>
+<p>Per-object record (simplified — the full schema is in <code>ObjectMetadata</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>{
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>  bucket:        &quot;lake&quot;,
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  key:           &quot;year=2026/month=05/data.parquet&quot;,
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  versionId:     &quot;v-…&quot;,                       // null when versioning disabled
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>  size:          158_493_124,
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>  contentType:   &quot;application/parquet&quot;,
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  etag:          &quot;d41d8cd98f00b204e9800998ecf8427e-7&quot;,
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>  lastModified:  1779999999999,
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>  seq:           42193714,                     // monotonic per writer for read-after-write
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>  deleted:       false,
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>  dataShards:    4,
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>  parityShards:  2,
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>  parts: [
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    {
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>      partNumber:   1,
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>      size:         …,
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>      originalSize: …,
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>      md5:          &quot;…&quot;,                       // input to composite ETag
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>      chunks: [
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>        { chunkId, shardIndex, nodeAddress, diskPath, checksum: &lt;CRC32C&gt; },
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>        ...                                    // k + m rows per part
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>      ]
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>    },
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>    ...
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>  ]
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>}
+</code></pre></div>
+<p>Two subtleties:</p>
+<ul>
+<li><code>seq</code> is a monotonic counter assigned at commit time. PULL-mode catch-up uses it as the high-water mark — peers replay change-log entries until their <code>seq</code> matches the writer's. Read paths can also use it as a freshness guard ("read at seq ≥ N" for read-your-writes).</li>
+<li><code>checksum</code> on the chunk row is CRC32C of the persisted shard bytes (not the object plaintext). <a href="../data-integrity/">Data Integrity</a> covers how it's verified on every read.</li>
+</ul>
+<h2 id="diagnostics">Diagnostics</h2>
+<p>Prometheus exposes:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.index.rocksdb.size.bytes</code></td>
+<td>per-disk RocksDB footprint</td>
+</tr>
+<tr>
+<td><code>shannonstore.index.rocksdb.gets.total</code> / <code>puts.total</code></td>
+<td>hot-path counters</td>
+</tr>
+<tr>
+<td><code>shannonstore.metadata.replication.lag.ms</code></td>
+<td>difference between writer's <code>seq</code> and the slowest owner's <code>seq</code></td>
+</tr>
+<tr>
+<td><code>shannonstore.metadata.changelog.rollover.total</code></td>
+<td>full-snapshot fall-back trigger count</td>
+</tr>
+</tbody>
+</table>
+<p>A growing <code>replication.lag.ms</code> in PULL mode is the most common symptom an operator should investigate first — usually a peer's RocksDB compaction is unhealthily slow.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../distributed-architecture/">Distributed Architecture</a> — the cluster bootstrap and leader-election context.</li>
+<li><a href="../ec/">Erasure Coding</a> — the shard layout the per-part chunks point at.</li>
+<li><a href="../kms/">Encryption &amp; Key Management</a> — what protects the metadata blob at rest.</li>
+<li><a href="../data-integrity/">Data Integrity</a> — the CRC32C the chunk rows store.</li>
+<li><a href="../monitoring/">Monitoring &amp; Metrics</a> — the gauges around the replication lag.</li>
+<li><a href="../backup/">Backup &amp; Restore</a> — how the index is snapshotted out of the cluster.</li>
+</ul>
 
 
 

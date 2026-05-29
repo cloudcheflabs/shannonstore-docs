@@ -787,6 +787,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Compression
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -803,6 +821,141 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#object-level-compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object-level compression
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Object-level compression">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mime-based-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MIME-based selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#algorithm-trade-offs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm trade-offs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-compression-buys-you" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What compression buys you
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#network-level-compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network-level compression
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#metadata-level-compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metadata-level compression
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-node-side-chunk-compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data-node-side chunk compression
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choosing-the-right-layer-for-the-workload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing the right layer for the workload
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1285,12 +1438,311 @@
 
 
 <h1 id="data-compression">Data Compression</h1>
-<p>ShannonStore supports multiple compression algorithms to reduce storage costs and network bandwidth.</p>
+<p>ShannonStore compresses data at three independent layers, each with its own configuration: object-level (the payload as the client wrote it), network-level (inter-node payloads on port 9090), and metadata-level (RocksDB values that hold object indices). Each layer can be tuned in isolation, so an operator can leave object compression off when storing already-compressed binaries while still compressing the metadata that describes them.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   Client PUT       ┌─────────────────────────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>       │            │  Object-level compression       │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>       ▼            │  ─ MIME match? compress payload │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   ┌────────┐       │  ─ algorithm: SNAPPY (default)  │
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   │  API   │       └─────────────────────────────────┘
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   │  node  │            │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   │        │            ▼
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   │        │       ┌─────────────────────────────────┐
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   │        │       │  EC + KMS encrypt + …            │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   │        │       └─────────────────────────────────┘
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   │        │            │
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>   │        │            ▼
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>   │        │       ┌─────────────────────────────────┐
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>   │        │       │  Network-level compression       │
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>   │        │       │  ─ &gt;1 KiB? compress              │
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>   │        │       │  ─ algorithm: SNAPPY (default)  │
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>   │        │       └─────────────────────────────────┘
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>   └────────┘            │
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>                         ▼
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>                    Data node disk
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>                    (chunk file — already compressed
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>                     payload, optional data-node-side
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>                     compression on top, normally NONE)
+</code></pre></div>
+<p>The three layers compose multiplicatively for CPU but <strong>not</strong> for storage savings — only the lowest-level "wins" on bytes. Picking the right layer for the workload matters.</p>
+<h2 id="object-level-compression">Object-level compression</h2>
+<p>Applied at the API node <em>before</em> erasure coding and KMS encryption. The compressed payload is what gets sharded and persisted, so the storage savings translate directly to disk bytes.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.s3.object.compression.type</code></td>
+<td><code>SNAPPY</code></td>
+<td>Algorithm: <code>NONE</code> / <code>SNAPPY</code> / <code>GZIP</code> / <code>ZSTD</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.object.compression.mime.types</code></td>
+<td><code>text/*,application/json,application/xml</code></td>
+<td>Globs — only matching <code>Content-Type</code> headers compress.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mime-based-selection">MIME-based selection</h3>
+<p>The configured globs gate the compression decision per-object:</p>
+<table>
+<thead>
+<tr>
+<th><code>Content-Type</code></th>
+<th>Match?</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text/plain</code></td>
+<td>✓ matches <code>text/*</code></td>
+<td>compress</td>
+</tr>
+<tr>
+<td><code>application/json</code></td>
+<td>✓ exact match</td>
+<td>compress</td>
+</tr>
+<tr>
+<td><code>application/xml</code></td>
+<td>✓ exact match</td>
+<td>compress</td>
+</tr>
+<tr>
+<td><code>application/parquet</code></td>
+<td>✗</td>
+<td>store as-is</td>
+</tr>
+<tr>
+<td><code>image/png</code>, <code>image/jpeg</code></td>
+<td>✗</td>
+<td>store as-is — already compressed by the format</td>
+</tr>
+<tr>
+<td><code>video/mp4</code>, <code>application/zstd</code></td>
+<td>✗</td>
+<td>store as-is</td>
+</tr>
+<tr>
+<td><code>application/octet-stream</code></td>
+<td>✗</td>
+<td>store as-is (conservative — the SDK has lost type info)</td>
+</tr>
+</tbody>
+</table>
+<p>The decision is per-object, made once at PUT time, and recorded in the object's metadata. A subsequent GET re-reads the metadata and runs the matching decompression — there's no client-visible Content-Encoding negotiation. This is the AWS-S3-spec-faithful path: the bytes the client gets back are byte-identical to the bytes they uploaded.</p>
+<h3 id="algorithm-trade-offs">Algorithm trade-offs</h3>
+<table>
+<thead>
+<tr>
+<th>Algorithm</th>
+<th>Throughput</th>
+<th>Ratio (text)</th>
+<th>When to pick</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NONE</code></td>
+<td>n/a</td>
+<td>1×</td>
+<td>Storing already-compressed formats (Parquet/ORC/PNG/MP4); CPU-bound API nodes.</td>
+</tr>
+<tr>
+<td><code>SNAPPY</code> (default)</td>
+<td>very fast</td>
+<td>2–3× on JSON/log</td>
+<td>Default sweet spot — minimal CPU cost, real savings.</td>
+</tr>
+<tr>
+<td><code>GZIP</code></td>
+<td>moderate</td>
+<td>3–6× on JSON/log</td>
+<td>Maximize savings on highly redundant data, accept the CPU hit.</td>
+</tr>
+<tr>
+<td><code>ZSTD</code></td>
+<td>fast</td>
+<td>3–5×</td>
+<td>Modern Zstandard — better ratio than SNAPPY at roughly the same throughput. The right pick for clusters that aren't ancient JVM.</td>
+</tr>
+</tbody>
+</table>
+<p>ZSTD is the recommended algorithm for new deployments. SNAPPY remains the default to preserve backwards compatibility with older releases that didn't carry the ZSTD native library.</p>
+<h3 id="what-compression-buys-you">What compression buys you</h3>
+<p>For a typical analytics workload (Iceberg + Parquet + JSON event logs):</p>
 <ul>
-<li><strong>Supported algorithms</strong>: SNAPPY (speed-optimized), GZIP (higher ratio for text), ZSTD (best overall ratio), or NONE.</li>
-<li>Compression is selectively applied based on MIME type — binary formats like images and video are automatically skipped.</li>
-<li>Auto-selection mode samples data content to choose the best algorithm automatically.</li>
-<li>Network compression is applied separately for inter-node transfers above a configurable threshold.</li>
+<li>Parquet objects: 0% savings (already compressed by Parquet's columnar encoders).</li>
+<li>Raw JSON logs: 75–85% savings with ZSTD.</li>
+<li>CSV exports: 70–80% savings with ZSTD.</li>
+<li>Application checkpoints (Spark / Flink state): varies — usually 30–50%.</li>
+</ul>
+<p>For mixed media (image + video heavy buckets), object-level compression is a near-zero win and the CPU cost matters more — leave it on <code>NONE</code> for those buckets, or rely on the MIME filter to skip them automatically.</p>
+<h2 id="network-level-compression">Network-level compression</h2>
+<p>Applied to <strong>every</strong> inter-node payload above a threshold, regardless of MIME type. Distinct from object-level: this layer compresses shard payloads in flight between API nodes and data nodes, never on disk.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.network.compression.type</code></td>
+<td><code>SNAPPY</code></td>
+<td>Algorithm.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.compression.threshold</code></td>
+<td><code>1024</code></td>
+<td>Bytes — below this skip compression.</td>
+</tr>
+</tbody>
+</table>
+<p>Why threshold-gated? Heartbeat / membership messages are tens of bytes; compressing them costs more in latency than it saves in bandwidth. Shard payloads are tens of MiBs; compressing them halves the wire bytes between nodes at a small CPU cost on each end. The default 1 KiB threshold cleanly divides the two.</p>
+<p>The wire format includes the algorithm in a single byte at the head of the payload, so a rolling change of <code>shannonstore.network.compression.type</code> doesn't require coordinated restarts — a peer running the old algorithm decompresses the next message correctly without configuration drift.</p>
+<p>The network layer <strong>does not</strong> know whether the payload was already object-compressed. A doubly-compressed payload sees a small CPU hit on both sides for nearly zero additional saving — the gzip / zstd / snappy header still adds overhead. Operators who turn object-level compression on can lower the network-level threshold or disable network compression entirely if the metric <code>shannonstore_network_bytes_in_total</code> doesn't move when network compression flips on. The two layers are independent precisely so this tuning is possible.</p>
+<h2 id="metadata-level-compression">Metadata-level compression</h2>
+<p>The object index in RocksDB stores one entry per <code>(bucket, key, version)</code>. Compressing the index values trades CPU at every metadata read/write for a smaller RocksDB footprint:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.index.rocksdb.value.compression</code></td>
+<td><code>false</code></td>
+<td>Master switch.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.index.rocksdb.value.compression.type</code></td>
+<td><code>SNAPPY</code></td>
+<td>Algorithm when enabled.</td>
+</tr>
+</tbody>
+</table>
+<p>The metadata blob per object is small (a few hundred bytes) but contains a lot of redundant strings (bucket name, key path, node addresses). With compression enabled the RocksDB footprint shrinks 50–70% on a typical install. The trade-off is a SNAPPY round-trip on every metadata read; on a hot read path this is unmeasurable but on a metadata-heavy workload (ListObjects across millions of keys) it nudges latency up.</p>
+<p>Recommendation: leave <strong>off</strong> by default; turn on for clusters that hit the RocksDB capacity wall before they hit the read-latency wall.</p>
+<h2 id="data-node-side-chunk-compression">Data-node-side chunk compression</h2>
+<p>A fourth, defense-in-depth knob on the data node:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.data.storage.chunk.compression.type</code></td>
+<td><code>NONE</code></td>
+<td>Per-chunk compression on the data-node disk.</td>
+</tr>
+</tbody>
+</table>
+<p>This is intentionally <code>NONE</code> by default. Object-level compression already handles the storage savings — adding the data-node layer on top wastes CPU for no incremental ratio. The knob exists for clusters that need a second compression pass at the chunk level for compliance or operational reasons (e.g. older data ingested without object-level compression and an operator who would rather compress in place than rewrite the objects).</p>
+<h2 id="choosing-the-right-layer-for-the-workload">Choosing the right layer for the workload</h2>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th>Object</th>
+<th>Network</th>
+<th>Metadata</th>
+<th>Data-node chunk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Iceberg + Parquet</td>
+<td>NONE</td>
+<td>SNAPPY</td>
+<td>off</td>
+<td>NONE</td>
+</tr>
+<tr>
+<td>Raw JSON logs</td>
+<td>ZSTD</td>
+<td>SNAPPY</td>
+<td>off</td>
+<td>NONE</td>
+</tr>
+<tr>
+<td>Mixed images / videos</td>
+<td>NONE (MIME filter skips them anyway)</td>
+<td>SNAPPY</td>
+<td>off</td>
+<td>NONE</td>
+</tr>
+<tr>
+<td>Backups / archives</td>
+<td>ZSTD</td>
+<td>SNAPPY</td>
+<td>on</td>
+<td>NONE</td>
+</tr>
+<tr>
+<td>Time-series / metrics</td>
+<td>ZSTD</td>
+<td>SNAPPY</td>
+<td>on</td>
+<td>NONE</td>
+</tr>
+</tbody>
+</table>
+<p>The default config (SNAPPY object + SNAPPY network + off metadata + NONE chunk) is a reasonable middle ground for the analytics workload that dominates ShannonStore deployments today.</p>
+<h2 id="diagnostics">Diagnostics</h2>
+<p>Prometheus exposes counters per layer:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore_object_compression_skipped_total{reason="mime"}</code></td>
+<td>objects that bypassed compression due to MIME</td>
+</tr>
+<tr>
+<td><code>shannonstore_object_compression_bytes_in_total</code></td>
+<td>raw client bytes seen by the compressor</td>
+</tr>
+<tr>
+<td><code>shannonstore_object_compression_bytes_out_total</code></td>
+<td>bytes after compression — ratio is <code>out / in</code></td>
+</tr>
+<tr>
+<td><code>shannonstore_network_compression_skipped_total{reason="below_threshold"}</code></td>
+<td>messages too small to compress</td>
+</tr>
+<tr>
+<td><code>shannonstore_network_compression_bytes_in_total</code> / <code>_out_total</code></td>
+<td>per-message wire savings</td>
+</tr>
+</tbody>
+</table>
+<p>A useful first dashboard tile is <code>out/in</code> of object compression by MIME — operators see at a glance which content types benefit and which are noise.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../ec/">Erasure Coding</a> — runs <em>after</em> object compression on the same payload.</li>
+<li><a href="../kms/">Encryption &amp; Key Management</a> — runs <em>after</em> compression so the encryption layer never sees compressible patterns.</li>
+<li><a href="../network/">Network &amp; Internal Communication</a> — where the network-compression knob lands.</li>
+<li><a href="../configuration/">Configuration Management</a> — the resolution chain that produces these keys.</li>
+<li><a href="../monitoring/">Monitoring &amp; Metrics</a> — the Prometheus counters that quantify the savings.</li>
 </ul>
 
 

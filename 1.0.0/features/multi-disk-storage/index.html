@@ -983,6 +983,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Disk Storage
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -999,6 +1017,113 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-jbod-over-raid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why JBOD over RAID
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disk-placement-on-a-node" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disk placement on a node
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#same-partition-deduplication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Same-partition deduplication
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disk-health" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disk health
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-a-disk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a disk
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#removing-a-disk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removing a disk
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operational-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operational considerations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1285,11 +1410,144 @@
 
 
 <h1 id="multi-disk-storage">Multi-Disk Storage</h1>
-<p>ShannonStore Data Nodes support multiple local disks for scalable storage capacity.</p>
+<p>ShannonStore data nodes are JBOD — Just a Bunch Of Disks. Each data node holds one or more storage roots configured via <code>shannonstore.data.storage.dirs</code>, and the data node treats each root as an independent failure domain. A disk dies → only the shards living on that disk need re-placement; the rest of the disks keep serving normally without a rebuild.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   shannonstore.data.storage.dirs=/mnt/disk-1,/mnt/disk-2,/mnt/disk-3,/mnt/disk-4
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   Data node:
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>     ├── /mnt/disk-1   (chunk files, ChunkStore index for this disk)
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>     ├── /mnt/disk-2   (chunk files, …)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>     ├── /mnt/disk-3   (chunk files, …)
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>     └── /mnt/disk-4   (chunk files, …)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   API tier sees:
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>       node-X / disk-1, node-X / disk-2, node-X / disk-3, node-X / disk-4
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>       — four placement targets per node
+</code></pre></div>
+<p>The data node does not stripe a single shard across disks. Each shard lands on <strong>exactly one</strong> disk and stays there for its lifetime (or until repair re-places it). Cross-disk parity is not the data node's job — that's already handled by the cluster-level erasure coding in the API tier (see <a href="../ec/">Erasure Coding</a>).</p>
+<h2 id="why-jbod-over-raid">Why JBOD over RAID</h2>
+<p>A RAID-5 / RAID-6 underlayer per data node would add a second layer of erasure coding on top of the cluster's already-existing EC, doubling the storage overhead for the same logical failure tolerance. JBOD lets ShannonStore allocate every byte of disk to either <em>data</em> or <em>cluster parity</em>, never to <em>local parity</em>. The trade-off is that a single disk dying loses all of its shards immediately — but the cluster's EC handles exactly that case, and the rebuild is faster (and finer-grained) than a RAID rebuild.</p>
+<table>
+<thead>
+<tr>
+<th>Layout</th>
+<th>Storage overhead</th>
+<th>Rebuild scope on single-disk failure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ShannonStore JBOD + cluster EC (k=4 m=2)</td>
+<td>50% (cluster level)</td>
+<td>only the shards on the dead disk</td>
+</tr>
+<tr>
+<td>RAID-5 + cluster EC (k=4 m=2)</td>
+<td>50% × 1.25 = 62.5%</td>
+<td>the whole RAID group, then nothing at the cluster level</td>
+</tr>
+<tr>
+<td>RAID-6 + cluster EC (k=4 m=2)</td>
+<td>50% × 1.5 = 75%</td>
+<td>the whole RAID group</td>
+</tr>
+<tr>
+<td>3× replication, no EC</td>
+<td>200%</td>
+<td>one of three full copies</td>
+</tr>
+</tbody>
+</table>
+<p>So the recommended deployment is bare ext4 / xfs filesystems mounted at distinct paths, one per disk, with no RAID below.</p>
+<h2 id="disk-placement-on-a-node">Disk placement on a node</h2>
+<p>When a write arrives at a data node it picks a target disk for the shard using a simple hash:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>disk_index = HRW(chunkId, available_disks)
+</code></pre></div>
+<p>Same key+shardIndex pair maps to the same disk deterministically — so a reader, given the metadata's <code>diskPath</code>, finds the file without a lookup table. The algorithm respects the <em>currently healthy</em> disk set: a disk that fails health probes drops out of the placement set and new shards skip it. Shards already on the failed disk are picked up by the <a href="../disk-repair/">Disk Repair Service</a> and re-placed on a healthy disk on a different node.</p>
+<p>The <code>shannonstore.data.storage.dirs</code> list is intentionally ordered: when two disks are equally desirable in the placement decision, the earlier-listed disk wins ties. This gives a stable, reproducible placement order across restarts.</p>
+<h2 id="same-partition-deduplication">Same-partition deduplication</h2>
+<p>If two configured dirs happen to live on the <strong>same</strong> underlying filesystem (e.g. an operator misconfiguration that listed <code>/data/shannon-1</code> and <code>/data/shannon-2</code> where both are subdirectories of one big disk), the data node detects the duplicate at startup:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>DEBUG DataConfig - Skipping redundant storage directory on same partition: /data/shannon-2
+</code></pre></div>
+<p>Only the first such entry is added to the active storage set. This prevents the placement algorithm from believing it has more failure domains than it does — a per-shard random pick across "two disks" that are really one would over-load a single mount.</p>
+<h2 id="disk-health">Disk health</h2>
+<p>Each data node maintains a small in-memory <code>DiskInfo</code> record per configured disk:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>path</code></td>
+<td>the configured directory</td>
+</tr>
+<tr>
+<td><code>total / used / available</code> bytes</td>
+<td>filesystem statvfs at the configured refresh interval</td>
+</tr>
+<tr>
+<td><code>available</code> (boolean)</td>
+<td>last write or read succeeded</td>
+</tr>
+<tr>
+<td><code>lastSeenMs</code></td>
+<td>timestamp of the last successful access</td>
+</tr>
+<tr>
+<td><code>chunkCount</code></td>
+<td>bookkeeping from <code>ChunkStore</code></td>
+</tr>
+</tbody>
+</table>
+<p>A scheduled probe refreshes the byte counts every <code>shannonstore.data.disk.info.refresh.interval.seconds</code> (default 60). The probe is filesystem <code>statvfs</code> — cheap, async, never blocks the dataplane. If a probe fails (filesystem unmounted, IO error), the disk is marked unavailable and excluded from new placements until two consecutive probes succeed again.</p>
+<p>The data node publishes a summary heartbeat to the API tier:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>data node → API tier:
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>  {
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    nodeId:   &quot;data-12&quot;,
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    disks: [
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>      { path: &quot;/mnt/disk-1&quot;, total: 8 TiB, used: 6.4 TiB, available: true, chunkCount: 154 783 },
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>      { path: &quot;/mnt/disk-2&quot;, total: 8 TiB, used: 6.5 TiB, available: true, chunkCount: 155 921 },
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>      { path: &quot;/mnt/disk-3&quot;, total: 8 TiB, used: 0,        available: false, chunkCount: 0      },
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>      { path: &quot;/mnt/disk-4&quot;, total: 8 TiB, used: 6.4 TiB, available: true, chunkCount: 154 503 }
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    ]
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>  }
+</code></pre></div>
+<p>The API tier uses these heartbeats for placement decisions (HRW excludes unavailable disks), capacity reports in the Admin UI, and the trigger condition for the Disk Repair Service.</p>
+<h2 id="adding-a-disk">Adding a disk</h2>
+<p>Mount it, edit <code>shannonstore.data.storage.dirs</code>, restart the data node. On restart:</p>
+<ol>
+<li>The data node discovers the new directory in the configured list.</li>
+<li>The first health probe records its capacity.</li>
+<li>The heartbeat to the API tier advertises the new disk.</li>
+<li>HRW placement starts considering it for new writes immediately.</li>
+<li><strong>No data is migrated to fill the new disk</strong> — placement converges naturally as new writes accumulate. Over time the new disk catches up with the others' utilization.</li>
+</ol>
+<p>If the operator wants the new disk warm immediately, run a manual repair sweep (<code>POST /admin/disk-repair/start</code> on the API node) which redistributes shards more aggressively. This is the only path that actively moves <em>existing</em> data to a <em>new</em> disk.</p>
+<h2 id="removing-a-disk">Removing a disk</h2>
+<p>The graceful sequence:</p>
+<ol>
+<li>Mark the disk's mount as drained externally (read-only).</li>
+<li>The data node's probe registers the disk as unavailable on the next refresh.</li>
+<li>The Disk Repair Service picks up the shards from that disk's chunk store and re-places them on healthy disks across the cluster.</li>
+<li>When the chunk count for that disk reaches zero, the disk is empty and the mount can be detached safely.</li>
+</ol>
+<p>For a <em>failed</em> disk that's already gone, the steps are identical without the manual mark — the probe fails, the disk drops out of placement, repair fires. The only difference is that the disk's reads can't satisfy any in-flight requests during the repair, so the cluster temporarily reconstructs via parity for the shards that were on the failed disk.</p>
+<h2 id="operational-considerations">Operational considerations</h2>
 <ul>
-<li>Chunks are evenly distributed across disks using hash-based placement for balanced utilization.</li>
-<li>Read and write operations include fallback mechanisms to handle disk topology changes gracefully.</li>
-<li>Disk health (capacity, usage, availability) is continuously tracked and reported to the cluster for placement decisions.</li>
+<li><strong>Disks should be similar in size</strong>. HRW placement is uniform across the available set, so a 16-TiB disk in a node otherwise full of 8-TiB disks will fill twice as fast and become the bottleneck.</li>
+<li><strong>Distinct filesystems matter</strong>. The same-partition deduplication above is a safety net, not a recommendation; configure each disk as its own filesystem.</li>
+<li><strong>Watch for <code>available: false</code> in the heartbeat</strong>. The Admin UI's data-node panel highlights any disk in this state. A single disk going unavailable for more than the repair grace window triggers reconstruction.</li>
+<li><strong>Plan for the rebuild window</strong>. With k=4 m=2, losing a disk on a node holding ~150 000 shards rebuilds roughly proportional to the EC throughput per second. A throttled repair (default rate-limit is per-cluster, not per-disk) takes hours to days for a multi-terabyte disk — clusters that need shorter windows should raise <code>shannonstore.api.disk.repair.rate.limit.bytes.per.sec</code>.</li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../ec/">Erasure Coding</a> — the cluster-level redundancy that makes JBOD safe.</li>
+<li><a href="../disk-repair/">Disk Repair Service</a> — the worker that re-places shards from a failed disk.</li>
+<li><a href="../data-integrity/">Data Integrity</a> — the per-shard CRC32C that catches silent corruption on individual disks.</li>
+<li><a href="../distributed-architecture/">Distributed Architecture</a> — the cluster topology that hosts the data nodes.</li>
+<li><a href="../monitoring/">Monitoring &amp; Metrics</a> — disk-level capacity metrics surfaced through Prometheus.</li>
 </ul>
 
 

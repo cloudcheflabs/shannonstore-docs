@@ -1123,6 +1123,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network & Internal Communication
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1139,6 +1157,141 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#s3-client-plane-port-8080" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S3 client plane (port 8080)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#admin-plane-port-8888" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin plane (port 8888)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#internal-nio-plane-port-9090" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal NIO plane (port 9090)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Internal NIO plane (port 9090)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#connection-pooling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection pooling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compression-on-the-internal-plane" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compression on the internal plane
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thread-pool-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread-pool isolation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#firewall-and-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Firewall and routing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TLS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1285,11 +1438,300 @@
 
 
 <h1 id="network-internal-communication">Network &amp; Internal Communication</h1>
-<p>ShannonStore nodes communicate over a high-performance internal channel optimised for cluster traffic.</p>
+<p>Three traffic planes leave a ShannonStore node, each tuned for a different shape of work. Operators should understand the split to size sockets, plan firewalls, and reason about latency.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   ┌───────────────────────────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   │  S3 client traffic   :8080        │  AWS SDKs, applications, range
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   │   Netty HTTP/1.1, AWS wire format │  reads, multipart uploads
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   └────────────────┬──────────────────┘
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                    │  (TCP, optional TLS at the proxy)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                    ▼
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   ┌───────────────────────────────────────────────────────────┐
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   │                  ShannonStore API node                    │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   └────────────────┬─────────────────────────┬───────────────┘
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>                    │                         │
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   Admin REST :8888 │                         │  Internal NIO :9090
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>   ──────────────── │  Bearer JWT, Admin UI   │  ─────────────────
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>   small messages, │                         │  shard / metadata
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>   high RPS at boot │                         │  payloads — biggest
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>   then steady     │                         │  fan-out of the cluster
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>                    │                         │
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>                    ▼                         ▼
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>              Admin tooling             Peer API + Data nodes
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>              (operators,                (NIO framed protocol,
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>              cross-product              pooled connections,
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>              sweepers)                  optional compression)
+</code></pre></div>
+<p>The HTTP planes (8080, 8888) are handled by Netty with the standard HTTP/1.1 pipeline. The internal plane (9090) is a custom NIO framed protocol — kept narrow so the hot path between API nodes and data nodes never pays HTTP parsing overhead.</p>
+<h2 id="s3-client-plane-port-8080">S3 client plane (port 8080)</h2>
+<p>The outward face of the cluster. Standard HTTP/1.1, AWS wire format, see <a href="../s3-compatible-api/">S3-Compatible API</a> for the protocol shape. Tuning levers worth knowing:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.s3.port</code></td>
+<td><code>8080</code></td>
+<td>Bind port for client traffic.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.netty.worker.threads.multiplier</code></td>
+<td><code>4</code></td>
+<td>Netty worker pool size = <code>multiplier × availableProcessors()</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.fetch.timeout.seconds</code></td>
+<td><code>60</code></td>
+<td>Per-shard read deadline propagated to the internal plane.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.chunked.stream.size</code></td>
+<td><code>1 MiB</code></td>
+<td>Chunk size advertised in <code>Transfer-Encoding: chunked</code> for streamed GETs.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.circular.buffer.size</code></td>
+<td><code>64 MiB</code></td>
+<td>Per-request ring buffer for the streaming download path.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.small.object.threshold</code></td>
+<td><code>64 MiB</code></td>
+<td>Cutoff between in-memory PUT/GET and streaming. Objects below this short-circuit through a single buffer; above, the streaming path engages.</td>
+</tr>
+</tbody>
+</table>
+<p>TLS termination happens at the upstream proxy (nginx). See <a href="../../operations/nginx-proxy/">Nginx Reverse Proxy</a> for the recommended configuration that fronts both 8080 and 8888.</p>
+<h2 id="admin-plane-port-8888">Admin plane (port 8888)</h2>
+<p>JWT-authenticated REST. Used by:</p>
 <ul>
-<li>Lightweight, concurrent request/reply between nodes — designed for low overhead at high fan-out.</li>
-<li>Transparent compression of larger payloads to reduce inter-node bandwidth.</li>
-<li>Tunable transport parameters for throughput- or latency-sensitive deployments.</li>
+<li>The Admin UI bundled with the release.</li>
+<li>Cross-product tooling (chango, ontul, kiok, neorunbase) that drives IAM provisioning, access-key minting, and cluster-status checks.</li>
+<li>Backup / restore scripts.</li>
+<li>Maintenance-mode toggles, scrubber controls, disk-repair triggers.</li>
+</ul>
+<p>This plane is <strong>never</strong> intended to face the public internet — bind it to a management VLAN or expose it through an authenticated reverse proxy that further restricts source IP ranges. The default-credential gate (<code>requirePasswordChange = true</code> on the bootstrap admin) is the security back-stop, not the front line.</p>
+<h2 id="internal-nio-plane-port-9090">Internal NIO plane (port 9090)</h2>
+<p>Where the bulk of the cluster's bytes move. Three workloads share this transport:</p>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th>Sender</th>
+<th>Receiver</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Shard read / write</td>
+<td>API node</td>
+<td>data node</td>
+</tr>
+<tr>
+<td>Metadata replication</td>
+<td>API leader</td>
+<td>API follower</td>
+</tr>
+<tr>
+<td>Membership / heartbeat</td>
+<td>every node</td>
+<td>every node</td>
+</tr>
+<tr>
+<td>Maintenance-mode broadcast</td>
+<td>API leader</td>
+<td>API followers</td>
+</tr>
+<tr>
+<td>KMS sync</td>
+<td>API leader</td>
+<td>data nodes</td>
+</tr>
+</tbody>
+</table>
+<p>The framing is fixed-header + variable-payload binary. No HTTP parsing, no JSON: each message is a 4-byte length + opcode + payload. Payloads are protobuf-like compact records (the project's <code>Message</code> class) so the wire size is minimal even before any compression.</p>
+<h3 id="connection-pooling">Connection pooling</h3>
+<p><code>ConnectionPool</code> retains idle NIO connections per peer (<code>host:port</code>) so the hot read/write path doesn't pay TCP-handshake cost per request.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>   ConnectionPool
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>     ├── idlePools[&quot;data-1:9090&quot;]  → [client0, client1, …, clientN]
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>     ├── idlePools[&quot;data-2:9090&quot;]  → [client0, …]
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>     └── idlePools[&quot;api-2:9090&quot;]   → [client0, …]
+</code></pre></div>
+<p>Knobs:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.connection.pool.size.per.host</code></td>
+<td><code>64</code></td>
+<td>Cap on idle clients retained per peer.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.connection.pool.acquire.timeout.seconds</code></td>
+<td><code>30</code></td>
+<td>Blocking acquire deadline.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.connection.pool.warmup.enabled</code></td>
+<td><code>true</code></td>
+<td>Pre-open connections at startup so the first request after a restart doesn't pay TCP handshake.</td>
+</tr>
+</tbody>
+</table>
+<p>Direct buffers (off-heap) are used for inbound and outbound payloads — the JVM heap stays out of the IO path entirely on platforms where <code>sun.nio.ch.DirectBuffer</code> is available. Operators can disable direct buffers via the same constructor flag if a constrained environment needs heap-only IO.</p>
+<p>Failed sockets are evicted from the pool via <code>invalidateConnection()</code> so a transient peer crash doesn't poison the pool. The next acquire opens a fresh connection and (eventually) succeeds when the peer recovers.</p>
+<h2 id="compression-on-the-internal-plane">Compression on the internal plane</h2>
+<p>Inter-node payloads compress transparently above a configurable size threshold:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.network.compression.type</code></td>
+<td><code>SNAPPY</code></td>
+<td>Algorithm: <code>NONE</code> / <code>SNAPPY</code> / <code>GZIP</code> / <code>ZSTD</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.compression.threshold</code></td>
+<td><code>1024</code></td>
+<td>Bytes — below this the payload ships uncompressed.</td>
+</tr>
+</tbody>
+</table>
+<p>The 1 KiB default is chosen so that small control messages (heartbeats, membership pings) don't pay the compression latency, while shard payloads (the dominant byte flow) do. The compression header is a single byte at the start of the payload, so a peer running a different algorithm at the same <code>shannonstore.network.compression.type</code> setting still decodes correctly — change the setting on a rolling restart without coordination.</p>
+<p>SNAPPY is the safe default. ZSTD gives a better ratio at the cost of CPU; reserve it for clusters that are network-bound rather than CPU-bound. GZIP exists for environments where SNAPPY/ZSTD native libraries can't be loaded.</p>
+<h2 id="thread-pool-isolation">Thread-pool isolation</h2>
+<p>Three distinct pools serve the three planes so a runaway worker on one path never starves another:</p>
+<table>
+<thead>
+<tr>
+<th>Pool</th>
+<th>Default size</th>
+<th>Workload</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Netty boss + worker</td>
+<td><code>4 × cpus</code></td>
+<td>Accept + read/write on 8080 and 8888</td>
+</tr>
+<tr>
+<td>Fetch pool</td>
+<td><code>2 × cpus</code></td>
+<td>Per-request shard fan-out reads</td>
+</tr>
+<tr>
+<td>Chunk pool</td>
+<td><code>2 × cpus</code></td>
+<td>EC encode / decode, KMS unwrap, compression</td>
+</tr>
+</tbody>
+</table>
+<p>The fetch and chunk pools are independently sized via <code>shannonstore.api.fetch.thread.pool.size</code> and <code>shannonstore.api.chunk.thread.pool.size</code>. The split exists because shard reads are network-bound (waiting for sockets) while chunk work is CPU-bound (RS decoding, AES-GCM, snappy/zstd). Doubling one without the other has no global effect.</p>
+<h2 id="firewall-and-routing">Firewall and routing</h2>
+<p>For a cluster split across racks or AZs:</p>
+<table>
+<thead>
+<tr>
+<th>Direction</th>
+<th>Port</th>
+<th>Required?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Client → API node</td>
+<td>8080</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Operator → API node</td>
+<td>8888</td>
+<td>yes (management VLAN)</td>
+</tr>
+<tr>
+<td>API node → API node</td>
+<td>9090</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>API node → data node</td>
+<td>9090</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Data node → API node</td>
+<td>9090 (callback)</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Data node → data node</td>
+<td>—</td>
+<td>not used</td>
+</tr>
+</tbody>
+</table>
+<p>Data nodes do not talk directly to each other. Every cluster-wide message either passes through the API tier or is broadcast from the leader, so the data-tier subnet only needs ingress from the API tier.</p>
+<h2 id="tls">TLS</h2>
+<p>The internal plane runs plaintext by design — both ends are inside the cluster's private network and the messages are already protected by the cluster's at-rest encryption pipeline (shards leave the API node already ciphertext). Adding TLS to the internal plane would double-encrypt payloads that are already secure. Wrap the cluster's network at the perimeter (VPC, WireGuard, etc.) rather than wrapping individual peer links.</p>
+<p>The S3 and Admin planes are HTTP and <em>should</em> run over TLS in production. Terminate at the upstream nginx; see <a href="../../operations/nginx-proxy/">Nginx Reverse Proxy</a>.</p>
+<h2 id="diagnostics">Diagnostics</h2>
+<p>Each plane logs distinct slow-path lines so operators can pinpoint contention:</p>
+<table>
+<thead>
+<tr>
+<th>Log signature</th>
+<th>Plane</th>
+<th>Likely cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Acquire timeout on connection pool …</code></td>
+<td>internal NIO</td>
+<td><code>connection.pool.size.per.host</code> too small for current fan-out</td>
+</tr>
+<tr>
+<td><code>Fetch timeout for chunk …</code></td>
+<td>internal NIO</td>
+<td>data node slow, raise <code>s3.fetch.timeout.seconds</code> or investigate the peer</td>
+</tr>
+<tr>
+<td><code>Netty channel idle timeout</code></td>
+<td>S3 (8080)</td>
+<td>client opened a TCP connection and idled past the keep-alive window</td>
+</tr>
+<tr>
+<td><code>Compression skipped — payload below threshold</code> (debug)</td>
+<td>internal NIO</td>
+<td>informational; tune <code>network.compression.threshold</code> to be more aggressive</td>
+</tr>
+</tbody>
+</table>
+<p>Prometheus exposes per-plane counters (<code>shannonstore_http_requests_total{port="8080"}</code>, etc.) so a grafana panel can visualize the distribution at a glance.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../configuration/">Configuration Management</a> — the resolution chain that produces every knob mentioned here.</li>
+<li><a href="../performance/">Performance Optimization</a> — how the pools and buffers interact under load.</li>
+<li><a href="../../operations/nginx-proxy/">Nginx Reverse Proxy</a> — the recommended TLS termination + routing setup.</li>
+<li><a href="../s3-compatible-api/">S3-Compatible API</a> — what the 8080 surface speaks.</li>
+<li><a href="../auth-authz/">Authentication &amp; Authorization</a> — what the 8888 surface requires.</li>
 </ul>
 
 

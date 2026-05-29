@@ -1011,6 +1011,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Optimization
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1027,6 +1045,124 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#part-buffering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Part buffering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quorum-writes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quorum writes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#streaming-prefetch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streaming prefetch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#connection-pooling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection pooling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#thread-pool-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thread-pool isolation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#object-size-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object-size paths
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workload-tuning-recipes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workload tuning recipes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-deliberately-not-optimised" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's deliberately not optimised
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1285,13 +1421,273 @@
 
 
 <h1 id="performance-optimization">Performance Optimization</h1>
-<p>ShannonStore is designed for high throughput and low latency through several optimization strategies.</p>
+<p>Five techniques together carry ShannonStore from the textbook "encode → fan out → reply" S3 pipeline to a production storage engine that holds throughput at line rate under concurrent load. Each technique addresses a specific waiting point — buffering for client backpressure, quorum for tail latency, prefetching for read pipelining, pooling for connection overhead, and thread isolation for fairness — and each is independently tunable.</p>
+<h2 id="part-buffering">Part buffering</h2>
+<p>Multipart uploads expose a fundamental tension: the client treats parts as independent (any order, any concurrency), the storage layer wants them grouped (so a single EC pass spans the whole object). Without buffering, every part triggers its own EC encode at write time and another at <code>CompleteMultipartUpload</code> — twice the CPU.</p>
+<p>ShannonStore solves this with a <strong>two-layer buffer</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   UploadPart bytes
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>        │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>        ▼
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   ┌─────────────────────────────────────────┐
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   │  In-memory buffer (bounded)              │
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   │   - direct ByteBuffer for zero-copy     │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   │   - encrypted at-rest with per-part DEK │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   └────────┬────────────────────────────────┘
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>            │ overflow when memory cap hit
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>            ▼
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   ┌─────────────────────────────────────────┐
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>   │  RocksDB-backed spill                   │
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>   │   - same encryption                      │
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>   │   - flushed every flushIntervalMs       │
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>   └─────────────────────────────────────────┘
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>            │
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>            ▼  CompleteMultipartUpload
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>   ┌─────────────────────────────────────────┐
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>   │  Single EC pass across all parts        │
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>   │  → final shards placed across cluster   │
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>   └─────────────────────────────────────────┘
+</code></pre></div>
+<p>Knobs:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.part.buffer.enabled</code></td>
+<td><code>true</code></td>
+<td>Master switch.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.part.buffer.memory.max.bytes</code></td>
+<td>(configured)</td>
+<td>In-memory cap per node before spilling.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.part.buffer.rocksdb.path</code></td>
+<td><code>./data/part-buffer</code></td>
+<td>Spill location.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.part.buffer.flush.interval.ms</code></td>
+<td>(configured)</td>
+<td>Background flush cadence for the spill.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.part.buffer.peer.fetch.timeout.seconds</code></td>
+<td>(configured)</td>
+<td>Timeout when CompleteMultipart needs a part buffered on a peer.</td>
+</tr>
+</tbody>
+</table>
+<p>The buffer is <strong>cluster-aware</strong>: a part uploaded to API node A and a completion call landing on API node B fetches the buffered bytes from A over the internal NIO plane, so SDKs can multipart-upload across a load balancer without sticky sessions.</p>
+<p>Parts are also <strong>pre-assigned to EC shard slots</strong> at buffer time. The slot assignment uses the same HRW that final-write placement would, so at completion the per-part shards are already in their final layout — no re-encoding, just promotion from "buffered" to "committed".</p>
+<h2 id="quorum-writes">Quorum writes</h2>
+<p>A PUT replies as soon as <strong>k of k+m shards acknowledge</strong>. The remaining parity shards continue writing in the background. The math: with k=4 m=2 the client sees acknowledgement at 4-of-6, durability is already achieved (the 4 data shards reconstruct the object even if every parity write fails), and the perceived write latency drops from <code>max(all 6 sites)</code> to <code>4th-fastest of 6 sites</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>   PUT object
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>       │  fan out 6 shard writes in parallel
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>       ├──► node-1  ─┐
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>       ├──► node-2  ─┤  4 of 6 acknowledged → reply 200 OK to client
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>       ├──► node-3  ─┤  (background continues for parities 5 and 6)
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>       ├──► node-4  ─┘
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>       ├──► node-5  (parity — still in flight)
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>       └──► node-6  (parity — still in flight)
+</code></pre></div>
+<p>Two corner cases the implementation handles:</p>
+<ol>
+<li><strong>Background parity failure</strong>: if a background parity write fails (target disk full, peer dies), the shard is enqueued for the <a href="../disk-repair/">Disk Repair Service</a> on a different healthy disk. The client never sees the failure — they got their 200 OK already.</li>
+<li><strong>Insufficient acks</strong>: if fewer than k shards acknowledge within the per-shard timeout, the PUT fails with <code>503 SlowDown</code> and the partial layout is reaped. No half-written object is visible.</li>
+</ol>
+<p>Quorum writes are always on; there's no opt-out. Operators tuning for strict durability semantics (k+m of k+m acks before reply) would gain nothing — k of k+m already saturates the durability guarantee given the EC parameters; the extra waits are pure latency.</p>
+<h2 id="streaming-prefetch">Streaming prefetch</h2>
+<p>Large GET responses use a producer/consumer split: a prefetch worker fans out shard reads in parallel and feeds a circular buffer; the response-writing thread consumes from the buffer as the client reads. The client's read rate becomes the only backpressure signal — fast clients see line-rate, slow clients see naturally throttled fetch.</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.prefetch.queue.size</code></td>
+<td><code>8</code></td>
+<td>Number of in-flight shard reads queued ahead of the client.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.prefetch.initial.count</code></td>
+<td><code>8</code></td>
+<td>Shards fetched eagerly at GET start.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.circular.buffer.size</code></td>
+<td><code>64 MiB</code></td>
+<td>Per-request ring buffer.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.small.object.threshold</code></td>
+<td><code>64 MiB</code></td>
+<td>Below this, GET takes a simpler in-memory path.</td>
+</tr>
+</tbody>
+</table>
+<p>The prefetch path is what makes Range requests work well for Iceberg/Parquet: a column-chunk read of a few MiB lands in one shard, the prefetcher has already pulled it before the consumer asks, and the read returns from memory. A naive sequential GET would have re-fetched every range from disk.</p>
+<h2 id="connection-pooling">Connection pooling</h2>
+<p>Inter-node communication on port 9090 is a high-fan-out workload — a single client GET against a k=4 m=2 object triggers up to 6 peer reads, and a cluster serving thousands of QPS produces tens of thousands of concurrent peer connections. Without pooling, each request would TCP-handshake against each peer; the handshake cost would dominate the request budget.</p>
+<p><code>ConnectionPool</code> retains idle NIO clients per <code>(host, port)</code> and reuses them. Cap is per-peer, not global:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.connection.pool.size.per.host</code></td>
+<td><code>64</code></td>
+<td>Idle clients retained per peer.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.connection.pool.acquire.timeout.seconds</code></td>
+<td><code>30</code></td>
+<td>Blocking acquire deadline.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.connection.pool.warmup.enabled</code></td>
+<td><code>true</code></td>
+<td>Pre-open at startup.</td>
+</tr>
+</tbody>
+</table>
+<p>Failed sockets are evicted immediately so a transient peer crash doesn't poison the pool. See <a href="../network/">Network &amp; Internal Communication</a> for the full pool semantics.</p>
+<h2 id="thread-pool-isolation">Thread-pool isolation</h2>
+<p>Three independent pools serve three different waiting patterns:</p>
+<table>
+<thead>
+<tr>
+<th>Pool</th>
+<th>Sized via</th>
+<th>Workload pattern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Netty workers</td>
+<td><code>netty.worker.threads.multiplier × cpus</code></td>
+<td>IO multiplexing for 8080/8888</td>
+</tr>
+<tr>
+<td>Fetch pool</td>
+<td><code>fetch.thread.pool.size</code> (default <code>2 × cpus</code>)</td>
+<td>Per-shard NIO reads on the internal plane</td>
+</tr>
+<tr>
+<td>Chunk pool</td>
+<td><code>chunk.thread.pool.size</code> (default <code>2 × cpus</code>)</td>
+<td>EC encode/decode, KMS unwrap, compression</td>
+</tr>
+</tbody>
+</table>
+<p>The split exists because doubling the wrong pool wastes the resource. Fetch threads spend nearly all their time blocked on sockets; doubling them gives more concurrency at near-zero CPU cost. Chunk threads spend nearly all their time on CPU; doubling them past <code>availableProcessors()</code> produces no gain. An operator confused about which pool to scale can read the metrics:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Saturation hint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.nio.connection.pool.acquire.timeout.total</code> rising</td>
+<td>fetch pool too small (or pool size per host too small)</td>
+</tr>
+<tr>
+<td><code>system.cpu.usage</code> pegged at 100%</td>
+<td>chunk pool can't process incoming work; PUT/GET latency is CPU-bound</td>
+</tr>
+<tr>
+<td>Netty event-loop time near 100%</td>
+<td>netty pool too small for connection count</td>
+</tr>
+</tbody>
+</table>
+<h2 id="object-size-paths">Object-size paths</h2>
+<p>The single piece of advice every operator should internalize:</p>
+<table>
+<thead>
+<tr>
+<th>Object size</th>
+<th>GET path</th>
+<th>PUT path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>≤ <code>s3.small.object.threshold</code> (default 64 MiB)</td>
+<td>buffered in memory, decoded once, written to socket in one shot</td>
+<td>buffered in memory, EC-encoded, written</td>
+</tr>
+<tr>
+<td>&gt; threshold</td>
+<td>streaming with prefetch, decoded part-by-part, written to socket as decoded</td>
+<td>streaming with quorum write</td>
+</tr>
+</tbody>
+</table>
+<p>The threshold is configurable, but the trade-off rarely changes: small objects benefit from the simpler in-memory path (no prefetch overhead, no ring-buffer copies), large objects benefit from streaming (constant memory footprint, prefetch concurrency). 64 MiB is a sensible cutoff — it's smaller than Parquet typical row groups (so a single Iceberg footer read takes the small path) and larger than checkpoint files (so a Spark checkpoint takes the small path).</p>
+<h2 id="workload-tuning-recipes">Workload tuning recipes</h2>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th>Suggested overrides</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Iceberg / Parquet analytics (read-heavy, range-heavy)</td>
+<td><code>prefetch.queue.size = 16</code>, <code>connection.pool.size.per.host = 128</code>, leave object compression <code>NONE</code></td>
+</tr>
+<tr>
+<td>Spark / Flink checkpoints (small frequent writes)</td>
+<td><code>s3.small.object.threshold = 128 MiB</code>, raise <code>part.buffer.memory.max.bytes</code>, ZSTD object compression</td>
+</tr>
+<tr>
+<td>Backup / archive (large sequential writes)</td>
+<td>leave defaults; raise <code>disk.repair.rate.limit</code> so background repairs from any disk failure during ingest don't lag</td>
+</tr>
+<tr>
+<td>Time-series ingest (high QPS, small parts)</td>
+<td><code>netty.worker.threads.multiplier = 8</code>, <code>fetch.thread.pool.size = 4 × cpus</code>, ZSTD object compression</td>
+</tr>
+<tr>
+<td>Mixed media (image / video heavy, low write rate)</td>
+<td>object compression <code>NONE</code>, raise <code>chunk.thread.pool.size</code> only if profile shows EC saturation</td>
+</tr>
+</tbody>
+</table>
+<p>These are starting points — read the metrics, then tune. The defaults are already a reasonable middle ground.</p>
+<h2 id="whats-deliberately-not-optimised">What's deliberately not optimised</h2>
+<p>Two paths take simple-and-correct over fast-but-complex:</p>
 <ul>
-<li><strong>Part Buffering</strong>: Multipart uploads use a dual-layer buffer (in-memory + disk overflow) with encryption, and parts are pre-assigned to erasure coding shards to avoid re-encoding on completion.</li>
-<li><strong>Quorum Writes</strong>: PUT operations return success as soon as enough data shards acknowledge, while parity shards continue writing in the background.</li>
-<li><strong>Streaming Prefetch</strong>: Large object downloads use async prefetching to eliminate blocking while the client reads data.</li>
-<li><strong>Connection Pooling</strong>: Persistent connections to Data Nodes are pooled and reused for efficient RPC communication.</li>
-<li><strong>Thread Pool Isolation</strong>: Separate thread pools for S3 requests, chunk operations, encoding, and background tasks prevent resource contention.</li>
+<li><strong>Multi-range HTTP requests</strong> (<code>Range: bytes=0-99,200-299</code>) are not supported. Implementing them well requires multipart MIME responses; SDKs that need multiple ranges issue them as separate requests, and the prefetch path handles that cleanly.</li>
+<li><strong>Coalesced metadata writes</strong>. Each IAM mutation immediately fans out a snapshot rather than batching multiple mutations into one push. Batching would lower CPU but increases the leader→follower convergence window; the convergence guarantee is more valuable than the savings.</li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../ec/">Erasure Coding</a> — the encoding step the chunk pool drives.</li>
+<li><a href="../network/">Network &amp; Internal Communication</a> — the connection pool and threading model in more depth.</li>
+<li><a href="../kms/">Encryption &amp; Key Management</a> — the KMS unwrap that runs on the chunk pool.</li>
+<li><a href="../disk-repair/">Disk Repair Service</a> — the recipient of background-write failures from quorum writes.</li>
+<li><a href="../configuration/">Configuration Management</a> — the full set of knobs mentioned here.</li>
+<li><a href="../monitoring/">Monitoring &amp; Metrics</a> — the gauges that tell an operator which knob to tune.</li>
 </ul>
 
 

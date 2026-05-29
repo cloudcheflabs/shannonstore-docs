@@ -1095,6 +1095,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Management
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1111,6 +1129,174 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#resolution-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resolution chain
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#variable-substitution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variable substitution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-surface-whats-actually-tunable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key surface — what's actually tunable
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key surface — what&#39;s actually tunable">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cluster-connectivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cluster connectivity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#storage-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage layout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#performance-tuning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance tuning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compression" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compression
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#metrics-observability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Metrics &amp; observability
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-node-specifics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data-node specifics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hot-reload-vs-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hot-reload vs restart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-and-fail-closed-defaults" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation and fail-closed defaults
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1285,11 +1471,413 @@
 
 
 <h1 id="configuration-management">Configuration Management</h1>
-<p>ShannonStore supports flexible configuration through a priority-based resolution chain.</p>
+<p>ShannonStore separates <em>what</em> the cluster does from <em>how</em> it's tuned. Every node — API or data — derives its full runtime configuration from a small, well-defined resolution chain, so the same artifact runs unchanged through CI, staging, and prod. The same <code>ConfigLoader</code> powers both <code>ApiConfig</code> and <code>DataConfig</code>; everything below applies to both node types.</p>
+<h2 id="resolution-chain">Resolution chain</h2>
+<p>A configuration key is looked up in this strict order, first hit wins:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   1.  -D&lt;key&gt;=&lt;value&gt;          ← JVM system property  (highest priority)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   2.  &lt;KEY&gt;=&lt;value&gt;            ← environment variable (key uppercased, dots → underscores)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   3.  external config file     ← path from -Dshannonstore.config.file=...
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   4.  classpath conf/api.properties / conf/data.properties  ← defaults
+</code></pre></div>
+<p>The chain is short on purpose. An operator deploying with a Helm chart sets system properties via JVM flags; a developer iterating locally edits the external file; a container image bakes safe defaults into the classpath. No layer can silently undo a higher-priority value — the resolution stops the moment a key resolves.</p>
+<p>A typical production launcher script:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Image baked with conf/api.properties as defaults.</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">exec</span><span class="w"> </span>java<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>-Dshannonstore.config.file<span class="o">=</span>/etc/shannonstore/site.properties<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>-Dshannonstore.api.s3.ec.data.shards<span class="o">=</span><span class="m">8</span><span class="w"> </span><span class="se">\ </span><span class="w">         </span><span class="c1"># override one knob via flag</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span>-Dshannonstore.api.s3.ec.parity.shards<span class="o">=</span><span class="m">4</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span>-DSHANNONSTORE_MASTER_KEY<span class="o">=</span><span class="s2">&quot;</span><span class="nv">$KMS_FROM_SECRET</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span>-jar<span class="w"> </span>shannonstore-api.jar
+</code></pre></div>
+<p>The environment-variable form is what container schedulers prefer:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">env</span><span class="p">:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SHANNONSTORE_API_S3_EC_DATA_SHARDS</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;8&quot;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SHANNONSTORE_API_S3_EC_PARITY_SHARDS</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;4&quot;</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">SHANNONSTORE_MASTER_KEY</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="nt">valueFrom</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> secretKeyRef</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> name</span><span class="p">:</span><span class="w"> </span><span class="nv">shannonstore-kms</span><span class="p p-Indicator">,</span><span class="nt"> key</span><span class="p">:</span><span class="w"> </span><span class="nv">master</span><span class="w"> </span><span class="p p-Indicator">}</span><span class="w"> </span><span class="p p-Indicator">}</span>
+</code></pre></div>
+<p>The same key works either way. ShannonStore's loader uppercases dots → underscores so an operator can pick whichever shape their orchestrator makes ergonomic.</p>
+<h2 id="variable-substitution">Variable substitution</h2>
+<p>Values may reference other keys with the <code>${…}</code> form. Substitution happens once at start, against the already-resolved key set:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="na">shannonstore.data.root</span><span class="w">              </span><span class="o">=</span><span class="w"> </span><span class="s">/mnt/shannon</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="na">shannonstore.data.storage.dirs</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s">${shannonstore.data.root}/disk-1,${shannonstore.data.root}/disk-2</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="na">shannonstore.data.kms.rocksdb.path</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s">${shannonstore.data.root}/kms-rocksdb</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="na">shannonstore.log.path</span><span class="w">               </span><span class="o">=</span><span class="w"> </span><span class="s">${shannonstore.data.root}/logs</span>
+</code></pre></div>
+<p>This is the DRY mechanism for keeping per-disk paths and log paths anchored to a single root that changes between environments. Cycles in the substitution graph are rejected at start with a clear log line.</p>
+<h2 id="key-surface-whats-actually-tunable">Key surface — what's actually tunable</h2>
+<p>Over 150 keys cover every dimension of the cluster. The most-encountered groupings:</p>
+<h3 id="cluster-connectivity">Cluster connectivity</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.zk.connect</code></td>
+<td><code>localhost:2181</code></td>
+<td>ZooKeeper coordinate for leader election / membership.</td>
+</tr>
+<tr>
+<td><code>shannonstore.advertised.host</code></td>
+<td><code>localhost</code></td>
+<td>Hostname peers and clients reach this node by.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.port</code></td>
+<td><code>8080</code></td>
+<td>S3 wire endpoint.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.admin.port</code></td>
+<td><code>8888</code></td>
+<td>Admin REST + Admin UI.</td>
+</tr>
+<tr>
+<td><code>shannonstore.nio.port</code></td>
+<td><code>9090</code></td>
+<td>Internal NIO channel for inter-node RPC.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.zk.discovery.path</code></td>
+<td><code>/s3/discovery/api</code></td>
+<td>ZooKeeper path for API-node membership advertisement.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.zk.leader.path</code></td>
+<td><code>/s3/masters/leader</code></td>
+<td>ZooKeeper path for the API leader election.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="storage-layout">Storage layout</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.s3.ec.data.shards</code></td>
+<td><code>4</code></td>
+<td>Reed-Solomon k.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.ec.parity.shards</code></td>
+<td><code>2</code></td>
+<td>Reed-Solomon m.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.iam.rocksdb.dir</code></td>
+<td><code>./data/s3-metadata/iam</code></td>
+<td>IAM/bucket state RocksDB.</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.storage.dirs</code></td>
+<td><code>./data/s3-data-data</code></td>
+<td>Comma-separated storage roots on data nodes.</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.kms.rocksdb.path</code></td>
+<td><code>./data/shannon-data-kms-rocksdb</code></td>
+<td>Wrapped DEK store on the data node.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="security">Security</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SHANNONSTORE_MASTER_KEY</code></td>
+<td><em>required</em></td>
+<td>KEK for envelope encryption. Process refuses to start without it.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.object.encryption.type</code></td>
+<td><code>AES</code></td>
+<td>Object-level encryption algorithm.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.sts.default.session.duration.seconds</code></td>
+<td>—</td>
+<td>Cap on STS <code>AssumeRole</code> lifetimes.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="performance-tuning">Performance tuning</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.fetch.thread.pool.size</code></td>
+<td><code>2 × cpus</code></td>
+<td>NIO fetch pool for parallel shard reads.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.chunk.thread.pool.size</code></td>
+<td><code>2 × cpus</code></td>
+<td>Chunk encode / decode pool.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.connection.pool.size.per.host</code></td>
+<td><code>64</code></td>
+<td>Idle NIO connections retained per peer.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.connection.pool.acquire.timeout.seconds</code></td>
+<td><code>30</code></td>
+<td>Blocking acquire on a busy pool.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.connection.pool.warmup.enabled</code></td>
+<td><code>true</code></td>
+<td>Pre-open connections at startup.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.prefetch.queue.size</code></td>
+<td><code>8</code></td>
+<td>Async download lookahead.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.prefetch.initial.count</code></td>
+<td><code>8</code></td>
+<td>Initial shards prefetched on GET.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.small.object.threshold</code></td>
+<td><code>67108864</code> (64 MiB)</td>
+<td>Cut-off between buffered and streaming GET.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.circular.buffer.size</code></td>
+<td><code>67108864</code></td>
+<td>Streaming GET ring-buffer per request.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.chunked.stream.size</code></td>
+<td><code>1048576</code></td>
+<td>Streaming chunk size on the wire.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.fetch.timeout.seconds</code></td>
+<td><code>60</code></td>
+<td>Per-shard fetch deadline.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.netty.worker.threads.multiplier</code></td>
+<td><code>4</code></td>
+<td>Multiplier on <code>availableProcessors()</code> for Netty worker pool.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="compression">Compression</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.s3.object.compression.type</code></td>
+<td><code>SNAPPY</code></td>
+<td>Per-object compression: <code>NONE</code> / <code>SNAPPY</code> / <code>GZIP</code> / <code>ZSTD</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.object.compression.mime.types</code></td>
+<td><code>text/*,application/json,application/xml</code></td>
+<td>MIME glob — only matching content types are compressed.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.compression.type</code></td>
+<td><code>SNAPPY</code></td>
+<td>Inter-node payload compression.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.compression.threshold</code></td>
+<td><code>1024</code></td>
+<td>Bytes below this skip compression.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.index.rocksdb.value.compression</code></td>
+<td><code>false</code></td>
+<td>Compress metadata RocksDB values.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.index.rocksdb.value.compression.type</code></td>
+<td><code>SNAPPY</code></td>
+<td>Algorithm when enabled.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="metrics-observability">Metrics &amp; observability</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.prometheus.enabled</code></td>
+<td><code>true</code></td>
+<td>Expose <code>/metrics</code> for scraping.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.metrics.collection.interval.seconds</code></td>
+<td><code>60</code></td>
+<td>System metrics tick.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.metrics.retention.days</code></td>
+<td><code>30</code></td>
+<td>History kept in the internal store.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.metrics.retention.cleanup.interval.hours</code></td>
+<td><code>12</code></td>
+<td>Sweep cadence.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.history.retention.days</code></td>
+<td><code>365</code></td>
+<td>Operation-history retention.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="data-node-specifics">Data-node specifics</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.data.storage.dirs</code></td>
+<td><code>./data/s3-data-data</code></td>
+<td>One or more storage roots (typically one per disk).</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.storage.chunk.compression.type</code></td>
+<td><code>NONE</code></td>
+<td>On-disk compression (independent of object-level).</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.storage.chunk.encryption.type</code></td>
+<td><code>NONE</code></td>
+<td>Defense-in-depth at the data-node disk layer.</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.thread.pool.compute.size</code></td>
+<td><code>512</code></td>
+<td>CPU-bound pool size.</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.disk.info.refresh.interval.seconds</code></td>
+<td><code>60</code></td>
+<td>How often disk-health stats publish to the API tier.</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.kms.pull.max.attempts</code></td>
+<td><code>60</code></td>
+<td>Retry budget when fetching KMS at startup.</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.kms.pull.rpc.timeout.seconds</code></td>
+<td><code>5</code></td>
+<td>Per-attempt deadline.</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.startup.leader.ready.poll.sleep.ms</code></td>
+<td><code>500</code></td>
+<td>Sleep between leader-readiness polls at boot.</td>
+</tr>
+</tbody>
+</table>
+<p>A full enumeration lives in <code>conf/api.properties</code> and <code>conf/data.properties</code> inside the release tarball — those files are the canonical reference for the complete set, with comments next to each key.</p>
+<h2 id="hot-reload-vs-restart">Hot-reload vs restart</h2>
+<p>Most keys take effect at process start. A small subset is mutable at runtime through the Admin REST:</p>
+<table>
+<thead>
+<tr>
+<th>Key area</th>
+<th>Mutable at runtime?</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Maintenance mode</td>
+<td>yes</td>
+<td><code>POST /admin/maintenance</code></td>
+</tr>
+<tr>
+<td>Bitrot scrubber enable / pause</td>
+<td>yes</td>
+<td>Admin UI toggle (per-node)</td>
+</tr>
+<tr>
+<td>Disk-repair concurrency / throttle</td>
+<td>yes</td>
+<td>Admin UI knob</td>
+</tr>
+<tr>
+<td>Metrics retention</td>
+<td>yes</td>
+<td><code>PATCH /admin/config/retention</code></td>
+</tr>
+<tr>
+<td>EC / KMS / port / ZK topology</td>
+<td>no</td>
+<td>restart required</td>
+</tr>
+</tbody>
+</table>
+<p>The static-vs-mutable split is intentional. A live cluster's storage layout and addressing should not change without an explicit deploy; everything that's a <em>policy</em> (when to scrub, when to throttle) is meant to respond to operator judgement without a restart.</p>
+<h2 id="validation-and-fail-closed-defaults">Validation and fail-closed defaults</h2>
+<p>The loader validates every parsed value at start. Sensitive failure modes:</p>
 <ul>
-<li><strong>Priority order</strong> (highest to lowest): System properties → Environment variables → External config file → Default classpath properties.</li>
-<li>Supports variable substitution (<code>${variable}</code> syntax) for DRY configuration.</li>
-<li>Over 150 configurable parameters covering cluster connectivity, storage, security, performance tuning, and more.</li>
+<li>Missing <code>SHANNONSTORE_MASTER_KEY</code> → process refuses to launch (see <a href="../kms/">KMS</a>).</li>
+<li>Unparseable integer / boolean → process refuses to launch with the offending key in the log.</li>
+<li>Substitution cycle → process refuses to launch with the cycle path printed.</li>
+<li>Out-of-range value (negative port, EC k+m &gt; cluster nodes) → process logs a warning and uses the safe default.</li>
+</ul>
+<p>The "fail closed" choice is consistent with the rest of the security model: a misconfigured deployment never silently runs with weaker guarantees than the operator believed they configured.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../../installation/installation/">Installation</a> — the bootstrap path that consumes these keys.</li>
+<li><a href="../performance/">Performance Optimization</a> — the runtime knobs that shape latency and throughput.</li>
+<li><a href="../kms/">Encryption &amp; Key Management</a> — the master-key requirement and rotation flow.</li>
+<li><a href="../monitoring/">Monitoring &amp; Metrics</a> — the metrics surfaces produced by the keys in the metrics section.</li>
 </ul>
 
 

@@ -815,6 +815,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Identity & Access Management
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -831,6 +849,174 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#entities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entities
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Entities">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#user" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        User
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#group" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Group
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#access-keys-akia" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Access keys (AKIA…)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sts-temporary-credentials-asia" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STS temporary credentials (ASIA…)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#policy-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Policy evaluation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#action-verbs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Action verbs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resource-arns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Resource ARNs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#default-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default install
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#at-rest-encryption-cluster-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        At-rest encryption + cluster sync
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#management-surfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Management surfaces
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1285,12 +1471,227 @@
 
 
 <h1 id="identity-access-management-iam">Identity &amp; Access Management (IAM)</h1>
-<p>ShannonStore provides an AWS IAM-compatible access control system.</p>
+<p>ShannonStore ships with an AWS IAM-shaped access control system that gates every S3 and Admin REST request before the storage layer sees it. The model — users, groups, policies, access keys, STS temporary credentials — is intentionally familiar to anyone who's read an AWS IAM document, and the JSON policy schema is the AWS one.</p>
+<p>A single <code>AuthManager</code> instance is the source of truth for the cluster:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>              ┌───────────────────────────────────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>              │            AuthManager (per API)          │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>              │                                           │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   usersById ─┤  user → User { groups[], credentials[] }  │
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   groupsByName─►  group → IamGroup { policyNames[] }     │
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   policiesByName ►  name → IamPolicy { Statement[] }     │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   userPolicies ─►  user → Set&lt;policyName&gt; (direct attach)│
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   accessKeyIndex ►  AKID → User + AccessKeyRecord        │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   temporaryCredentials ►  AKID(ASIA) → STS creds         │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   refreshTokens ─►  refreshToken → SessionInfo           │
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   revokedAccessTokens ─►  jti → expiry (logout tombstone)│
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>              │                                           │
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>              │  saveToLocalDb() ──► RocksDB (KMS-encrypted) │
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>              │  updateListener  ──► sync to peer API nodes  │
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>              └───────────────────────────────────────────┘
+</code></pre></div>
+<p>The full state is serialized as a single blob on every mutation, KMS-encrypted at rest in RocksDB at <code>data/iam-rocksdb/</code>, and broadcast to peers through the existing IAM sync channel so multi-API-node clusters converge without leader/follower divergence.</p>
+<h2 id="entities">Entities</h2>
+<h3 id="user">User</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kd">class</span> <span class="nc">User</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="n">userId</span><span class="p">;</span><span class="w">                       </span><span class="c1">// unique id, doubles as the login name</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="n">password</span><span class="p">;</span><span class="w">                     </span><span class="c1">// PBKDF2-hashed</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="kt">boolean</span><span class="w"> </span><span class="n">requirePasswordChange</span><span class="p">;</span><span class="w">        </span><span class="c1">// default-credential gate</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="w"> </span><span class="n">groups</span><span class="p">;</span><span class="w">                  </span><span class="c1">// group names this user belongs to</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="n">List</span><span class="o">&lt;</span><span class="n">AccessKeyRecord</span><span class="o">&gt;</span><span class="w"> </span><span class="n">credentials</span><span class="p">;</span><span class="w">     </span><span class="c1">// permanent + STS-minted keys</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">}</span>
+</code></pre></div>
 <ul>
-<li>Users and groups can be managed through the Admin UI, with policies controlling what each user or group is allowed to do.</li>
-<li>Policies follow the standard AWS IAM JSON format, supporting wildcard matching and explicit Deny-over-Allow evaluation.</li>
-<li>Access key pairs can be generated for programmatic S3 API access, with support for expiration and status management.</li>
-<li>On first cluster start, a default admin user, group, and full-access policy are automatically created.</li>
+<li><code>userId</code> is the natural identifier — group membership and access keys reference it.</li>
+<li><code>password</code> is stored as a salted hash; raw passwords never appear at rest or in logs.</li>
+<li><code>requirePasswordChange = true</code> blocks the user from issuing new tokens until they call the change-password endpoint with the real current password. The default <code>admin/admin</code> user is bootstrapped with this flag set, gating every privileged operation until it's cleared.</li>
+</ul>
+<h3 id="group">Group</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kd">class</span> <span class="nc">IamGroup</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="n">groupName</span><span class="p">;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="w"> </span><span class="n">policyNames</span><span class="p">;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">}</span>
+</code></pre></div>
+<p>Groups are pure policy attachment vehicles — they have no permissions of their own. A user inherits every policy on every group they belong to. The default install ships an <code>admin-group</code> carrying the <code>AdministratorAccess</code> policy and the <code>admin</code> user pre-joined to it.</p>
+<h3 id="policy">Policy</h3>
+<p>Policies are AWS-IAM-format JSON documents persisted by name:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">&quot;Statement&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="nt">&quot;Sid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ReadOnlyLake&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;s3:ListBucket&quot;</span><span class="p">],</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">      </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;arn:aws:s3:::lake/*&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;arn:aws:s3:::lake&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="p">},</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">      </span><span class="nt">&quot;Sid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;DenyPii&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">      </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Deny&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">      </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;s3:GetObject&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">      </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;arn:aws:s3:::lake/pii/*&quot;</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">  </span><span class="p">]</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><code>Action</code> and <code>Resource</code> accept a string or a list — wildcards <code>*</code> (zero-or-more) and <code>?</code> (one-char) are supported and compiled into bounded-cache Java <code>Pattern</code>s, so a complex policy reuses the same compiled regex across requests.</li>
+<li><code>Effect</code> is <code>Allow</code> or <code>Deny</code>. Explicit <code>Deny</code> wins immediately — the evaluator short-circuits.</li>
+<li><code>Sid</code> is optional, used purely for human auditability in admin tooling.</li>
+<li><code>Version</code> is informational — only <code>Statement</code> is evaluated.</li>
+</ul>
+<h3 id="access-keys-akia">Access keys (<code>AKIA…</code>)</h3>
+<p>Long-lived credentials for programmatic access, AWS-format access-key id (16 chars uppercase hex) + secret access key (32 chars hex):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kd">class</span> <span class="nc">AccessKeyRecord</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="n">accessKey</span><span class="p">;</span><span class="w">     </span><span class="c1">// AKID — used as the canonical lookup key</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="n">secretKey</span><span class="p">;</span><span class="w">     </span><span class="c1">// shared secret for SigV4 / SigV2 signing</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="kt">long</span><span class="w">   </span><span class="n">createdAt</span><span class="p">;</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="n">Long</span><span class="w">   </span><span class="n">expiresAt</span><span class="p">;</span><span class="w">     </span><span class="c1">// null = no expiry</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="n">status</span><span class="p">;</span><span class="w">        </span><span class="c1">// &quot;Active&quot; / &quot;Inactive&quot;</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="p">}</span>
+</code></pre></div>
+<ul>
+<li>Stored on the owning user; indexed in <code>accessKeyIndex</code> for O(1) S3 request validation.</li>
+<li>Inactive or expired keys fail <code>validateAccessKey()</code> and produce <code>401 InvalidAccessKeyId</code>.</li>
+<li>One user may carry several keys (typical operator pattern: hot key for the running workload, cold replacement minted ahead of rotation).</li>
+</ul>
+<h3 id="sts-temporary-credentials-asia">STS temporary credentials (<code>ASIA…</code>)</h3>
+<p>Short-lived credentials minted by <code>AssumeRole</code>-style STS flow. Distinct prefix (<code>ASIA</code>) so the dispatch path treats them differently:</p>
+<ul>
+<li>Each temp credential is bound to a parent (long-lived) access key — the parent's authorizations are inherited.</li>
+<li>The S3 dispatch requires the matching <code>x-amz-security-token</code> on every request; missing or wrong token → 401.</li>
+<li>Lifetime is bounded by <code>shannonstore.api.sts.default.session.duration.seconds</code> (default per <code>ApiConfig</code>); the cleanup thread evicts expired entries every <code>cleanupIntervalMs</code>.</li>
+<li>Temp creds are excluded from on-disk persistence by default but are included in the sync snapshot so an STS session minted on one API node can authenticate on another (subject to clock-skew tolerance).</li>
+</ul>
+<h2 id="policy-evaluation">Policy evaluation</h2>
+<p>The evaluator (<code>PolicyEvaluator</code>) walks the union of policies attached directly to the user and those attached to any of their groups. For each statement it tests <code>(Action, Resource)</code> against the requested pair using wildcard match.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>            for each policy in (user_policies ∪ group_policies):
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>              for each Statement stmt:
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>                if matchAction(stmt.Action, requested) AND
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>                   matchResource(stmt.Resource, requestedArn):
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>                  if stmt.Effect == &quot;Deny&quot;:  return DENY  ← short-circuit
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>                  if stmt.Effect == &quot;Allow&quot;: allowed = true
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>            return ALLOW if allowed else ABSTAIN
+</code></pre></div>
+<p>Decision rules:</p>
+<ul>
+<li><code>DENY</code> → <code>403 AccessDenied</code>, returned immediately even if other policies allow.</li>
+<li><code>ALLOW</code> → request continues to the handler.</li>
+<li><code>ABSTAIN</code> (no policy matched) → also denied, returned as <code>403 AccessDenied</code>. ShannonStore is deny-by-default per AWS spec.</li>
+</ul>
+<p>Wildcard matching is <strong>case-sensitive</strong> — <code>s3:getobject</code> is not <code>s3:GetObject</code>. Match the SDK-emitted action verbs verbatim.</p>
+<p>A bounded <code>PATTERN_CACHE</code> keeps compiled regexes around (default 10 000 entries, override via <code>shannonstore.api.iam.policy.pattern.cache.size</code>). On overflow the cache clears entirely rather than evicting LRU — cheaper, and the recompile happens at the rate of unique-pattern introduction, not per request.</p>
+<h2 id="action-verbs">Action verbs</h2>
+<p>S3 actions follow standard AWS naming, derived from the HTTP verb × subresource combination at dispatch time. The verbs in active use today:</p>
+<table>
+<thead>
+<tr>
+<th>Verb</th>
+<th>Used by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s3:ListAllMyBuckets</code></td>
+<td><code>GET /</code></td>
+</tr>
+<tr>
+<td><code>s3:ListBucket</code></td>
+<td><code>GET /&lt;bucket&gt;</code> (object listing)</td>
+</tr>
+<tr>
+<td><code>s3:ListBucketVersions</code></td>
+<td><code>GET /&lt;bucket&gt;?versions</code></td>
+</tr>
+<tr>
+<td><code>s3:ListBucketMultipartUploads</code></td>
+<td><code>GET /&lt;bucket&gt;?uploads</code></td>
+</tr>
+<tr>
+<td><code>s3:ListMultipartUploadParts</code></td>
+<td><code>GET /&lt;bucket&gt;/&lt;key&gt;?uploadId=…</code></td>
+</tr>
+<tr>
+<td><code>s3:GetBucketLocation</code></td>
+<td><code>GET /&lt;bucket&gt;?location</code></td>
+</tr>
+<tr>
+<td><code>s3:GetBucketAcl</code> / <code>s3:GetObjectAcl</code></td>
+<td><code>GET …?acl</code></td>
+</tr>
+<tr>
+<td><code>s3:GetBucketVersioning</code></td>
+<td><code>GET /&lt;bucket&gt;?versioning</code></td>
+</tr>
+<tr>
+<td><code>s3:GetObject</code></td>
+<td><code>GET /&lt;bucket&gt;/&lt;key&gt;</code> (also <code>HEAD</code>)</td>
+</tr>
+<tr>
+<td><code>s3:PutBucketVersioning</code></td>
+<td><code>PUT /&lt;bucket&gt;?versioning</code></td>
+</tr>
+<tr>
+<td><code>s3:PutBucketAcl</code> / <code>s3:PutObjectAcl</code></td>
+<td><code>PUT …?acl</code></td>
+</tr>
+<tr>
+<td><code>s3:PutObject</code></td>
+<td><code>PUT /&lt;bucket&gt;/&lt;key&gt;</code>, CopyObject, multipart write paths</td>
+</tr>
+<tr>
+<td><code>s3:CreateBucket</code></td>
+<td><code>PUT /&lt;bucket&gt;</code></td>
+</tr>
+<tr>
+<td><code>s3:DeleteObject</code></td>
+<td><code>DELETE /&lt;bucket&gt;/&lt;key&gt;</code>, <code>POST ?delete</code> (bulk)</td>
+</tr>
+<tr>
+<td><code>s3:DeleteBucket</code></td>
+<td><code>DELETE /&lt;bucket&gt;</code></td>
+</tr>
+<tr>
+<td><code>s3:AbortMultipartUpload</code></td>
+<td><code>DELETE /&lt;bucket&gt;/&lt;key&gt;?uploadId=…</code></td>
+</tr>
+</tbody>
+</table>
+<p>Build policies that reference exactly these verbs — actions Authors invent will silently fail the wildcard match and surface as <code>403 AccessDenied</code>.</p>
+<h2 id="resource-arns">Resource ARNs</h2>
+<p>ARNs follow AWS S3 layout:</p>
+<ul>
+<li>Bucket: <code>arn:aws:s3:::&lt;bucket&gt;</code></li>
+<li>Object: <code>arn:aws:s3:::&lt;bucket&gt;/&lt;key&gt;</code> (key path included literally — partition encodings stay encoded)</li>
+</ul>
+<p>Wildcards work the way SDK authors expect: <code>arn:aws:s3:::*</code> matches every bucket and every key under them; <code>arn:aws:s3:::lake/etl/*</code> restricts to the <code>etl/</code> prefix on the <code>lake</code> bucket.</p>
+<h2 id="default-install">Default install</h2>
+<p>The first start materializes a baseline so the cluster is usable immediately:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>policies:
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>  AdministratorAccess
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    { Effect: Allow, Action: &quot;*&quot;, Resource: &quot;*&quot; }
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>groups:
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>  admin-group
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    policies: [AdministratorAccess]
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>users:
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>  admin / admin
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    groups: [admin-group]
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    requirePasswordChange: true        ← gate
+</code></pre></div>
+<p>Every privileged Admin REST and S3 path is blocked until the <code>admin</code> user changes the default password. See <a href="../admin-password-recovery/">Admin Password Recovery</a> if the new password is lost.</p>
+<h2 id="at-rest-encryption-cluster-sync">At-rest encryption + cluster sync</h2>
+<p><code>AuthManager.saveToLocalDb()</code> writes a single blob to RocksDB at <code>data/iam-rocksdb/iam_state</code>. The blob is encrypted by the same <code>KmsProvider</code> that protects object data — losing the data-encryption key permanently locks the IAM state too.</p>
+<p>On a successful write, the <code>updateListener</code> callback receives the encrypted snapshot and broadcasts it to peer API nodes through the standard IAM sync channel. Followers receive the bytes, decrypt locally, swap their in-memory maps under a write lock, and persist back to their own RocksDB. Loops are avoided because the listener guards on the local node's leadership state.</p>
+<p>A legacy plaintext-blob path is kept for one upgrade window: if KMS-decrypt fails on load, the loader falls back to plaintext, re-encrypts, and writes back. The <code>Legacy plaintext IAM detected on disk — re-saving as KMS-encrypted</code> log line tells you the upgrade has just happened.</p>
+<h2 id="management-surfaces">Management surfaces</h2>
+<p>Day-to-day administration goes through the Admin UI (visual policy editor, user/group browser, access-key issuance) backed by the Admin REST endpoints on port <code>:8888</code>. The same REST endpoints are what cross-product tooling (chango, ontul, kiok, neorunbase) drives for automated provisioning.</p>
+<p>Local recovery — when the <code>admin</code> user is locked out — uses a Unix domain socket on the API node, never an HTTP path. See <a href="../admin-password-recovery/">Admin Password Recovery</a>.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../auth-authz/">Authentication &amp; Authorization</a> — token lifecycle, SigV4 internals, STS flow.</li>
+<li><a href="../s3-compatible-api/">S3-Compatible API</a> — full action × resource mapping for the dispatch table.</li>
+<li><a href="../kms/">Encryption &amp; Key Management</a> — how the at-rest encryption that protects the IAM blob works.</li>
+<li><a href="../admin-password-recovery/">Admin Password Recovery</a> — the only path to reset the admin password when locked out.</li>
 </ul>
 
 

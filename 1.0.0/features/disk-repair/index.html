@@ -899,6 +899,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Disk Repair Service
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -915,6 +933,113 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-triggers-a-repair" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What triggers a repair
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-repair-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The repair pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#throttling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Throttling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#grace-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Grace period
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manual-trigger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual trigger
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failure modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coordination-with-the-bitrot-scrubber" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coordination with the Bitrot Scrubber
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1285,13 +1410,186 @@
 
 
 <h1 id="disk-repair-service">Disk Repair Service</h1>
-<p>ShannonStore includes an automatic disk repair system that detects failed disks and reconstructs lost shards using erasure coding.</p>
+<p><code>DiskRepairService</code> is the worker that turns disk loss back into full redundancy. A disk dies; its shards are now under-replicated; the service finds them, reconstructs the missing bytes from erasure-coded parity, and places the rebuilt shards on healthy disks elsewhere in the cluster. The same code path serves silent-corruption recovery from the <a href="../data-integrity/">Bitrot Scrubber</a> — corrupt shards are treated identically to missing ones.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   ┌───────────────────────────────────────────────────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   │  Reactive trigger                                          │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   │   GET path found a missing or CRC-mismatched shard         │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   │   → enqueue repair task for that shard                     │
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   │                                                            │
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   │  Proactive triggers                                        │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   │   Bitrot Scrubber found a CRC mismatch                     │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   │   Disk-health probe marked a disk unavailable              │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   │   Operator hit &quot;Repair now&quot; in the Admin UI                │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   └────────────────┬───────────────────────────────────────────┘
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>                    │
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                    ▼
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        ┌───────────────────────┐
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        │  Repair task queue     │
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        └────────┬───────────────┘
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>                 │  (bounded worker pool)
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>                 ▼
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>   ┌───────────────────────────────────────────────────────────┐
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>   │  For each task:                                            │
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>   │   1. Look up the object&#39;s metadata                         │
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>   │   2. Fetch k healthy shards (data or parity) from peers    │
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>   │   3. Reconstruct the missing shard via Reed-Solomon decode │
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>   │   4. Pick a target disk on a different node                │
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>   │   5. Write the rebuilt shard to the target                 │
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>   │   6. Update the metadata&#39;s shard layout entry              │
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>   │   7. Replicate the metadata to peer API nodes              │
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>   └───────────────────────────────────────────────────────────┘
+</code></pre></div>
+<p>The repair is reactive <em>and</em> proactive on purpose: the GET path doesn't wait for a scheduled scan to learn that a shard is gone, and the scheduled scan doesn't wait for a GET to drive coverage of cold data. The two paths feed the same queue and the same worker pool.</p>
+<h2 id="what-triggers-a-repair">What triggers a repair</h2>
+<table>
+<thead>
+<tr>
+<th>Trigger</th>
+<th>Initiator</th>
+<th>Latency to repair</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET found shard missing</td>
+<td><code>S3RequestHandler</code> (read path)</td>
+<td>seconds — task enqueued before the GET response goes back</td>
+</tr>
+<tr>
+<td>GET found CRC mismatch</td>
+<td><code>S3RequestHandler</code></td>
+<td>seconds</td>
+</tr>
+<tr>
+<td>Bitrot Scrubber CRC mismatch</td>
+<td><code>BitrotScrubberService</code></td>
+<td>minutes — the scrubber batches before emitting</td>
+</tr>
+<tr>
+<td>Disk-health probe failure (sustained)</td>
+<td>data-node heartbeat</td>
+<td>minutes after grace window</td>
+</tr>
+<tr>
+<td>Manual trigger</td>
+<td>operator via Admin UI / <code>POST /admin/disk-repair/start</code></td>
+<td>immediate</td>
+</tr>
+</tbody>
+</table>
+<p>The grace window on disk-health is essential — a transient mount glitch (filesystem freezing while flushing, kernel-level retry) should not kick off a multi-hour rebuild of a disk that's about to come back. Default grace is one minute of sustained unavailability; tunable via configuration.</p>
+<h2 id="the-repair-pipeline">The repair pipeline</h2>
+<p>For each task the worker:</p>
+<ol>
+<li><strong>Loads the object metadata</strong> for the affected <code>(bucket, key, version)</code> from the local index. Repair operates on one <em>shard slot</em> of one <em>part</em> at a time — for a multipart object only the affected parts get reconstructed.</li>
+<li><strong>Identifies k healthy shards</strong> from the part's layout. The same Reed-Solomon decoder used by client GET (see <a href="../ec/">Erasure Coding</a>) accepts any k of the k+m, so the worker prefers data shards first and falls back to parity shards as needed.</li>
+<li><strong>Fetches the k shards</strong> from their owning data nodes through the pooled NIO channel. Failures during the fetch retry against alternate sources of the same shard slot if available, then enlarge the source set to include another parity shard.</li>
+<li><strong>Reconstructs the missing shard</strong> locally using the inverse Vandermonde matrix multiply over GF(2⁸).</li>
+<li><strong>Picks a target disk</strong> for the rebuilt shard. Constraint: the target must be on a different data node than the lost shard's owner <em>and</em> on a healthy disk <em>and</em> — when failure-domain awareness is in use — in a different domain than every other shard of the same <code>(key, part)</code>. HRW provides the placement deterministically given the constraint set.</li>
+<li><strong>Writes the rebuilt shard</strong> to the target disk and persists the chunk file under <code>data/&lt;storage-dir&gt;/</code>. The data node returns the <code>chunkId</code> and CRC32C of what it just wrote.</li>
+<li><strong>Updates the metadata</strong> for the part to point the shard slot at the new <code>{nodeAddress, diskPath, chunkId, checksum}</code>.</li>
+<li><strong>Replicates the metadata</strong> through the standard replication channel so peer API nodes see the new placement on their next lookup.</li>
+</ol>
+<p>The single-task surface above is what gets parallelized — multiple workers process distinct tasks concurrently subject to the configured concurrency cap.</p>
+<h2 id="throttling">Throttling</h2>
+<p>A naive rebuild of a 4 TiB disk would saturate every other disk and every NIC in the cluster for hours. The service throttles in three dimensions:</p>
+<table>
+<thead>
+<tr>
+<th>Knob</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.disk.repair.scan.interval.seconds</code></td>
+<td>minutes</td>
+<td>How often the proactive sweep checks for under-replicated shards.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.disk.repair.concurrency</code></td>
+<td>small (4)</td>
+<td>Number of parallel repair workers.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.disk.repair.rate.limit.bytes.per.sec</code></td>
+<td>configured</td>
+<td>Cluster-wide cap on rebuilt-shard write throughput.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.disk.repair.min.target.disk.bytes</code></td>
+<td>configured</td>
+<td>Minimum free bytes a target disk must have to accept a rebuilt shard.</td>
+</tr>
+</tbody>
+</table>
+<p>The rate limit is the single most operationally important knob. On a cluster where client throughput is the priority and a few hours of partial under-replication is acceptable, throttle low (10–50 MiB/s). On a cluster where every minute under-replicated is a compliance risk, throttle high (hundreds of MB/s) and accept the dataplane contention.</p>
+<p>Repairs <strong>pause</strong> when maintenance mode is active — the operator likely flipped maintenance precisely to perform the kind of work that would interfere with repair.</p>
+<h2 id="grace-period">Grace period</h2>
+<p>A disk that fails one probe is not immediately written off. The grace period gives a transient fault time to clear:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Probe failed once</td>
+<td>mark unavailable; new placements skip the disk; existing reads of its shards fall back to parity</td>
+</tr>
+<tr>
+<td>Probe failed for grace window</td>
+<td>enqueue repair tasks for shards on the disk</td>
+</tr>
+<tr>
+<td>Probe recovered before grace expired</td>
+<td>reinstate the disk; cancel any pending tasks for shards on it</td>
+</tr>
+</tbody>
+</table>
+<p>The grace window is configurable, default one minute. It does <strong>not</strong> protect against repeated short failures — five consecutive 10-second flaps still trigger repair because the disk is clearly unstable.</p>
+<h2 id="manual-trigger">Manual trigger</h2>
+<p>Operators can force a repair sweep through the Admin REST or Admin UI:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-sf<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8888/admin/disk-repair/start<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span>
+</code></pre></div>
+<p>The sweep walks every object's layout and emits a task for any shard whose owning disk is currently unavailable. This is the right path for:</p>
 <ul>
-<li>Periodically scans metadata to identify shards on disks that are no longer healthy, with a grace period to avoid reacting to transient issues.</li>
-<li>Surviving shards are fetched from healthy nodes, missing shards are reconstructed via erasure coding, and repaired shards are placed on new healthy disks.</li>
-<li>Metadata is updated to reflect the new shard locations and replicated to ensure consistency.</li>
-<li>Configurable scan interval, concurrency limits, and minimum disk space thresholds. Manual trigger is also available via Admin UI or API.</li>
-<li>Repair is also invoked from the <a href="../data-integrity/">Bitrot Scrubber</a> when a shard's stored CRC32C does not match the bytes read back, so silent corruption is recovered through the same EC-parity reconstruction path as a dead disk.</li>
+<li>An operator who just added a new data node and wants to warm-start it with existing shards (the sweep migrates a fraction of cold data to the new node).</li>
+<li>Cluster-wide reassurance after a long maintenance event.</li>
+<li>One-off recovery after disabling and re-enabling the scrubber.</li>
+</ul>
+<p>Status comes back from <code>GET /admin/disk-repair/status</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">&quot;enabled&quot;</span><span class="p">:</span><span class="w">             </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">&quot;scanInProgress&quot;</span><span class="p">:</span><span class="w">      </span><span class="kc">false</span><span class="p">,</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">&quot;lastCycleStartedAt&quot;</span><span class="p">:</span><span class="w">  </span><span class="mi">1779999000000</span><span class="p">,</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">&quot;lastCycleFinishedAt&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1779999900000</span><span class="p">,</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">&quot;totalRepaired&quot;</span><span class="p">:</span><span class="w">       </span><span class="mi">12483</span><span class="p">,</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="nt">&quot;totalRepairFailed&quot;</span><span class="p">:</span><span class="w">   </span><span class="mi">2</span><span class="p">,</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">&quot;queuedTasks&quot;</span><span class="p">:</span><span class="w">         </span><span class="mi">0</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">}</span>
+</code></pre></div>
+<h2 id="failure-modes">Failure modes</h2>
+<p>A repair task can fail for two reasons:</p>
+<ol>
+<li><strong>Insufficient source shards</strong> — fewer than k healthy shards exist anywhere in the cluster. The repair is impossible until at least one more shard becomes available; the task re-queues with a backoff and a critical log line is emitted. Operators should investigate immediately — this is the data-loss precursor.</li>
+<li><strong>No eligible target disk</strong> — every healthy disk is too full to accept the rebuilt shard, or the placement constraints (failure-domain, distinct-node) admit no candidate. The task re-queues; operators should add capacity or relax constraints.</li>
+</ol>
+<p>Both failures increment <code>shannonstore.disk.repair.repairs.failed.total</code>, which the recommended alert rule (see <a href="../monitoring/">Monitoring &amp; Metrics</a>) catches as <code>increase(... &gt; 0)</code> over five minutes.</p>
+<h2 id="coordination-with-the-bitrot-scrubber">Coordination with the Bitrot Scrubber</h2>
+<p>The scrubber doesn't repair shards directly — it computes the CRC32C of each shard it reads and, on mismatch, enqueues a repair task with the same shape as a GET-found mismatch. The repair service then handles it identically to a missing shard: pull k healthy shards, reconstruct the corrupt slot from parity, write the rebuilt shard, update metadata. From the operator's perspective there's exactly one repair pipeline and exactly one set of repair counters; the trigger (read-path, scrubber, manual) is just a label on the source.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../ec/">Erasure Coding</a> — the parity scheme that makes repair possible.</li>
+<li><a href="../data-integrity/">Data Integrity</a> — the CRC32C and scrubber that catches silent corruption.</li>
+<li><a href="../multi-disk-storage/">Multi-Disk Storage</a> — the JBOD layout repair fans out across.</li>
+<li><a href="../maintenance/">Maintenance Mode</a> — pauses repair workers during disruptive operations.</li>
+<li><a href="../monitoring/">Monitoring &amp; Metrics</a> — the counters every repair updates.</li>
+<li><a href="../distributed-architecture/">Distributed Architecture</a> — the cluster topology repair coordinates over.</li>
 </ul>
 
 
