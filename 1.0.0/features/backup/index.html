@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../images/logo/shannonstore-logo-without-name.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
@@ -1165,6 +1165,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cron-vs-interval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cron vs. Interval
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1444,9 +1461,17 @@
 <li><strong>Access key / secret key</strong> — long-lived static credentials for the destination.</li>
 <li><strong>Path-style addressing</strong> — required for ShannonStore / MinIO destinations.</li>
 <li><strong>Interval (minutes)</strong> — how often the scheduled backup runs.</li>
+<li><strong>Cron</strong> — optional 5-field UNIX cron expression for wall-clock schedules (e.g. <code>0 2 * * *</code> for daily at 02:00). Coexists with the interval rule — both can be set, whichever comes due first fires the backup.</li>
 <li><strong>Retention (days)</strong> — how long the visible history is kept (default 30).</li>
 </ul>
 <p>The same page also has a <strong>Test Connection</strong> button (probes the destination bucket) and a <strong>Backup now</strong> button (triggers an immediate backup).</p>
+<h3 id="cron-vs-interval">Cron vs. Interval</h3>
+<p>The two automatic rules are independent and share the same tick loop:</p>
+<ul>
+<li><strong>Interval</strong> is a relative "at least N minutes since the last successful backup" timer. Use it for safety-net cadence ("never let more than 6 hours pass between backups").</li>
+<li><strong>Cron</strong> is wall-clock based. Use it for predictable schedules ("nightly at 02:00", "every Sunday at 06:00").</li>
+</ul>
+<p>The cron expression is evaluated in the leader's local time zone. The first sighting after the cron is set, or after a leader handoff, <strong>arms from "now"</strong> — ShannonStore does not back-fire missed cron times on startup. An invalid cron is rejected with HTTP 400 at config-save time rather than being persisted and silently skipped at tick time.</p>
 <h2 id="incremental-by-design">Incremental by Design</h2>
 <p>Files are content-addressed: anything whose <code>(path, size, mtime)</code> hasn't changed is matched against the destination and skipped. The cost in steady state is one HEAD per file plus uploads of just the parts that actually changed. A re-run with no cluster activity uploads zero bytes.</p>
 <h2 id="history-retention">History Retention</h2>
