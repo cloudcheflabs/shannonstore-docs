@@ -1,19 +1,202 @@
 # S3-Compatible API
 
-ShannonStore provides a fully compatible Amazon S3 REST API, allowing applications to use standard S3 SDKs and tools (AWS CLI, boto3, MinIO client, etc.) without any code changes.
+ShannonStore implements the Amazon S3 REST API at the wire level — the same canonical request signing, the same XML response shapes, the same HTTP status codes and error names — so applications built against S3 SDKs (boto3, aws-sdk-java, aws-cli, MinIO client, Iceberg/Spark/Trino S3FileIO, …) work with no code change. Only the endpoint URL switches.
 
-## Supported Operations
+```text
+   Application (boto3 / SDK / aws-cli / Spark / Trino)
+                       │
+                       │  Authorization: AWS4-HMAC-SHA256  ─┐
+                       ▼                                    │ identical
+   ┌──────────────────────────────────────┐                 │ wire format
+   │ ShannonStore API node (default :8080)│                 │ to AWS S3
+   │  - SigV4 / V2 validator              │ ◀───────────────┘
+   │  - dispatch table (verb × subresource)│
+   │  - per-action IAM check (Allow/Deny) │
+   │  - object plane → EC + KMS + cluster │
+   └──────────────────────────────────────┘
+```
 
-- **Object Operations**: PutObject, GetObject, HeadObject, DeleteObject — full CRUD lifecycle with support for key prefixes simulating directory structures.
-- **Bucket Operations**: CreateBucket, DeleteBucket, ListBuckets, ListObjects — bucket management with AWS-compatible XML responses.
-- **Multipart Upload**: Upload large objects in parallel parts, assembled on completion.
-- **Object Versioning**: Per-bucket versioning with unique version IDs, version history, and delete markers.
-- **Range Requests**: Partial object downloads for efficient large file access and resumable downloads.
-- **AWS Authentication**: Supports both AWS Signature V4 and legacy V2 authentication. SigV4 verification handles partition-encoded keys (Iceberg / Hive-style `year=2026/month=05/...`) under default AWS SDK settings — no client-side workaround required.
-- **Chunked Transfer Encoding**: Supports AWS SDK streaming upload format for both regular and partition-encoded keys.
-- **ETag**: Returned on PUT, GET, HEAD, ListObjects, UploadPart, and CompleteMultipartUpload responses. Single-PUT objects use the MD5 of the plaintext body; multipart-completed objects use the standard `MD5(concatenation of part MD5s) + "-N"` composite form, so AWS SDKs and `aws s3 cp` can verify object integrity.
-- **Content-MD5 Verification**: When a client provides the `Content-MD5` request header on PUT or UploadPart, the server recomputes MD5 of the received body and rejects the write with `400 BadDigest` on mismatch.
+## Supported operations
 
-## Two-port design
+The dispatch table in `S3RequestHandler` routes the following verb × subresource combinations to fully implemented handlers. Each handler returns the canonical S3 XML response.
 
-Object storage and admin/management traffic run on separate ports (defaults 8080 and 8888), so admin tooling and cluster operations never compete with the data path.
+### Object plane
+
+| Operation | Trigger | Notes |
+| --- | --- | --- |
+| **PutObject** | `PUT /<bucket>/<key>` | Streaming upload via Netty NIO. Body is erasure-coded and KMS-encrypted before being persisted across data nodes. |
+| **GetObject** | `GET /<bucket>/<key>` | Streaming download. Honors `Range` requests for partial / resumable reads. Sets `Content-Length`, `ETag`, `Last-Modified`. |
+| **HeadObject** | `HEAD /<bucket>/<key>` | Returns the same metadata as GET without the body — used by SDKs for existence / size probes. |
+| **DeleteObject** | `DELETE /<bucket>/<key>` | Replies `204 No Content` (S3 idempotent semantics — deleting a missing key still succeeds). |
+| **CopyObject** | `PUT /<bucket>/<key>` with `x-amz-copy-source` | Server-side copy across buckets / keys. Does not stream through the client. |
+| **DeleteObjects (Multi-object delete)** | `POST /<bucket>?delete` | Bulk delete payload in XML body — returns per-key `Deleted` and `Error` rows. |
+
+### Multipart upload
+
+| Operation | Trigger |
+| --- | --- |
+| **CreateMultipartUpload** | `POST /<bucket>/<key>?uploads` — returns an `UploadId`. |
+| **UploadPart** | `PUT /<bucket>/<key>?uploadId=<id>&partNumber=N` — server caches part bytes; ETag is the part's MD5. |
+| **UploadPartCopy** | `PUT /<bucket>/<key>?uploadId=<id>&partNumber=N` with `x-amz-copy-source` — copies a byte range from another object into a part. |
+| **CompleteMultipartUpload** | `POST /<bucket>/<key>?uploadId=<id>` — assembles cached parts in part-number order and writes the final object. ETag becomes `MD5(concat MD5s) + "-" + partCount`. |
+| **AbortMultipartUpload** | `DELETE /<bucket>/<key>?uploadId=<id>` — drops cached parts; reclaims their storage. |
+| **ListParts** | `GET /<bucket>/<key>?uploadId=<id>` — pagination via `part-number-marker`. |
+| **ListMultipartUploads** | `GET /<bucket>?uploads` |
+
+The part-buffer store is the source of truth for in-flight uploads — it survives an API-node restart so a multipart begun on one node and resumed on another still completes (provided IAM state has propagated).
+
+### Bucket plane
+
+| Operation | Trigger | Notes |
+| --- | --- | --- |
+| **CreateBucket** | `PUT /<bucket>` | Owner becomes the caller. |
+| **DeleteBucket** | `DELETE /<bucket>` | Bucket must be empty (S3 spec). |
+| **ListBuckets** | `GET /` | Returns every bucket the IAM credential can `s3:ListAllMyBuckets`. |
+| **HeadBucket** | `HEAD /<bucket>` | Existence probe — used by `aws s3 ls` to discover buckets. |
+| **ListObjects v1** | `GET /<bucket>?prefix=…&marker=…&max-keys=…` | `delimiter=/` returns `CommonPrefixes` for directory-style listing. |
+| **ListObjects v2** | `GET /<bucket>?list-type=2&continuation-token=…&start-after=…` | Continuation token round-trips the next key (server-issued opaque base64 ≡ key for predictability). |
+| **GetBucketLocation** | `GET /<bucket>?location` | Returns the configured region (default `us-east-1` constraint). |
+| **GetBucketAcl** | `GET /<bucket>?acl` | Returns the owner + grants persisted in `BucketManager`. |
+| **PutBucketVersioning** / **GetBucketVersioning** | `PUT/GET /<bucket>?versioning` | Versioning state is persisted per bucket and replicated in the IAM/bucket snapshot. |
+| **ListObjectVersions** | `GET /<bucket>?versions` | Returns object versions interleaved with delete markers. |
+
+### Subresources accepted silently (compatibility shims)
+
+A handful of subresources are accepted by the dispatch table but **not yet persisted** — they exist so SDKs that defensively `PUT` these on every bucket creation don't fail. Treat them as no-ops:
+
+| Subresource | PUT response | GET response | Persisted? |
+| --- | --- | --- | --- |
+| `?acl` (object) | 200 silent | typed XML stub | no (default ACL only) |
+| `?cors` | 200 silent | 404 `NoSuchCORSConfiguration` | no |
+| `?policy` | 200 silent | 404 `NoSuchBucketPolicy` | no |
+| `?tagging` (bucket and object) | 200 silent | empty `<Tagging>` | no |
+| `?lifecycle` | 200 silent | 404 `NoSuchLifecycleConfiguration` | no |
+
+If your workflow depends on one of these being authoritative (Iceberg lifecycle expiry, S3 tagging cost allocation, etc.), open a request — they're tracked as future surfaces.
+
+## Authentication
+
+Every S3 request must carry a valid AWS-style Authorization header. ShannonStore validates two formats:
+
+### AWS Signature V4 (recommended — default in every modern SDK)
+
+- Algorithm: `AWS4-HMAC-SHA256`.
+- Validator reconstructs the canonical request from the wire-form path, query string, signed headers, and payload hash, then compares the recomputed signature with the one in the header.
+- **Wire-form path matters**: SigV4 canonicalizes the URI exactly as it appears on the wire — including percent-encoding. The validator therefore uses `HttpRequest.rawPath()` (the undecoded path) rather than a `URLDecode`'d copy. This is the only way Iceberg- and Hive-style partition keys (`year%3D2026/month%3D05/file.parquet`) sign correctly under default SDK settings.
+- Service names accepted: `s3` and `sts`.
+- Streaming body (`aws-chunked`): payload hash is `STREAMING-AWS4-HMAC-SHA256-PAYLOAD`; the body is read through an `AwsChunkedInputStream` that strips chunk framing as data arrives. The `x-amz-decoded-content-length` header carries the real object size.
+
+### AWS Signature V2 (legacy)
+
+Older signing format kept for tooling that hasn't moved to SigV4. Same access-key index, same authorization decision afterwards.
+
+### Authorization decision
+
+After signature validation, the request is mapped to a `(action, resource-arn)` pair:
+
+```text
+PUT /lake/data.parquet            →  ("s3:PutObject", "arn:aws:s3:::lake/data.parquet")
+GET /lake?list-type=2&prefix=etl/ →  ("s3:ListBucket", "arn:aws:s3:::lake")
+DELETE /lake                      →  ("s3:DeleteBucket", "arn:aws:s3:::lake")
+```
+
+The pair is evaluated against the caller's effective IAM policies (user-attached + group-inherited). The evaluator is strict AWS semantics: explicit `Deny` wins over `Allow`, missing `Allow` denies by default. See [IAM](iam.md) and [Authentication & Authorization](auth-authz.md) for the full evaluator behaviour.
+
+## ETag semantics
+
+ShannonStore preserves the exact ETag rules that AWS S3 SDKs depend on for client-side verification:
+
+| Path | ETag format |
+| --- | --- |
+| Single-PUT object | lowercase hex of `MD5(plaintext body)` |
+| Multipart-completed object | lowercase hex of `MD5(concat(each part's raw MD5 bytes)) + "-" + partCount` |
+| HeadObject / GetObject responses | the persisted ETag, surrounded by double quotes per S3 wire format |
+| Pre-existing legacy objects | empty when written before the field existed; SDK still works because the ETag is optional |
+
+So `aws s3 cp --validate` and `boto3.upload_file` integrity checks pass without any client-side workaround.
+
+## Content-MD5 enforcement
+
+When the client opts into stronger write-time verification:
+
+```
+Content-MD5: <base64(md5(body))>
+```
+
+the server recomputes MD5 of the received bytes and rejects mismatches with `400 BadDigest`. This applies to both PutObject and UploadPart. The check requires materializing the body to a buffer — clients that need streaming throughput should omit Content-MD5 and rely on TCP / TLS integrity plus ETag verification post-write.
+
+## Range requests
+
+`GET /<bucket>/<key>` honors RFC 7233 `Range`:
+
+```
+Range: bytes=0-1023
+Range: bytes=1024-
+Range: bytes=-512        (last 512 bytes — suffix form)
+```
+
+A 206 Partial Content response carries the requested slice and a `Content-Range` header. Multi-range requests (`Range: bytes=0-99,200-299`) are not implemented — pick the single-range form.
+
+Range requests are the path Iceberg/Parquet readers take to fetch column-chunk footers and only the columns they need, so partition-scan performance depends on them working correctly. The implementation caches recently-decoded EC parts in a bounded LRU so two consecutive range reads against the same object don't re-decode the same shard set.
+
+## Versioning
+
+Per-bucket versioning is toggled via `PUT /<bucket>?versioning` with the standard `<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>` body. When enabled:
+
+- PUT replaces the *current* version pointer; previous versions remain readable via `?versionId=…`.
+- DELETE on a key without `versionId` writes a *delete marker* — a tombstone version. `ListObjects` then reports the key as missing; `ListObjectVersions` shows the marker.
+- DELETE with `?versionId=…` permanently removes that specific version. The delete marker, if any, stays in place.
+- Disabling versioning (`Suspended`) stops generating new version IDs but does not retroactively collapse history.
+
+Versioning state is persisted in `BucketManager` and broadcast to peer API nodes through the IAM/bucket snapshot replication channel, so the per-bucket flag is consistent cluster-wide.
+
+## Error response shape
+
+Errors follow the canonical S3 XML:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Error>
+  <Code>NoSuchKey</Code>
+  <Message>The specified key does not exist.</Message>
+  <Resource>/lake/missing.parquet</Resource>
+  <RequestId>…</RequestId>
+</Error>
+```
+
+Most-encountered codes:
+
+| Status | Code | Cause |
+| --- | --- | --- |
+| 400 | `InvalidRequest` | Malformed body, missing required parameter |
+| 400 | `BadDigest` | `Content-MD5` mismatched the received body |
+| 401 | `Unauthorized` | No `Authorization` header |
+| 401 | `InvalidAccessKeyId` | Access key not in IAM index (after one cluster reload retry) |
+| 403 | `SignatureDoesNotMatch` | SigV4 / V2 verification failed |
+| 403 | `AccessDenied` | IAM policy did not allow the `(action, resource)` pair |
+| 404 | `NoSuchBucket` | Bucket does not exist |
+| 404 | `NoSuchKey` | Object does not exist |
+| 404 | `NoSuchBucketPolicy` / `NoSuchCORSConfiguration` / `NoSuchLifecycleConfiguration` | Subresource never configured |
+| 409 | `BucketAlreadyOwnedByYou` | CreateBucket on a bucket the caller already owns |
+| 503 | `SlowDown` | Returned during `MaintenanceMode` to back off clients |
+
+The body is intentionally identical to AWS S3 — SDK error parsers don't need a ShannonStore-specific path.
+
+## Two-port topology
+
+Object storage and admin/management traffic are bound to separate sockets so the dataplane and the controlplane never compete:
+
+| Port (default) | Surface | Audience |
+| --- | --- | --- |
+| **8080** | S3 REST | applications, SDKs, AWS CLI |
+| **8888** | Admin REST + Admin UI | operators, IAM management, cross-product tooling |
+
+The admin port is the only place CCL cross-product tooling (chango, ontul, kiok, neorunbase) talks to ShannonStore — for IAM bootstrap, access-key minting, and configuration sweeps. It must never face the public internet; front it with the same nginx that fronts the data port (see [Nginx Reverse Proxy](../operations/nginx-proxy.md)).
+
+## See also
+
+- [Authentication & Authorization](auth-authz.md) — SigV4 canonical request internals, JWT session lifecycle, STS flow.
+- [IAM](iam.md) — policy schema, evaluator semantics, action / resource ARNs.
+- [Distributed Architecture](distributed-architecture.md) — how object writes fan out to data nodes.
+- [Erasure Coding](ec.md) — the storage layout PUT and GET operate against.
+- [Maintenance Mode](maintenance.md) — the 503 `SlowDown` source.
