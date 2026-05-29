@@ -1,0 +1,2012 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/worm/">
+      
+      
+        <link rel="prev" href="../auth-authz/">
+      
+      
+        <link rel="next" href="../admin-password-recovery/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../images/logo/shannonstore-logo-without-name.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Object Lock (WORM) - ShannonStore</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#object-lock-worm" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ShannonStore" class="md-header__button md-logo" aria-label="ShannonStore" data-md-component="logo">
+      
+  <img src="../../images/logo/shannonstore-logo-without-name.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ShannonStore
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Object Lock (WORM)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="lime"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/architecture/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../installation/installation/" class="md-tabs__link">
+          
+  
+  
+  Installation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../s3-compatible-api/" class="md-tabs__link">
+          
+  
+  
+  Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../operations/operations/" class="md-tabs__link">
+          
+  
+  
+  Operations
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ShannonStore" class="md-nav__button md-logo" aria-label="ShannonStore" data-md-component="logo">
+      
+  <img src="../../images/logo/shannonstore-logo-without-name.png" alt="logo">
+
+    </a>
+    ShannonStore
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ShannonStore Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Installation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Download & Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../s3-compatible-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S3 Compatible API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../distributed-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erasure Coding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-integrity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Integrity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Encryption & Key Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Compression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../iam/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Identity & Access Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth-authz/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication & Authorization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object Lock (WORM)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object Lock (WORM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bucket-level-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bucket-level configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bucket-level configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enable-object-lock-at-creation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enable Object Lock at creation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#set-or-update-the-default-retention-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set or update the default retention rule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-if-i-try-object-lock-on-a-non-lock-bucket" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What if I try ?object-lock on a non-lock bucket?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-object-retention-and-legal-hold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-object retention and legal hold
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Per-object retention and legal hold">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#headers-at-put-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headers at PUT time
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modify-retention-after-the-fact" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modify retention after the fact
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#toggle-legal-hold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Toggle legal hold
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retention-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Retention modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Retention modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#governance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GOVERNANCE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        COMPLIANCE
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enforcement-at-delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enforcement at DELETE
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#versioning-interaction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Versioning interaction
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iam-action-verbs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IAM action verbs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operational-guidance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operational guidance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-password-recovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin Password Recovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../disk-repair/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Disk Repair Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../monitoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring & Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metadata-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../multi-disk-storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Disk Storage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maintenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & Restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network & Internal Communication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cluster Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/nginx-proxy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nginx Reverse Proxy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="object-lock-worm">Object Lock (WORM)</h1>
+<p>ShannonStore implements S3 Object Lock — the standard write-once-read-many guarantee that makes a bucket suitable for compliance, audit, and regulatory workloads. Once an object is locked, <strong>no caller can delete or overwrite it</strong> until the retention window expires, regardless of IAM privilege. The implementation matches the AWS S3 Object Lock spec on the wire so SDKs configured for AWS work unchanged.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   PUT /bucket
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>     x-amz-bucket-object-lock-enabled: true
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                ▼
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   ┌──────────────────────────────────────────┐
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   │ Bucket has Object Lock                    │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   │   ├── versioning forced ON                │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   │   ├── optional default retention rule     │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   │   │     (GOVERNANCE | COMPLIANCE + days)  │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   │   └── PUT object can attach:              │
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   │       ─ x-amz-object-lock-mode            │
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>   │       ─ x-amz-object-lock-retain-until-date│
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>   │       ─ x-amz-object-lock-legal-hold      │
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>   └────────────────┬─────────────────────────┘
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>                    │
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>                    ▼
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>   ┌──────────────────────────────────────────┐
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>   │ Each object carries:                      │
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>   │   retentionMode    (&quot;GOVERNANCE&quot;|&quot;COMPLIANCE&quot;|null)
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>   │   retainUntilDate  (epoch ms; 0 = none)   │
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>   │   legalHoldOn      (boolean)              │
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>   └────────────────┬─────────────────────────┘
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>                    │
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>                    ▼  DELETE attempt
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>   ┌──────────────────────────────────────────┐
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>   │ Enforcement:                              │
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>   │   Legal Hold ON    → 403 (never bypass)   │
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>   │   COMPLIANCE active→ 403 (never bypass)   │
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>   │   GOVERNANCE active→ 403 unless           │
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>   │      x-amz-bypass-governance-retention=true
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>   │      AND s3:BypassGovernanceRetention     │
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>   │      IAM permission granted               │
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>   │   Retention expired + no hold → DELETE OK │
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>   └──────────────────────────────────────────┘
+</code></pre></div>
+<p>The enforcement is <strong>at the SCAN-handler level inside the API node</strong> — before any storage call. There is no client-side rule the operator has to remember; if the cluster denies a deletion, the client gets a clean <code>403 AccessDenied</code> with a message naming the protection class and (for retention) the expiry timestamp.</p>
+<h2 id="when-to-use">When to use</h2>
+<table>
+<thead>
+<tr>
+<th>Use it for</th>
+<th>Don't use it for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SEC 17a-4(f), HIPAA, GDPR audit trails — regulators care about <em>who can delete what</em></td>
+<td>Day-to-day backup retention (lifecycle expiry handles this cheaper)</td>
+</tr>
+<tr>
+<td>Litigation hold — pin specific evidence while a case is open</td>
+<td>"Delete protection" for important objects — IAM Deny on <code>s3:DeleteObject</code> is the right tool</td>
+</tr>
+<tr>
+<td>Tamper-proof log archives that any compromised credential must not be able to wipe</td>
+<td>Per-team "keep these around" requests that get adjusted often</td>
+</tr>
+<tr>
+<td>Cross-region replication targets that must outlive the source</td>
+<td>Mixed-policy buckets — once Object Lock is on, it cannot be turned off</td>
+</tr>
+</tbody>
+</table>
+<p>The single design choice that matters: <strong>Object Lock is enabled only at bucket creation time</strong> and can never be turned off. A bucket that <em>might</em> need locked objects later still has to be created with <code>x-amz-bucket-object-lock-enabled: true</code>. Default retention can be added or changed afterwards, but the bucket-level enable flag is one-way.</p>
+<h2 id="bucket-level-configuration">Bucket-level configuration</h2>
+<h3 id="enable-object-lock-at-creation">Enable Object Lock at creation</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span><span class="s2">&quot;http://localhost:8080/audit-logs&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;x-amz-bucket-object-lock-enabled: true&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--user<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$AK</span><span class="s2">:</span><span class="nv">$SK</span><span class="s2">&quot;</span><span class="w"> </span>--aws-sigv4<span class="w"> </span><span class="s2">&quot;aws:amz:us-east-1:s3&quot;</span>
+</code></pre></div>
+<p>What the cluster does:</p>
+<ol>
+<li>Creates the bucket.</li>
+<li><strong>Forces versioning ON</strong> for the bucket — Object Lock requires versioning per S3 spec, and the cluster enforces this implicitly rather than asking the operator to remember a second flag.</li>
+<li>Persists an <code>ObjectLockConfig{ enabled: true, defaultRetention: null }</code> on the bucket and broadcasts the change to peer API nodes.</li>
+</ol>
+<p>A subsequent <code>PUT /&lt;bucket&gt;?versioning</code> with <code>&lt;Status&gt;Suspended&lt;/Status&gt;</code> is <em>rejected</em> on a lock-enabled bucket — suspending versioning would undermine the lock guarantee.</p>
+<h3 id="set-or-update-the-default-retention-rule">Set or update the default retention rule</h3>
+<p>A default retention rule auto-applies to every new object placed in the bucket. Configure via <code>PUT /&lt;bucket&gt;?object-lock</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span><span class="s2">&quot;http://localhost:8080/audit-logs?object-lock&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">&#39;&lt;ObjectLockConfiguration&gt;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="s1">            &lt;ObjectLockEnabled&gt;Enabled&lt;/ObjectLockEnabled&gt;</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="s1">            &lt;Rule&gt;</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="s1">              &lt;DefaultRetention&gt;</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="s1">                &lt;Mode&gt;GOVERNANCE&lt;/Mode&gt;</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="s1">                &lt;Days&gt;7&lt;/Days&gt;</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="s1">              &lt;/DefaultRetention&gt;</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="s1">            &lt;/Rule&gt;</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="s1">          &lt;/ObjectLockConfiguration&gt;&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span>--user<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$AK</span><span class="s2">:</span><span class="nv">$SK</span><span class="s2">&quot;</span><span class="w"> </span>--aws-sigv4<span class="w"> </span><span class="s2">&quot;aws:amz:us-east-1:s3&quot;</span>
+</code></pre></div>
+<p><code>Days</code> and <code>Years</code> are mutually exclusive — pick one. <code>Mode</code> is <code>GOVERNANCE</code> or <code>COMPLIANCE</code> (see <a href="#retention-modes">Retention modes</a> below).</p>
+<p>Operator can also leave the default rule off and assign retention per-object at PUT time. Both paths produce identical per-object state.</p>
+<p>A <code>GET /&lt;bucket&gt;?object-lock</code> returns the current config or <code>404 ObjectLockConfigurationNotFoundError</code> when the bucket has Object Lock disabled.</p>
+<h3 id="what-if-i-try-object-lock-on-a-non-lock-bucket">What if I try <code>?object-lock</code> on a non-lock bucket?</h3>
+<p><code>409 InvalidBucketState</code> — the lock flag is creation-time only, and the cluster rejects rather than silently enabling something the AWS spec doesn't allow.</p>
+<h2 id="per-object-retention-and-legal-hold">Per-object retention and legal hold</h2>
+<p>Every object in a lock-enabled bucket can carry its own retention rule, its own legal hold, or both. Set them at PUT time via headers, or modify after via subresource endpoints.</p>
+<h3 id="headers-at-put-time">Headers at PUT time</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nv">RET_UNTIL</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>-u<span class="w"> </span>-v+30d<span class="w"> </span><span class="s2">&quot;+%Y-%m-%dT%H:%M:%SZ&quot;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">            </span><span class="o">||</span><span class="w"> </span>date<span class="w"> </span>-u<span class="w"> </span>-d<span class="w"> </span><span class="s2">&quot;+30 day&quot;</span><span class="w"> </span><span class="s2">&quot;+%Y-%m-%dT%H:%M:%SZ&quot;</span><span class="k">)</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>curl<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span><span class="s2">&quot;http://localhost:8080/audit-logs/2026-05-29.log&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;x-amz-object-lock-mode: GOVERNANCE&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;x-amz-object-lock-retain-until-date: </span><span class="nv">$RET_UNTIL</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;x-amz-object-lock-legal-hold: OFF&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span>--upload-file<span class="w"> </span>./local-log<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span>--user<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$AK</span><span class="s2">:</span><span class="nv">$SK</span><span class="s2">&quot;</span><span class="w"> </span>--aws-sigv4<span class="w"> </span><span class="s2">&quot;aws:amz:us-east-1:s3&quot;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Values</th>
+<th>Default when omitted</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>x-amz-object-lock-mode</code></td>
+<td><code>GOVERNANCE</code> / <code>COMPLIANCE</code></td>
+<td>the bucket's default rule if set, else none</td>
+</tr>
+<tr>
+<td><code>x-amz-object-lock-retain-until-date</code></td>
+<td>ISO 8601 UTC</td>
+<td>derived from the bucket's default rule (now + days/years)</td>
+</tr>
+<tr>
+<td><code>x-amz-object-lock-legal-hold</code></td>
+<td><code>ON</code> / <code>OFF</code></td>
+<td><code>OFF</code></td>
+</tr>
+</tbody>
+</table>
+<p>If both the headers and a bucket default rule are present, <strong>the headers win</strong> — the per-object override is total, not merged.</p>
+<h3 id="modify-retention-after-the-fact">Modify retention after the fact</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Extend the retention by another 30 days — strengthening, always allowed.</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>curl<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span><span class="s2">&quot;http://localhost:8080/audit-logs/2026-05-29.log?retention&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s2">&quot;&lt;Retention&gt;</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="s2">            &lt;Mode&gt;GOVERNANCE&lt;/Mode&gt;</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="s2">            &lt;RetainUntilDate&gt;</span><span class="si">${</span><span class="nv">LATER</span><span class="si">}</span><span class="s2">&lt;/RetainUntilDate&gt;</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="s2">          &lt;/Retention&gt;&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">  </span>--user<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$AK</span><span class="s2">:</span><span class="nv">$SK</span><span class="s2">&quot;</span><span class="w"> </span>--aws-sigv4<span class="w"> </span><span class="s2">&quot;aws:amz:us-east-1:s3&quot;</span>
+</code></pre></div>
+<p><code>GET /&lt;key&gt;?retention</code> returns the current rule. <code>404 NoSuchObjectLockConfiguration</code> when no rule is set.</p>
+<h3 id="toggle-legal-hold">Toggle legal hold</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Pin an object — survives retention expiry until cleared.</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>curl<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span><span class="s2">&quot;http://localhost:8080/audit-logs/2026-05-29.log?legal-hold&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">&#39;&lt;LegalHold&gt;&lt;Status&gt;ON&lt;/Status&gt;&lt;/LegalHold&gt;&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>--user<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$AK</span><span class="s2">:</span><span class="nv">$SK</span><span class="s2">&quot;</span><span class="w"> </span>--aws-sigv4<span class="w"> </span><span class="s2">&quot;aws:amz:us-east-1:s3&quot;</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1"># Release the hold.</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>curl<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span><span class="s2">&quot;http://localhost:8080/audit-logs/2026-05-29.log?legal-hold&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">  </span>--data<span class="w"> </span><span class="s1">&#39;&lt;LegalHold&gt;&lt;Status&gt;OFF&lt;/Status&gt;&lt;/LegalHold&gt;&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span>--user<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$AK</span><span class="s2">:</span><span class="nv">$SK</span><span class="s2">&quot;</span><span class="w"> </span>--aws-sigv4<span class="w"> </span><span class="s2">&quot;aws:amz:us-east-1:s3&quot;</span>
+</code></pre></div>
+<p>Legal hold is orthogonal to retention. An object with retention expired but legal hold ON is still un-deletable; an object with no retention but legal hold ON is also un-deletable. The hold has no expiry — it stays until an authorized caller flips it to <code>OFF</code>.</p>
+<h2 id="retention-modes">Retention modes</h2>
+<h3 id="governance">GOVERNANCE</h3>
+<p>The everyday production mode. Once set, the retention applies to every caller — including the bucket owner — but a caller holding the dedicated <strong><code>s3:BypassGovernanceRetention</code></strong> IAM permission can request bypass by sending <code>x-amz-bypass-governance-retention: true</code> on the DELETE (or retention-loosening PUT).</p>
+<p>Both conditions are required:</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Effect alone</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Header only, no IAM permission</td>
+<td><code>403 AccessDenied</code> with message "s3:BypassGovernanceRetention permission required to override retention"</td>
+</tr>
+<tr>
+<td>IAM permission only, no header</td>
+<td><code>403 AccessDenied</code> with message "resend with x-amz-bypass-governance-retention: true to override"</td>
+</tr>
+<tr>
+<td>Both header + IAM permission</td>
+<td>bypass succeeds; the bypass is logged at INFO with the userId, key, and original <code>retainUntilDate</code></td>
+</tr>
+</tbody>
+</table>
+<p>The split protects against two distinct failure modes: a runaway script that knows the IAM grant exists can't accidentally bypass without the explicit header; an attacker with a stolen token can't bypass without first getting the bypass permission attached.</p>
+<p>A representative IAM policy for a compliance-officer role:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">&quot;Version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">&quot;Statement&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="p">{</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">      </span><span class="nt">&quot;Sid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;GovernanceBypassForCompliance&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">      </span><span class="nt">&quot;Effect&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">      </span><span class="nt">&quot;Action&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">        </span><span class="s2">&quot;s3:DeleteObject&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">        </span><span class="s2">&quot;s3:BypassGovernanceRetention&quot;</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">      </span><span class="p">],</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">      </span><span class="nt">&quot;Resource&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">        </span><span class="s2">&quot;arn:aws:s3:::audit-logs&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">        </span><span class="s2">&quot;arn:aws:s3:::audit-logs/*&quot;</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">      </span><span class="p">]</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">  </span><span class="p">]</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="compliance">COMPLIANCE</h3>
+<p>The stronger mode — <strong>no caller can bypass</strong>, including the cluster's root admin. The <code>x-amz-bypass-governance-retention</code> header is ignored (the bypass IAM permission has no effect). The only way a COMPLIANCE-mode object becomes deletable is by waiting until <code>retainUntilDate</code> passes.</p>
+<p>COMPLIANCE also rejects <em>shortening</em> the retention window before it expires. A <code>PUT /&lt;key&gt;?retention</code> with an earlier <code>RetainUntilDate</code> than the current one returns <code>403 AccessDenied "Cannot loosen COMPLIANCE retention before expiry"</code>. Lengthening is always allowed.</p>
+<p>Mode upgrades have the same asymmetry:</p>
+<table>
+<thead>
+<tr>
+<th>Current mode</th>
+<th>New mode</th>
+<th>Allowed?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>none</td>
+<td>GOVERNANCE</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>none</td>
+<td>COMPLIANCE</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>GOVERNANCE</td>
+<td>COMPLIANCE</td>
+<td>yes (strengthening)</td>
+</tr>
+<tr>
+<td>COMPLIANCE</td>
+<td>GOVERNANCE</td>
+<td><strong>no</strong> — would weaken a compliance-grade lock; rejected with <code>403</code></td>
+</tr>
+<tr>
+<td>GOVERNANCE</td>
+<td>GOVERNANCE w/ longer retain</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>GOVERNANCE</td>
+<td>GOVERNANCE w/ shorter retain</td>
+<td>bypass required (header + IAM)</td>
+</tr>
+</tbody>
+</table>
+<p>Pick COMPLIANCE only when the workload demands strict tamper resistance. Once on a key, that key is genuinely write-once until the clock runs out — operationally this needs a robust automation around when retention expires and what happens to the object afterwards (lifecycle deletion vs. archival vs. manual review).</p>
+<h2 id="enforcement-at-delete">Enforcement at DELETE</h2>
+<p><code>DELETE /&lt;bucket&gt;/&lt;key&gt;</code> (and <code>DELETE</code> with <code>?versionId=…</code>) walks this decision tree:</p>
+<ol>
+<li>Look up the object's metadata for the requested version.</li>
+<li>Evaluate <code>isWormProtected(now)</code>:<ul>
+<li>legal hold ON → protected</li>
+<li>retentionMode set and retainUntilDate &gt; now → protected</li>
+<li>otherwise → not protected</li>
+</ul>
+</li>
+<li>If not protected → normal delete.</li>
+<li>If legal hold ON → <code>403 AccessDenied "Object is protected by a Legal Hold"</code>. Path ends.</li>
+<li>If COMPLIANCE before expiry → <code>403 AccessDenied "Object is under a COMPLIANCE-mode retention until …"</code>. Path ends.</li>
+<li>If GOVERNANCE before expiry:<ul>
+<li>no <code>x-amz-bypass-governance-retention: true</code> → <code>403 AccessDenied "… resend with x-amz-bypass-governance-retention: true to override"</code></li>
+<li>bypass header present but caller lacks <code>s3:BypassGovernanceRetention</code> → <code>403 AccessDenied "s3:BypassGovernanceRetention permission required …"</code></li>
+<li>both present → delete proceeds; INFO log records the bypass</li>
+</ul>
+</li>
+</ol>
+<p><code>DELETE /&lt;bucket&gt;</code> (bucket itself) refuses while any object in the bucket is WORM-protected, returning <code>409 BucketNotEmpty</code> with the first protected key named. The check scans the in-memory index and short-circuits at the first protected hit, so a single protected object is enough to block bucket deletion regardless of how empty the rest of the bucket is.</p>
+<h2 id="versioning-interaction">Versioning interaction</h2>
+<p>Object Lock requires versioning. The cluster enforces this implicitly when the bucket is created with <code>x-amz-bucket-object-lock-enabled: true</code>:</p>
+<ul>
+<li><code>PUT /&lt;bucket&gt;?versioning</code> with <code>&lt;Status&gt;Suspended&lt;/Status&gt;</code> on a lock-enabled bucket → <code>409 InvalidBucketState</code>. Suspending would let a subsequent overwrite silently bypass the lock on the <em>new</em> version while the old, locked version still exists in metadata but isn't the canonical answer.</li>
+<li>A <code>PUT</code> against a key that already has a locked version creates a <em>new</em> version (versioning is on) without disturbing the old one. The old version's retention applies; the new version's retention is whatever the headers or default rule set, or none.</li>
+<li>A <code>DELETE</code> without <code>versionId</code> writes a delete marker — this is allowed on a lock-enabled bucket because it doesn't remove any locked bytes; the underlying locked versions remain readable via <code>?versionId=…</code>.</li>
+</ul>
+<p>The lifecycle / Object Lock interaction follows the AWS rule: a lifecycle expiration that fires while a version is locked is <strong>silently skipped</strong> (the lifecycle expiry scanner respects <code>isWormProtected(now)</code>). This guarantee composes — an operator can run lifecycle policies on a lock-enabled bucket without worrying that aggressive expiry rules will accidentally evict protected versions.</p>
+<h2 id="iam-action-verbs">IAM action verbs</h2>
+<p>Object Lock introduces seven distinct IAM verbs in the <code>s3:</code> namespace. Each maps to one wire path:</p>
+<table>
+<thead>
+<tr>
+<th>Verb</th>
+<th>Triggered by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s3:PutBucketObjectLockConfiguration</code></td>
+<td><code>PUT /&lt;bucket&gt;?object-lock</code>, <code>DELETE /&lt;bucket&gt;?object-lock</code></td>
+</tr>
+<tr>
+<td><code>s3:GetBucketObjectLockConfiguration</code></td>
+<td><code>GET /&lt;bucket&gt;?object-lock</code></td>
+</tr>
+<tr>
+<td><code>s3:PutObjectRetention</code></td>
+<td><code>PUT /&lt;key&gt;?retention</code>, <code>PUT /&lt;key&gt;</code> with retention headers</td>
+</tr>
+<tr>
+<td><code>s3:GetObjectRetention</code></td>
+<td><code>GET /&lt;key&gt;?retention</code></td>
+</tr>
+<tr>
+<td><code>s3:PutObjectLegalHold</code></td>
+<td><code>PUT /&lt;key&gt;?legal-hold</code>, <code>PUT /&lt;key&gt;</code> with <code>x-amz-object-lock-legal-hold</code></td>
+</tr>
+<tr>
+<td><code>s3:GetObjectLegalHold</code></td>
+<td><code>GET /&lt;key&gt;?legal-hold</code></td>
+</tr>
+<tr>
+<td><code>s3:BypassGovernanceRetention</code></td>
+<td>required <em>in addition to</em> <code>s3:DeleteObject</code> / <code>s3:PutObjectRetention</code> when bypassing GOVERNANCE</td>
+</tr>
+</tbody>
+</table>
+<p>Build policies that name these verbs explicitly. A blanket <code>s3:*</code> matches them by wildcard, but production IAM should grant the bypass verb separately so it can be audited and rotated independently from generic write access. See <a href="../iam/">IAM</a> for the policy schema and evaluator semantics.</p>
+<h2 id="operational-guidance">Operational guidance</h2>
+<ul>
+<li><strong>Plan the legal-hold workflow before going live</strong>. The most common operational failure is a bucket that ends up with a thicket of legal holds nobody remembers to release. Track legal-hold issuance through a ticketing system and audit <code>shannonstore_legal_hold_set_total</code> quarterly.</li>
+<li><strong>GOVERNANCE for routine compliance, COMPLIANCE for true tamper-resistance</strong>. Treat COMPLIANCE as a one-way door — pick it only when the workload genuinely demands that even the root admin be unable to delete.</li>
+<li><strong>Don't enable Object Lock on a bucket "just in case"</strong>. The flag is one-way and force-enables versioning, which doubles the metadata footprint for most workloads. Buckets that aren't compliance targets cost more without giving anything back.</li>
+<li><strong>Audit <code>s3:BypassGovernanceRetention</code> grants</strong>. The grant should sit on a small number of well-known roles (compliance officers, security incident responders) and never on application credentials. Cluster INFO logs name every bypass event with userId + key + original retain-until-date — retain those logs for the same window as the bucket's retention rule.</li>
+<li><strong>Watch for <code>BucketNotEmpty</code> when decommissioning</strong>. A bucket can become un-deletable for years if a single locked object stays under COMPLIANCE retention; the operator must either wait, release legal holds, or migrate the data to a different lock-enabled bucket first.</li>
+<li><strong>Cross-region replication</strong>. When the destination bucket also has Object Lock enabled with the same default rule, replicated objects arrive with their retention pre-attached. If the destination has <em>no</em> lock, the protection is silently dropped — verify both endpoints carry the same lock configuration before turning replication on.</li>
+</ul>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause + fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>409 InvalidBucketState</code> on <code>PUT /&lt;bucket&gt;?object-lock</code></td>
+<td>The bucket was not created with <code>x-amz-bucket-object-lock-enabled: true</code>. Recreate the bucket with the header set — there is no retro-fit path.</td>
+</tr>
+<tr>
+<td><code>403 AccessDenied</code> on DELETE with bypass header set</td>
+<td>Caller lacks <code>s3:BypassGovernanceRetention</code>. Add the verb to a small, audited role; do not put it on the same role that holds <code>s3:DeleteObject</code> for everyday writes.</td>
+</tr>
+<tr>
+<td><code>403 AccessDenied "Cannot loosen COMPLIANCE retention"</code></td>
+<td>COMPLIANCE is genuinely uncrackable. The only fix is to wait until <code>retainUntilDate</code> passes.</td>
+</tr>
+<tr>
+<td><code>409 BucketNotEmpty</code> on <code>DELETE /&lt;bucket&gt;</code> with apparently empty bucket</td>
+<td>A version (not the current pointer) is still locked. <code>GET /&lt;bucket&gt;?versions</code> lists every version including delete markers; locate the locked version and either wait, bypass, or release its hold.</td>
+</tr>
+<tr>
+<td>Lifecycle expiry counter rising but locked objects still present</td>
+<td>Expected — the scanner skips WORM-protected objects. The <code>shannonstore_lifecycle_objects_skipped_worm_total</code> counter is the explicit signal that the lifecycle saw and skipped them.</td>
+</tr>
+<tr>
+<td>Header <code>x-amz-bypass-governance-retention: true</code> ignored on COMPLIANCE object</td>
+<td>By design — COMPLIANCE has no bypass. Check the object's <code>retentionMode</code> via <code>GET /&lt;key&gt;?retention</code> to confirm.</td>
+</tr>
+<tr>
+<td>New version of a locked object is itself unlocked</td>
+<td>Object Lock applies per-version. The new PUT writes a fresh version; its retention comes from the headers or the bucket default rule. Old versions stay locked.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../s3-compatible-api/">S3-Compatible API</a> — the dispatch table this protection sits inside.</li>
+<li><a href="../iam/">IAM</a> — policy schema, evaluator semantics, the <code>s3:BypassGovernanceRetention</code> verb in context.</li>
+<li><a href="../auth-authz/">Authentication &amp; Authorization</a> — SigV4 / request authorization that runs before the lock check.</li>
+<li><a href="../backup/">Backup &amp; Restore</a> — backup respects retention; restored objects come back with their locks intact.</li>
+<li><a href="../monitoring/">Monitoring &amp; Metrics</a> — the WORM-related counters mentioned in the operational guidance.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © <script>document.write(new Date().getFullYear())</script> Cloud Chef Labs, Inc. All rights reserved. <a href="mailto:admin@cloudchef-labs.com">admin@cloudchef-labs.com</a>
+
+    </div>
+  
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "header.autohide"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "2.2.0", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/extra.js"></script>
+      
+    
+  </body>
+</html>
