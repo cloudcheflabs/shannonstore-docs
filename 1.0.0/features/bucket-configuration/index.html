@@ -832,6 +832,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#bucket-replication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bucket Replication
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cluster-consistency-leader-routed-writes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1546,6 +1557,11 @@ wire format (so <code>aws s3api</code>, boto3, and the MinIO client work unchang
 <td>typed model, per bucket</td>
 </tr>
 <tr>
+<td><code>?replication</code></td>
+<td><strong>Bucket replication</strong> — async copy of matching objects to a destination bucket/cluster</td>
+<td>raw XML, per bucket</td>
+</tr>
+<tr>
 <td><code>?tagging</code></td>
 <td><strong>Tags</strong> on a bucket and on individual objects</td>
 <td>key/value map</td>
@@ -1748,19 +1764,71 @@ the requests are proxied to the leader, the node that actually runs the scanner:
 <p>Bucket tags live in the leader-owned bucket snapshot; object tags are stored on the
 object's metadata and travel with it across the cluster.</p>
 <hr />
+<h2 id="bucket-replication">Bucket Replication</h2>
+<p>Replication asynchronously copies matching object versions from a source bucket to a
+<strong>destination bucket</strong> — another ShannonStore cluster, MinIO, or AWS S3 — the same way
+MinIO bucket replication does. It is the building block for cross-region DR and for
+site replication (active-active across clusters).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># aws s3api put-bucket-replication can&#39;t emit the ShannonStore destination extension,</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="c1"># so PUT the raw XML via the admin bucket-config endpoint:</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>curl<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span>http://localhost:8000/admin/browser/bucket-config/lake/replication<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span><span class="w"> </span>--data<span class="w"> </span>@replication.xml
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>aws<span class="w"> </span>--endpoint-url<span class="w"> </span>http://localhost:8000<span class="w"> </span>s3api<span class="w"> </span>get-bucket-replication<span class="w"> </span>--bucket<span class="w"> </span>lake
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nt">&lt;ReplicationConfiguration&gt;</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="nt">&lt;Rule&gt;</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span><span class="nt">&lt;ID&gt;</span>to-dr<span class="nt">&lt;/ID&gt;</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span><span class="nt">&lt;Status&gt;</span>Enabled<span class="nt">&lt;/Status&gt;</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="w">    </span><span class="nt">&lt;Priority&gt;</span>1<span class="nt">&lt;/Priority&gt;</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="w">    </span><span class="nt">&lt;Filter&gt;&lt;Prefix&gt;</span>data/<span class="nt">&lt;/Prefix&gt;&lt;/Filter&gt;</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="w">    </span><span class="nt">&lt;Destination&gt;</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a><span class="w">      </span><span class="nt">&lt;Bucket&gt;</span>arn:aws:s3:::lake-dr<span class="nt">&lt;/Bucket&gt;</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="w">      </span><span class="cm">&lt;!-- ShannonStore extension: no cross-account IAM role across separate clusters --&gt;</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="w">      </span><span class="nt">&lt;Endpoint&gt;</span>https://dr.example.com:8080<span class="nt">&lt;/Endpoint&gt;</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="w">      </span><span class="nt">&lt;AccessKey&gt;</span>...<span class="nt">&lt;/AccessKey&gt;</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a><span class="w">      </span><span class="nt">&lt;SecretKey&gt;</span>...<span class="nt">&lt;/SecretKey&gt;</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a><span class="w">      </span><span class="nt">&lt;Region&gt;</span>us-east-1<span class="nt">&lt;/Region&gt;</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a><span class="w">    </span><span class="nt">&lt;/Destination&gt;</span>
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a><span class="w">    </span><span class="nt">&lt;DeleteMarkerReplication&gt;&lt;Status&gt;</span>Enabled<span class="nt">&lt;/Status&gt;&lt;/DeleteMarkerReplication&gt;</span>
+<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="w">  </span><span class="nt">&lt;/Rule&gt;</span>
+<a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a><span class="nt">&lt;/ReplicationConfiguration&gt;</span>
+</code></pre></div>
+<p>How it works:</p>
+<ul>
+<li><strong>Versioning is required</strong> on the source bucket (each PUT is a new immutable version).</li>
+<li>A <strong>leader-only</strong> <code>ReplicationService</code> re-attempts any object whose
+  <code>replicationStatus</code> is not <code>COMPLETED</code>; on success it marks the version <code>COMPLETED</code>.</li>
+<li>Each object is read <strong>decrypted</strong> at the source and <strong>re-PUT</strong> at the destination,
+  which <strong>re-encrypts with its own KMS</strong> — physically separate sites never share keys.</li>
+<li>The highest-<code>Priority</code> enabled rule whose <code>Filter.Prefix</code> matches the key wins.
+  <code>DeleteMarkerReplication</code> propagates deletes.</li>
+<li><strong>Enable</strong> it at runtime (disabled by default) from the Admin UI
+  (<strong>Maintenance → Bucket Replication</strong>) or the leader-proxied admin REST API:</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/admin/maintenance/replication/enable<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span><span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;enabled&quot;: true}&#39;</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>curl<span class="w">     </span>http://localhost:8000/admin/maintenance/replication/status<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/admin/maintenance/replication/trigger<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># shannonstore.properties — §5d</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="na">shannonstore.api.replication.enabled</span><span class="o">=</span><span class="s">false          # first-boot seed; admin toggle wins</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="na">shannonstore.api.replication.state.file</span><span class="o">=</span><span class="s">${shannonstore.base.data.dir}/replication-state.json</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="na">shannonstore.api.replication.scan.interval.ms</span><span class="o">=</span><span class="s">60000 # re-attempt cadence</span>
+</code></pre></div>
+<hr />
 <h2 id="cluster-consistency-leader-routed-writes">Cluster consistency (leader-routed writes)</h2>
 <p>Bucket configuration is <strong>leader-owned state</strong>, just like IAM and bucket ACLs. A
 write that lands on any API node is applied authoritatively on the leader and
 replicated to every follower, so a <code>PUT</code> on one node is immediately visible to a
 <code>GET</code> served by another (behind the round-robin proxy):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>   client ──PUT ?policy──▶ API node B (follower)
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>                              │  internal NIO  (BUCKET_CONFIG_MUTATE_REQ)
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>                              ▼
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>                           API node A (leader)
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>                              │  apply to BucketManager
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>                              │  push bucket snapshot ──▶ all followers
-<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>                              ▼
-<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>   client ──GET ?policy──▶ API node C  →  sees the new policy
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>   client ──PUT ?policy──▶ API node B (follower)
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>                              │  internal NIO  (BUCKET_CONFIG_MUTATE_REQ)
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>                              ▼
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>                           API node A (leader)
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>                              │  apply to BucketManager
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>                              │  push bucket snapshot ──▶ all followers
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>                              ▼
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>   client ──GET ?policy──▶ API node C  →  sees the new policy
 </code></pre></div>
 <ul>
 <li>The S3 data plane is custom NIO; only the leader mutates configuration and a
@@ -1773,10 +1841,10 @@ replicated to every follower, so a <code>PUT</code> on one node is immediately v
 request is routed to.</p>
 <hr />
 <h2 id="admin-ui">Admin UI</h2>
-<p>Each of the four surfaces is editable from the <strong>Browser → bucket → ⚙ (gear)</strong>
-configuration panel (administrators only), with tabs for Policy (JSON), CORS (XML),
-Lifecycle (XML), and Tags (key/value editor). The panel talks to the
-leader-forwarded admin endpoints listed above.</p>
+<p>Each surface is editable from the <strong>Browser → bucket → ⚙ (gear)</strong> configuration panel
+(administrators only), with tabs for Policy (JSON), CORS (XML), Lifecycle (XML),
+Replication (XML), and Tags (key/value editor). The panel talks to the leader-forwarded
+admin endpoints listed above.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="../s3-compatible-api/">S3-Compatible API</a> — the full operation dispatch table and authentication.</li>
