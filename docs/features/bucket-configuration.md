@@ -162,27 +162,49 @@ aws --endpoint-url http://localhost:8000 s3api delete-bucket-lifecycle --bucket 
 Supported rule actions:
 
 - **`Expiration.Days`** — delete objects older than N days under the rule's prefix.
+- **`Expiration.Seconds`** — *ShannonStore extension* for **sub-day** expiration
+  (`<Expiration><Seconds>N</Seconds></Expiration>`). Not part of the AWS grammar, so
+  `aws s3api` cannot emit it — PUT the raw XML directly (e.g. via the admin
+  bucket-config endpoint). It round-trips through `GET ?lifecycle`, and when both are
+  present `Seconds` wins over `Days`. Useful for fine-grained ILM and tests.
+- **`Expiration.Date`** — delete on/after a fixed ISO-8601 date.
 - **`AbortIncompleteMultipartUpload.DaysAfterInitiation`** — reclaim parts of
   multipart uploads that were never completed.
 - **`Filter.Prefix`** — restrict a rule to a key prefix. `Status` must be `Enabled`.
 
-Transitions, storage-class, date-based and noncurrent-version rules are parsed but
-not applied (ShannonStore has a single storage tier) — they never fail the sweep.
+Transitions, storage-class and noncurrent-version rules are parsed but not applied
+(ShannonStore has a single storage tier) — they never fail the sweep.
+
+```xml
+<!-- Sub-day expiration (ShannonStore extension) -->
+<LifecycleConfiguration>
+  <Rule>
+    <ID>expire-tmp-fast</ID>
+    <Filter><Prefix>tmp/</Prefix></Filter>
+    <Status>Enabled</Status>
+    <Expiration><Seconds>30</Seconds></Expiration>
+  </Rule>
+</LifecycleConfiguration>
+```
 
 ### The expiry scanner
 
 Expiration is enforced by `LifecycleExpiryService`, a background scanner that:
 
 - runs **only on the leader** API node (so each object is expired exactly once),
-- is **disabled by default** and toggled at runtime from the Admin UI (Maintenance),
-  mirroring the bitrot scrubber,
+- is **disabled by default** and enabled via configuration — the scanner thread is
+  always scheduled but performs no deletions until turned on, so a misconfigured
+  policy can never silently delete data on a fresh cluster,
 - **skips any object that is WORM-protected** — an active Object Lock retention or a
   legal hold always wins over a lifecycle rule (see [Object Lock (WORM)](worm.md)),
 - sweeps on a configurable cadence:
 
 ```properties
 # shannonstore.properties — §5c
-# Interval in MILLISECONDS between lifecycle scan cycles (default 3600000 = 1 hour).
+# Turn the scanner on (default false). No deletions happen until this is true.
+shannonstore.api.lifecycle.scan.enabled=true
+# Interval in MILLISECONDS between scan cycles (default 3600000 = 1 hour).
+# For fine-grained / <Seconds> expiration, set this small (e.g. 5000).
 shannonstore.api.lifecycle.scan.interval.ms=3600000
 ```
 
