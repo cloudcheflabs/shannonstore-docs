@@ -60,19 +60,25 @@ The part-buffer store is the source of truth for in-flight uploads — it surviv
 | **PutBucketVersioning** / **GetBucketVersioning** | `PUT/GET /<bucket>?versioning` | Versioning state is persisted per bucket and replicated in the IAM/bucket snapshot. |
 | **ListObjectVersions** | `GET /<bucket>?versions` | Returns object versions interleaved with delete markers. |
 
-### Subresources accepted silently (compatibility shims)
+### Bucket configuration subresources
 
-A handful of subresources are accepted by the dispatch table but **not yet persisted** — they exist so SDKs that defensively `PUT` these on every bucket creation don't fail. Treat them as no-ops:
+The following subresources are **fully implemented, persisted, and replicated
+across the cluster** — see [Bucket Configuration](bucket-configuration.md) for the
+detailed behaviour, evaluation rules, and examples:
 
-| Subresource | PUT response | GET response | Persisted? |
-| --- | --- | --- | --- |
-| `?acl` (object) | 200 silent | typed XML stub | no (default ACL only) |
-| `?cors` | 200 silent | 404 `NoSuchCORSConfiguration` | no |
-| `?policy` | 200 silent | 404 `NoSuchBucketPolicy` | no |
-| `?tagging` (bucket and object) | 200 silent | empty `<Tagging>` | no |
-| `?lifecycle` | 200 silent | 404 `NoSuchLifecycleConfiguration` | no |
+| Subresource | PUT | GET | DELETE | Notes |
+| --- | --- | --- | --- | --- |
+| `?policy` | persist JSON | return JSON / 404 `NoSuchBucketPolicy` | remove | Resource policy; augments IAM and enables anonymous public access (`Principal "*"`). |
+| `?cors` | persist XML | return XML / 404 `NoSuchCORSConfiguration` | remove | Plus unauthenticated `OPTIONS` preflight handling. |
+| `?lifecycle` | persist typed `LifecyclePolicy` | return XML / 404 `NoSuchLifecycleConfiguration` | remove | Leader-only expiry scanner; skips WORM-protected objects. |
+| `?tagging` (bucket **and** object) | persist `TagSet` | return `TagSet` | remove | Bucket tags in the leader snapshot; object tags on object metadata. |
+| Object Lock `?object-lock` / `?retention` / `?legal-hold` | persist | return | — | See [Object Lock (WORM)](worm.md). |
 
-If your workflow depends on one of these being authoritative (Iceberg lifecycle expiry, S3 tagging cost allocation, etc.), open a request — they're tracked as future surfaces.
+Writes are leader-routed (`BUCKET_CONFIG_MUTATE`) so a `PUT` on one node is
+immediately visible to a `GET` served by another node behind the proxy.
+
+Still accepted as silent no-ops (default behaviour only): bucket/object `?acl` —
+only the default owner ACL is modelled.
 
 ## Authentication
 
@@ -85,6 +91,25 @@ Every S3 request must carry a valid AWS-style Authorization header. ShannonStore
 - **Wire-form path matters**: SigV4 canonicalizes the URI exactly as it appears on the wire — including percent-encoding. The validator therefore uses `HttpRequest.rawPath()` (the undecoded path) rather than a `URLDecode`'d copy. This is the only way Iceberg- and Hive-style partition keys (`year%3D2026/month%3D05/file.parquet`) sign correctly under default SDK settings.
 - Service names accepted: `s3` and `sts`.
 - Streaming body (`aws-chunked`): payload hash is `STREAMING-AWS4-HMAC-SHA256-PAYLOAD`; the body is read through an `AwsChunkedInputStream` that strips chunk framing as data arrives. The `x-amz-decoded-content-length` header carries the real object size.
+
+### Presigned URLs (query-string SigV4)
+
+A presigned URL carries the entire SigV4 signature in the **query string** instead
+of the `Authorization` header, so it can be handed to a browser, `curl`, or any
+client with no credentials of its own:
+
+```bash
+url=$(aws --endpoint-url http://localhost:8000 s3 presign s3://lake/report.csv --expires-in 300)
+curl "$url"        # 200 — auth is entirely in the X-Amz-* query parameters
+```
+
+When a request arrives with no `Authorization` header, the validator checks for
+`X-Amz-Algorithm=AWS4-HMAC-SHA256` in the query string. If present, it extracts the
+access key from `X-Amz-Credential`, reconstructs the canonical request from the
+signed query parameters (`X-Amz-Date`, `X-Amz-Expires`, `X-Amz-SignedHeaders`,
+`X-Amz-Signature`), and validates the signature and expiry exactly as for a header
+signature. Anonymous-policy evaluation is only attempted for requests that are
+*neither* header-signed *nor* presigned.
 
 ### AWS Signature V2 (legacy)
 
