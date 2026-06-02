@@ -280,6 +280,7 @@ Build policies that name these verbs explicitly. A blanket `s3:*` matches them b
 ## See also
 
 - [S3-Compatible API](s3-compatible-api.md) — the dispatch table this protection sits inside.
+- [Bucket Configuration](bucket-configuration.md) — the lifecycle expiry scanner defers to these locks; a WORM-protected object is never expired.
 - [IAM](iam.md) — policy schema, evaluator semantics, the `s3:BypassGovernanceRetention` verb in context.
 - [Authentication & Authorization](auth-authz.md) — SigV4 / request authorization that runs before the lock check.
 - [Backup & Restore](backup.md) — backup respects retention; restored objects come back with their locks intact.
