@@ -1690,33 +1690,43 @@ The configuration is parsed into a typed <code>LifecyclePolicy</code> and persis
 <h3 id="the-expiry-scanner">The expiry scanner</h3>
 <p>Expiration is enforced by <code>LifecycleExpiryService</code>, a background scanner that:</p>
 <ul>
-<li>runs <strong>only on the leader</strong> API node (so each object is expired exactly once),</li>
-<li>is <strong>disabled by default</strong> and enabled via configuration — the scanner thread is
-  always scheduled but performs no deletions until turned on, so a misconfigured
-  policy can never silently delete data on a fresh cluster,</li>
+<li>runs <strong>only on the leader</strong> API node and lists objects cluster-wide, so each object
+  is expired <strong>exactly once</strong> regardless of HRW placement / replication factor,</li>
+<li>is <strong>disabled by default</strong> — the scanner thread is always scheduled but performs no
+  deletions until turned on, so a misconfigured policy can never silently delete data,</li>
 <li><strong>skips any object that is WORM-protected</strong> — an active Object Lock retention or a
-  legal hold always wins over a lifecycle rule (see <a href="../worm/">Object Lock (WORM)</a>),</li>
-<li>sweeps on a configurable cadence:</li>
+  legal hold always wins over a lifecycle rule (see <a href="../worm/">Object Lock (WORM)</a>).</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># shannonstore.properties — §5c</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="c1"># Turn the scanner on (default false). No deletions happen until this is true.</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="na">shannonstore.api.lifecycle.scan.enabled</span><span class="o">=</span><span class="s">true</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Interval in MILLISECONDS between scan cycles (default 3600000 = 1 hour).</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="c1"># For fine-grained / &lt;Seconds&gt; expiration, set this small (e.g. 5000).</span>
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="na">shannonstore.api.lifecycle.scan.interval.ms</span><span class="o">=</span><span class="s">3600000</span>
+<p><strong>Enabling it.</strong> Toggle it at runtime from the Admin UI (<strong>Maintenance → Lifecycle
+Expiry</strong>) or via the admin REST API — the toggle is persisted (survives restart) and
+the requests are proxied to the leader, the node that actually runs the scanner:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/admin/maintenance/lifecycle/enable<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span><span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;enabled&quot;: true}&#39;</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>curl<span class="w">     </span>http://localhost:8000/admin/maintenance/lifecycle/status<span class="w">   </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/admin/maintenance/lifecycle/trigger<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span><span class="w">  </span><span class="c1"># run a cycle now</span>
+</code></pre></div>
+<p>The on/off state, sweep cadence, and first-boot default are configured here:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># shannonstore.properties — §5c</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="c1"># Seed the enabled state on FIRST boot only (the admin toggle wins afterwards).</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="na">shannonstore.api.lifecycle.scan.enabled</span><span class="o">=</span><span class="s">false</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Where the runtime toggle is persisted (so it survives a restart).</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="na">shannonstore.api.lifecycle.scan.state.file</span><span class="o">=</span><span class="s">${shannonstore.base.data.dir}/lifecycle-state.json</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="c1"># Interval in MILLISECONDS between scan cycles (default 3600000 = 1 hour).</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># For fine-grained / &lt;Seconds&gt; expiration, set this small (e.g. 5000).</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="na">shannonstore.api.lifecycle.scan.interval.ms</span><span class="o">=</span><span class="s">3600000</span>
 </code></pre></div>
 <hr />
 <h2 id="tagging">Tagging</h2>
 <p>Tags are user-defined key/value labels, supported on <strong>both buckets and objects</strong>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Bucket tags</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>aws<span class="w"> </span>--endpoint-url<span class="w"> </span>http://localhost:8000<span class="w"> </span>s3api<span class="w"> </span>put-bucket-tagging<span class="w"> </span>--bucket<span class="w"> </span>lake<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span>--tagging<span class="w"> </span><span class="s1">&#39;TagSet=[{Key=env,Value=prod},{Key=team,Value=data}]&#39;</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>aws<span class="w"> </span>--endpoint-url<span class="w"> </span>http://localhost:8000<span class="w"> </span>s3api<span class="w"> </span>get-bucket-tagging<span class="w"> </span>--bucket<span class="w"> </span>lake
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="c1"># Object tags</span>
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>aws<span class="w"> </span>--endpoint-url<span class="w"> </span>http://localhost:8000<span class="w"> </span>s3api<span class="w"> </span>put-object-tagging<span class="w"> </span>--bucket<span class="w"> </span>lake<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">  </span>--key<span class="w"> </span>report.csv<span class="w"> </span>--tagging<span class="w"> </span><span class="s1">&#39;TagSet=[{Key=cost-center,Value=1234}]&#39;</span>
-<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>aws<span class="w"> </span>--endpoint-url<span class="w"> </span>http://localhost:8000<span class="w"> </span>s3api<span class="w"> </span>get-object-tagging<span class="w"> </span>--bucket<span class="w"> </span>lake<span class="w"> </span>--key<span class="w"> </span>report.csv
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Bucket tags</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>aws<span class="w"> </span>--endpoint-url<span class="w"> </span>http://localhost:8000<span class="w"> </span>s3api<span class="w"> </span>put-bucket-tagging<span class="w"> </span>--bucket<span class="w"> </span>lake<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span>--tagging<span class="w"> </span><span class="s1">&#39;TagSet=[{Key=env,Value=prod},{Key=team,Value=data}]&#39;</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>aws<span class="w"> </span>--endpoint-url<span class="w"> </span>http://localhost:8000<span class="w"> </span>s3api<span class="w"> </span>get-bucket-tagging<span class="w"> </span>--bucket<span class="w"> </span>lake
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="c1"># Object tags</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>aws<span class="w"> </span>--endpoint-url<span class="w"> </span>http://localhost:8000<span class="w"> </span>s3api<span class="w"> </span>put-object-tagging<span class="w"> </span>--bucket<span class="w"> </span>lake<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">  </span>--key<span class="w"> </span>report.csv<span class="w"> </span>--tagging<span class="w"> </span><span class="s1">&#39;TagSet=[{Key=cost-center,Value=1234}]&#39;</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>aws<span class="w"> </span>--endpoint-url<span class="w"> </span>http://localhost:8000<span class="w"> </span>s3api<span class="w"> </span>get-object-tagging<span class="w"> </span>--bucket<span class="w"> </span>lake<span class="w"> </span>--key<span class="w"> </span>report.csv
 </code></pre></div>
 <p>Bucket tags live in the leader-owned bucket snapshot; object tags are stored on the
 object's metadata and travel with it across the cluster.</p>
@@ -1726,14 +1736,14 @@ object's metadata and travel with it across the cluster.</p>
 write that lands on any API node is applied authoritatively on the leader and
 replicated to every follower, so a <code>PUT</code> on one node is immediately visible to a
 <code>GET</code> served by another (behind the round-robin proxy):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>   client ──PUT ?policy──▶ API node B (follower)
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>                              │  internal NIO  (BUCKET_CONFIG_MUTATE_REQ)
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>                              ▼
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>                           API node A (leader)
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>                              │  apply to BucketManager
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>                              │  push bucket snapshot ──▶ all followers
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>                              ▼
-<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>   client ──GET ?policy──▶ API node C  →  sees the new policy
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>   client ──PUT ?policy──▶ API node B (follower)
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>                              │  internal NIO  (BUCKET_CONFIG_MUTATE_REQ)
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>                              ▼
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>                           API node A (leader)
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>                              │  apply to BucketManager
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>                              │  push bucket snapshot ──▶ all followers
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>                              ▼
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>   client ──GET ?policy──▶ API node C  →  sees the new policy
 </code></pre></div>
 <ul>
 <li>The S3 data plane is custom NIO; only the leader mutates configuration and a
