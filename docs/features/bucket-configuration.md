@@ -170,10 +170,17 @@ Supported rule actions:
 - **`Expiration.Date`** — delete on/after a fixed ISO-8601 date.
 - **`AbortIncompleteMultipartUpload.DaysAfterInitiation`** — reclaim parts of
   multipart uploads that were never completed.
+- **`NoncurrentVersionExpiration.NoncurrentDays`** — on a versioned bucket, delete
+  object versions that have been *noncurrent* (superseded by a newer version) for
+  longer than N days. A version becomes noncurrent the moment its successor is written,
+  so the clock starts at the successor's creation time. The current version is never
+  touched.
+- **`NoncurrentVersionExpiration.NoncurrentSeconds`** — *ShannonStore extension*, the
+  sub-day form of the above (raw XML only; wins over `NoncurrentDays`).
 - **`Filter.Prefix`** — restrict a rule to a key prefix. `Status` must be `Enabled`.
 
-Transitions, storage-class and noncurrent-version rules are parsed but not applied
-(ShannonStore has a single storage tier) — they never fail the sweep.
+Transitions and storage-class rules are parsed but not applied (ShannonStore has a
+single storage tier) — they never fail the sweep.
 
 ```xml
 <!-- Sub-day expiration (ShannonStore extension) -->
@@ -183,6 +190,16 @@ Transitions, storage-class and noncurrent-version rules are parsed but not appli
     <Filter><Prefix>tmp/</Prefix></Filter>
     <Status>Enabled</Status>
     <Expiration><Seconds>30</Seconds></Expiration>
+  </Rule>
+</LifecycleConfiguration>
+
+<!-- Expire noncurrent versions 30 days after they are superseded -->
+<LifecycleConfiguration>
+  <Rule>
+    <ID>prune-old-versions</ID>
+    <Filter><Prefix>data/</Prefix></Filter>
+    <Status>Enabled</Status>
+    <NoncurrentVersionExpiration><NoncurrentDays>30</NoncurrentDays></NoncurrentVersionExpiration>
   </Rule>
 </LifecycleConfiguration>
 ```
