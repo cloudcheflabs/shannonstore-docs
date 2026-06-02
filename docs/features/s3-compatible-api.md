@@ -71,6 +71,7 @@ detailed behaviour, evaluation rules, and examples:
 | `?policy` | persist JSON | return JSON / 404 `NoSuchBucketPolicy` | remove | Resource policy; augments IAM and enables anonymous public access (`Principal "*"`). |
 | `?cors` | persist XML | return XML / 404 `NoSuchCORSConfiguration` | remove | Plus unauthenticated `OPTIONS` preflight handling. |
 | `?lifecycle` | persist typed `LifecyclePolicy` | return XML / 404 `NoSuchLifecycleConfiguration` | remove | Leader-only expiry scanner; skips WORM-protected objects. |
+| `?replication` | persist XML | return XML / 404 `ReplicationConfigurationNotFoundError` | remove | Leader-only async copy to a destination bucket/cluster. |
 | `?tagging` (bucket **and** object) | persist `TagSet` | return `TagSet` | remove | Bucket tags in the leader snapshot; object tags on object metadata. |
 | Object Lock `?object-lock` / `?retention` / `?legal-hold` | persist | return | — | See [Object Lock (WORM)](worm.md). |
 
