@@ -41,6 +41,7 @@ nav:
   - "Features":
       - "S3 Compatible API": features/s3-compatible-api.md
       - "Bucket Configuration": features/bucket-configuration.md
+      - "Site Replication": features/site-replication.md
       - "Distributed Architecture": features/distributed-architecture.md
       - "Erasure Coding": features/ec.md
       - "Data Integrity": features/data-integrity.md
