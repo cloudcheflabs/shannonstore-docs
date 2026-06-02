@@ -14,7 +14,7 @@
         <link rel="prev" href="../../installation/getting-started/">
       
       
-        <link rel="next" href="../distributed-architecture/">
+        <link rel="next" href="../bucket-configuration/">
       
       
         
@@ -743,10 +743,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#subresources-accepted-silently-compatibility-shims" class="md-nav__link">
+  <a href="#bucket-configuration-subresources" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Subresources accepted silently (compatibility shims)
+        Bucket configuration subresources
       
     </span>
   </a>
@@ -775,6 +775,17 @@
     <span class="md-ellipsis">
       
         AWS Signature V4 (recommended — default in every modern SDK)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#presigned-urls-query-string-sigv4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Presigned URLs (query-string SigV4)
       
     </span>
   </a>
@@ -889,6 +900,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bucket-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bucket Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1697,51 +1736,62 @@
 </tr>
 </tbody>
 </table>
-<h3 id="subresources-accepted-silently-compatibility-shims">Subresources accepted silently (compatibility shims)</h3>
-<p>A handful of subresources are accepted by the dispatch table but <strong>not yet persisted</strong> — they exist so SDKs that defensively <code>PUT</code> these on every bucket creation don't fail. Treat them as no-ops:</p>
+<h3 id="bucket-configuration-subresources">Bucket configuration subresources</h3>
+<p>The following subresources are <strong>fully implemented, persisted, and replicated
+across the cluster</strong> — see <a href="../bucket-configuration/">Bucket Configuration</a> for the
+detailed behaviour, evaluation rules, and examples:</p>
 <table>
 <thead>
 <tr>
 <th>Subresource</th>
-<th>PUT response</th>
-<th>GET response</th>
-<th>Persisted?</th>
+<th>PUT</th>
+<th>GET</th>
+<th>DELETE</th>
+<th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>?acl</code> (object)</td>
-<td>200 silent</td>
-<td>typed XML stub</td>
-<td>no (default ACL only)</td>
+<td><code>?policy</code></td>
+<td>persist JSON</td>
+<td>return JSON / 404 <code>NoSuchBucketPolicy</code></td>
+<td>remove</td>
+<td>Resource policy; augments IAM and enables anonymous public access (<code>Principal "*"</code>).</td>
 </tr>
 <tr>
 <td><code>?cors</code></td>
-<td>200 silent</td>
-<td>404 <code>NoSuchCORSConfiguration</code></td>
-<td>no</td>
-</tr>
-<tr>
-<td><code>?policy</code></td>
-<td>200 silent</td>
-<td>404 <code>NoSuchBucketPolicy</code></td>
-<td>no</td>
-</tr>
-<tr>
-<td><code>?tagging</code> (bucket and object)</td>
-<td>200 silent</td>
-<td>empty <code>&lt;Tagging&gt;</code></td>
-<td>no</td>
+<td>persist XML</td>
+<td>return XML / 404 <code>NoSuchCORSConfiguration</code></td>
+<td>remove</td>
+<td>Plus unauthenticated <code>OPTIONS</code> preflight handling.</td>
 </tr>
 <tr>
 <td><code>?lifecycle</code></td>
-<td>200 silent</td>
-<td>404 <code>NoSuchLifecycleConfiguration</code></td>
-<td>no</td>
+<td>persist typed <code>LifecyclePolicy</code></td>
+<td>return XML / 404 <code>NoSuchLifecycleConfiguration</code></td>
+<td>remove</td>
+<td>Leader-only expiry scanner; skips WORM-protected objects.</td>
+</tr>
+<tr>
+<td><code>?tagging</code> (bucket <strong>and</strong> object)</td>
+<td>persist <code>TagSet</code></td>
+<td>return <code>TagSet</code></td>
+<td>remove</td>
+<td>Bucket tags in the leader snapshot; object tags on object metadata.</td>
+</tr>
+<tr>
+<td>Object Lock <code>?object-lock</code> / <code>?retention</code> / <code>?legal-hold</code></td>
+<td>persist</td>
+<td>return</td>
+<td>—</td>
+<td>See <a href="../worm/">Object Lock (WORM)</a>.</td>
 </tr>
 </tbody>
 </table>
-<p>If your workflow depends on one of these being authoritative (Iceberg lifecycle expiry, S3 tagging cost allocation, etc.), open a request — they're tracked as future surfaces.</p>
+<p>Writes are leader-routed (<code>BUCKET_CONFIG_MUTATE</code>) so a <code>PUT</code> on one node is
+immediately visible to a <code>GET</code> served by another node behind the proxy.</p>
+<p>Still accepted as silent no-ops (default behaviour only): bucket/object <code>?acl</code> —
+only the default owner ACL is modelled.</p>
 <h2 id="authentication">Authentication</h2>
 <p>Every S3 request must carry a valid AWS-style Authorization header. ShannonStore validates two formats:</p>
 <h3 id="aws-signature-v4-recommended-default-in-every-modern-sdk">AWS Signature V4 (recommended — default in every modern SDK)</h3>
@@ -1752,13 +1802,27 @@
 <li>Service names accepted: <code>s3</code> and <code>sts</code>.</li>
 <li>Streaming body (<code>aws-chunked</code>): payload hash is <code>STREAMING-AWS4-HMAC-SHA256-PAYLOAD</code>; the body is read through an <code>AwsChunkedInputStream</code> that strips chunk framing as data arrives. The <code>x-amz-decoded-content-length</code> header carries the real object size.</li>
 </ul>
+<h3 id="presigned-urls-query-string-sigv4">Presigned URLs (query-string SigV4)</h3>
+<p>A presigned URL carries the entire SigV4 signature in the <strong>query string</strong> instead
+of the <code>Authorization</code> header, so it can be handed to a browser, <code>curl</code>, or any
+client with no credentials of its own:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">url</span><span class="o">=</span><span class="k">$(</span>aws<span class="w"> </span>--endpoint-url<span class="w"> </span>http://localhost:8000<span class="w"> </span>s3<span class="w"> </span>presign<span class="w"> </span>s3://lake/report.csv<span class="w"> </span>--expires-in<span class="w"> </span><span class="m">300</span><span class="k">)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>curl<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$url</span><span class="s2">&quot;</span><span class="w">        </span><span class="c1"># 200 — auth is entirely in the X-Amz-* query parameters</span>
+</code></pre></div>
+<p>When a request arrives with no <code>Authorization</code> header, the validator checks for
+<code>X-Amz-Algorithm=AWS4-HMAC-SHA256</code> in the query string. If present, it extracts the
+access key from <code>X-Amz-Credential</code>, reconstructs the canonical request from the
+signed query parameters (<code>X-Amz-Date</code>, <code>X-Amz-Expires</code>, <code>X-Amz-SignedHeaders</code>,
+<code>X-Amz-Signature</code>), and validates the signature and expiry exactly as for a header
+signature. Anonymous-policy evaluation is only attempted for requests that are
+<em>neither</em> header-signed <em>nor</em> presigned.</p>
 <h3 id="aws-signature-v2-legacy">AWS Signature V2 (legacy)</h3>
 <p>Older signing format kept for tooling that hasn't moved to SigV4. Same access-key index, same authorization decision afterwards.</p>
 <h3 id="authorization-decision">Authorization decision</h3>
 <p>After signature validation, the request is mapped to a <code>(action, resource-arn)</code> pair:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>PUT /lake/data.parquet            →  (&quot;s3:PutObject&quot;, &quot;arn:aws:s3:::lake/data.parquet&quot;)
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>GET /lake?list-type=2&amp;prefix=etl/ →  (&quot;s3:ListBucket&quot;, &quot;arn:aws:s3:::lake&quot;)
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>DELETE /lake                      →  (&quot;s3:DeleteBucket&quot;, &quot;arn:aws:s3:::lake&quot;)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>PUT /lake/data.parquet            →  (&quot;s3:PutObject&quot;, &quot;arn:aws:s3:::lake/data.parquet&quot;)
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>GET /lake?list-type=2&amp;prefix=etl/ →  (&quot;s3:ListBucket&quot;, &quot;arn:aws:s3:::lake&quot;)
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>DELETE /lake                      →  (&quot;s3:DeleteBucket&quot;, &quot;arn:aws:s3:::lake&quot;)
 </code></pre></div>
 <p>The pair is evaluated against the caller's effective IAM policies (user-attached + group-inherited). The evaluator is strict AWS semantics: explicit <code>Deny</code> wins over <code>Allow</code>, missing <code>Allow</code> denies by default. See <a href="../iam/">IAM</a> and <a href="../auth-authz/">Authentication &amp; Authorization</a> for the full evaluator behaviour.</p>
 <h2 id="etag-semantics">ETag semantics</h2>
@@ -1792,14 +1856,14 @@
 <p>So <code>aws s3 cp --validate</code> and <code>boto3.upload_file</code> integrity checks pass without any client-side workaround.</p>
 <h2 id="content-md5-enforcement">Content-MD5 enforcement</h2>
 <p>When the client opts into stronger write-time verification:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Content-MD5: &lt;base64(md5(body))&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Content-MD5: &lt;base64(md5(body))&gt;
 </code></pre></div>
 <p>the server recomputes MD5 of the received bytes and rejects mismatches with <code>400 BadDigest</code>. This applies to both PutObject and UploadPart. The check requires materializing the body to a buffer — clients that need streaming throughput should omit Content-MD5 and rely on TCP / TLS integrity plus ETag verification post-write.</p>
 <h2 id="range-requests">Range requests</h2>
 <p><code>GET /&lt;bucket&gt;/&lt;key&gt;</code> honors RFC 7233 <code>Range</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Range: bytes=0-1023
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>Range: bytes=1024-
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>Range: bytes=-512        (last 512 bytes — suffix form)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Range: bytes=0-1023
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>Range: bytes=1024-
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>Range: bytes=-512        (last 512 bytes — suffix form)
 </code></pre></div>
 <p>A 206 Partial Content response carries the requested slice and a <code>Content-Range</code> header. Multi-range requests (<code>Range: bytes=0-99,200-299</code>) are not implemented — pick the single-range form.</p>
 <p>Range requests are the path Iceberg/Parquet readers take to fetch column-chunk footers and only the columns they need, so partition-scan performance depends on them working correctly. The implementation caches recently-decoded EC parts in a bounded LRU so two consecutive range reads against the same object don't re-decode the same shard set.</p>
@@ -1814,13 +1878,13 @@
 <p>Versioning state is persisted in <code>BucketManager</code> and broadcast to peer API nodes through the IAM/bucket snapshot replication channel, so the per-bucket flag is consistent cluster-wide.</p>
 <h2 id="error-response-shape">Error response shape</h2>
 <p>Errors follow the canonical S3 XML:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="cp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">&lt;Error&gt;</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">&lt;Code&gt;</span>NoSuchKey<span class="nt">&lt;/Code&gt;</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">&lt;Message&gt;</span>The<span class="w"> </span>specified<span class="w"> </span>key<span class="w"> </span>does<span class="w"> </span>not<span class="w"> </span>exist.<span class="nt">&lt;/Message&gt;</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">&lt;Resource&gt;</span>/lake/missing.parquet<span class="nt">&lt;/Resource&gt;</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">&lt;RequestId&gt;</span>…<span class="nt">&lt;/RequestId&gt;</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="nt">&lt;/Error&gt;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="cp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">&lt;Error&gt;</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">&lt;Code&gt;</span>NoSuchKey<span class="nt">&lt;/Code&gt;</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">&lt;Message&gt;</span>The<span class="w"> </span>specified<span class="w"> </span>key<span class="w"> </span>does<span class="w"> </span>not<span class="w"> </span>exist.<span class="nt">&lt;/Message&gt;</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">&lt;Resource&gt;</span>/lake/missing.parquet<span class="nt">&lt;/Resource&gt;</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="nt">&lt;RequestId&gt;</span>…<span class="nt">&lt;/RequestId&gt;</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="nt">&lt;/Error&gt;</span>
 </code></pre></div>
 <p>Most-encountered codes:</p>
 <table>
