@@ -191,18 +191,32 @@ Transitions, storage-class and noncurrent-version rules are parsed but not appli
 
 Expiration is enforced by `LifecycleExpiryService`, a background scanner that:
 
-- runs **only on the leader** API node (so each object is expired exactly once),
-- is **disabled by default** and enabled via configuration — the scanner thread is
-  always scheduled but performs no deletions until turned on, so a misconfigured
-  policy can never silently delete data on a fresh cluster,
+- runs **only on the leader** API node and lists objects cluster-wide, so each object
+  is expired **exactly once** regardless of HRW placement / replication factor,
+- is **disabled by default** — the scanner thread is always scheduled but performs no
+  deletions until turned on, so a misconfigured policy can never silently delete data,
 - **skips any object that is WORM-protected** — an active Object Lock retention or a
-  legal hold always wins over a lifecycle rule (see [Object Lock (WORM)](worm.md)),
-- sweeps on a configurable cadence:
+  legal hold always wins over a lifecycle rule (see [Object Lock (WORM)](worm.md)).
+
+**Enabling it.** Toggle it at runtime from the Admin UI (**Maintenance → Lifecycle
+Expiry**) or via the admin REST API — the toggle is persisted (survives restart) and
+the requests are proxied to the leader, the node that actually runs the scanner:
+
+```bash
+curl -X POST http://localhost:8000/admin/maintenance/lifecycle/enable \
+  -H "Authorization: Bearer <admin-jwt>" -d '{"enabled": true}'
+curl     http://localhost:8000/admin/maintenance/lifecycle/status   -H "Authorization: Bearer <admin-jwt>"
+curl -X POST http://localhost:8000/admin/maintenance/lifecycle/trigger -H "Authorization: Bearer <admin-jwt>"  # run a cycle now
+```
+
+The on/off state, sweep cadence, and first-boot default are configured here:
 
 ```properties
 # shannonstore.properties — §5c
-# Turn the scanner on (default false). No deletions happen until this is true.
-shannonstore.api.lifecycle.scan.enabled=true
+# Seed the enabled state on FIRST boot only (the admin toggle wins afterwards).
+shannonstore.api.lifecycle.scan.enabled=false
+# Where the runtime toggle is persisted (so it survives a restart).
+shannonstore.api.lifecycle.scan.state.file=${shannonstore.base.data.dir}/lifecycle-state.json
 # Interval in MILLISECONDS between scan cycles (default 3600000 = 1 hour).
 # For fine-grained / <Seconds> expiration, set this small (e.g. 5000).
 shannonstore.api.lifecycle.scan.interval.ms=3600000
