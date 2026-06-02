@@ -10,6 +10,7 @@ wire format (so `aws s3api`, boto3, and the MinIO client work unchanged):
 | `?policy` | Resource-based **bucket policy** (JSON) — augments IAM and enables anonymous public access | raw JSON, per bucket |
 | `?cors` | **CORS** rules (XML) — controls browser cross-origin access, incl. `OPTIONS` preflight | raw XML, per bucket |
 | `?lifecycle` | **Object Lifecycle (ILM)** — typed `LifecyclePolicy`, expiration + abort-incomplete-MPU | typed model, per bucket |
+| `?replication` | **Bucket replication** — async copy of matching objects to a destination bucket/cluster | raw XML, per bucket |
 | `?tagging` | **Tags** on a bucket and on individual objects | key/value map |
 
 All four are owned by the cluster leader and replicated to followers — see
@@ -262,6 +263,69 @@ object's metadata and travel with it across the cluster.
 
 ---
 
+## Bucket Replication
+
+Replication asynchronously copies matching object versions from a source bucket to a
+**destination bucket** — another ShannonStore cluster, MinIO, or AWS S3 — the same way
+MinIO bucket replication does. It is the building block for cross-region DR and for
+site replication (active-active across clusters).
+
+```bash
+# aws s3api put-bucket-replication can't emit the ShannonStore destination extension,
+# so PUT the raw XML via the admin bucket-config endpoint:
+curl -X PUT http://localhost:8000/admin/browser/bucket-config/lake/replication \
+  -H "Authorization: Bearer <admin-jwt>" --data @replication.xml
+aws --endpoint-url http://localhost:8000 s3api get-bucket-replication --bucket lake
+```
+
+```xml
+<ReplicationConfiguration>
+  <Rule>
+    <ID>to-dr</ID>
+    <Status>Enabled</Status>
+    <Priority>1</Priority>
+    <Filter><Prefix>data/</Prefix></Filter>
+    <Destination>
+      <Bucket>arn:aws:s3:::lake-dr</Bucket>
+      <!-- ShannonStore extension: no cross-account IAM role across separate clusters -->
+      <Endpoint>https://dr.example.com:8080</Endpoint>
+      <AccessKey>...</AccessKey>
+      <SecretKey>...</SecretKey>
+      <Region>us-east-1</Region>
+    </Destination>
+    <DeleteMarkerReplication><Status>Enabled</Status></DeleteMarkerReplication>
+  </Rule>
+</ReplicationConfiguration>
+```
+
+How it works:
+
+- **Versioning is required** on the source bucket (each PUT is a new immutable version).
+- A **leader-only** `ReplicationService` re-attempts any object whose
+  `replicationStatus` is not `COMPLETED`; on success it marks the version `COMPLETED`.
+- Each object is read **decrypted** at the source and **re-PUT** at the destination,
+  which **re-encrypts with its own KMS** — physically separate sites never share keys.
+- The highest-`Priority` enabled rule whose `Filter.Prefix` matches the key wins.
+  `DeleteMarkerReplication` propagates deletes.
+- **Enable** it at runtime (disabled by default) from the Admin UI
+  (**Maintenance → Bucket Replication**) or the leader-proxied admin REST API:
+
+```bash
+curl -X POST http://localhost:8000/admin/maintenance/replication/enable \
+  -H "Authorization: Bearer <admin-jwt>" -d '{"enabled": true}'
+curl     http://localhost:8000/admin/maintenance/replication/status  -H "Authorization: Bearer <admin-jwt>"
+curl -X POST http://localhost:8000/admin/maintenance/replication/trigger -H "Authorization: Bearer <admin-jwt>"
+```
+
+```properties
+# shannonstore.properties — §5d
+shannonstore.api.replication.enabled=false          # first-boot seed; admin toggle wins
+shannonstore.api.replication.state.file=${shannonstore.base.data.dir}/replication-state.json
+shannonstore.api.replication.scan.interval.ms=60000 # re-attempt cadence
+```
+
+---
+
 ## Cluster consistency (leader-routed writes)
 
 Bucket configuration is **leader-owned state**, just like IAM and bucket ACLs. A
@@ -293,10 +357,10 @@ request is routed to.
 
 ## Admin UI
 
-Each of the four surfaces is editable from the **Browser → bucket → ⚙ (gear)**
-configuration panel (administrators only), with tabs for Policy (JSON), CORS (XML),
-Lifecycle (XML), and Tags (key/value editor). The panel talks to the
-leader-forwarded admin endpoints listed above.
+Each surface is editable from the **Browser → bucket → ⚙ (gear)** configuration panel
+(administrators only), with tabs for Policy (JSON), CORS (XML), Lifecycle (XML),
+Replication (XML), and Tags (key/value editor). The panel talks to the leader-forwarded
+admin endpoints listed above.
 
 ## See also
 
