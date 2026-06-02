@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/ec/">
+        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/site-replication/">
       
       
-        <link rel="prev" href="../distributed-architecture/">
+        <link rel="prev" href="../bucket-configuration/">
       
       
-        <link rel="next" href="../data-integrity/">
+        <link rel="next" href="../distributed-architecture/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Erasure Coding - ShannonStore</title>
+        <title>Site Replication - ShannonStore</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#erasure-coding" class="md-skip">
+        <a href="#site-replication-multi-cluster-active-active" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Erasure Coding
+              Site Replication
             
           </span>
         </div>
@@ -691,10 +691,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../site-replication/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Site Replication
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -710,6 +737,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configure-peers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure peers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-is-replicated-today" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is replicated (today)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -747,37 +838,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Erasure Coding
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../ec/" class="md-nav__link">
         
   
   
@@ -793,92 +857,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#how-a-put-becomes-shards" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How a PUT becomes shards
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-a-get-reconstructs-the-object" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How a GET reconstructs the object
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#shard-placement-and-failure-domains" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Shard placement and failure domains
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#repair" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Repair
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#operational-sizing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Operational sizing
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#see-also" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        See also
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1471,128 +1449,87 @@
 
 
 
-<h1 id="erasure-coding">Erasure Coding</h1>
-<p>ShannonStore stores every object as Reed-Solomon erasure-coded shards rather than full replicas. The same logical guarantee — survive any <em>m</em> simultaneous disk or node losses — costs roughly half the bytes that 3× replication would, and rebuilds rebuild only the missing shards rather than the whole object.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   PUT object (N bytes)
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>      │
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>      ▼
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   ┌──────────────────────────────────────────┐
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   │ split into k equal data shards (N/k each)│
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   │ derive m parity shards from Reed-Solomon │
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   │   over GF(2^8) — Vandermonde matrix      │
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   └──────────────────────────────────────────┘
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>      │   (k = data shards, m = parity shards)
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>      ▼
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   distribute k+m shards across data nodes / disks,
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>   ideally on distinct failure domains
+<h1 id="site-replication-multi-cluster-active-active">Site Replication (multi-cluster active-active)</h1>
+<p>Site replication keeps two or more <strong>separate ShannonStore clusters</strong> in sync, the way
+MinIO site replication does: every bucket and its objects written on any site are
+replicated to all the other sites. It is the multi-cluster generalisation of
+<a href="../bucket-configuration/#bucket-replication">Bucket Replication</a> and is built on the
+same leader-only worker.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>        write a.txt ──▶  Site A (cluster, :8080)  ◀───────────▶  Site B (cluster, :8080)  ◀── write b.txt
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>                              │  replicate all buckets             │  replicate all buckets
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                              └──────────── a.txt ──▶──────────────┘
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                              ◀────────────── b.txt ──────────────┘
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>        result: both sites hold a.txt AND b.txt
 </code></pre></div>
-<p>Default install is <strong>k = 4, m = 2</strong> — read-quorum survives 2 simultaneous losses with 50% storage overhead. Configurable per cluster via <code>shannonstore.api.s3.ec.data.shards</code> and <code>shannonstore.api.s3.ec.parity.shards</code>. Trade-offs:</p>
-<table>
-<thead>
-<tr>
-<th>Config</th>
-<th>Storage overhead</th>
-<th>Tolerated losses</th>
-<th>Practical use</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>2 + 1</td>
-<td>50%</td>
-<td>1</td>
-<td>minimum viable; CI / dev clusters</td>
-</tr>
-<tr>
-<td>4 + 2 (default)</td>
-<td>50%</td>
-<td>2</td>
-<td>production sweet spot — 6 nodes, two-disk failure tolerance</td>
-</tr>
-<tr>
-<td>8 + 4</td>
-<td>50%</td>
-<td>4</td>
-<td>high-availability cold storage, ≥12 nodes</td>
-</tr>
-<tr>
-<td>10 + 4</td>
-<td>40%</td>
-<td>4</td>
-<td>archive-grade, ≥14 nodes</td>
-</tr>
-</tbody>
-</table>
-<p>The matrix is square per design choice: as long as <strong>m ≤ k</strong>, the storage overhead stays at <em>m/k</em> and the failure tolerance is <em>m</em> shards. Picking <em>m</em> higher than <em>k</em> gains nothing in tolerance but costs proportionally more bytes.</p>
-<h2 id="how-a-put-becomes-shards">How a PUT becomes shards</h2>
-<ol>
-<li><strong>Buffer the object</strong> (or a part, for multipart) into N bytes.</li>
-<li><strong>Split into k blocks</strong> of <code>ceil(N/k)</code> bytes each. The last block is zero-padded; the original length is recorded in the object metadata so the trailer is stripped on read.</li>
-<li><strong>Compute m parity blocks</strong> by multiplying the k data blocks with a Vandermonde matrix over GF(2⁸). Any combination of k shards out of the k+m total is sufficient to reconstruct the original.</li>
-<li><strong>Encrypt each shard</strong> with a per-object data-encryption key from KMS (see <a href="../kms/">Encryption &amp; Key Management</a>).</li>
-<li><strong>Place shards</strong> across data nodes via Highest Random Weight (HRW) routing — the same key/shard pair lands on the same nodes deterministically, so a reader knows where to fetch without consulting a metadata service.</li>
-<li><strong>Record the shard layout</strong> in the object metadata: per-part array of <code>{chunkId, shardIndex, nodeAddress, diskPath, checksum}</code> rows, persisted on the API node's RocksDB and replicated to peers through the metadata replication channel.</li>
-</ol>
-<p>The encoding step uses Intel ISA-L or a vectorized Java fallback depending on what's available at process start — the path is identical, only throughput changes.</p>
-<h2 id="how-a-get-reconstructs-the-object">How a GET reconstructs the object</h2>
-<ol>
-<li><strong>Read the metadata</strong> for the requested key (and version, if specified) from the local RocksDB.</li>
-<li><strong>Fan out shard reads</strong> to the k data shards first. The API node connects to each shard's owning data node through a pooled NIO client and streams the bytes back.</li>
-<li><strong>Verify each shard's CRC32C</strong> against the checksum recorded in metadata. A mismatch is treated as if the shard were missing — see <a href="../data-integrity/">Data Integrity</a>.</li>
-<li><strong>If any data shard is missing or corrupt</strong>, read enough parity shards to bring the total to k healthy shards, run the inverse Reed-Solomon decoder, and emit the reconstructed data.</li>
-<li><strong>Cache the decoded part</strong> in a bounded LRU keyed by <code>(objectKey, partNumber)</code>. A second range request that hits the same part doesn't re-decode — important for Iceberg / Parquet workloads where the column-footer and a column chunk are typically two reads against the same part.</li>
-</ol>
-<p>The cache cap is in bytes, not entries — <code>shannonstore.api.decoded.part.cache.bytes</code>. Sized to roughly one part × the number of concurrent range readers you expect.</p>
-<h2 id="shard-placement-and-failure-domains">Shard placement and failure domains</h2>
-<p>HRW (Rendezvous hashing) places shards such that:</p>
+<h2 id="model">Model</h2>
 <ul>
-<li>Adding a data node moves only the fraction of shards that map to the new node — typical churn is <code>1 / (existing+1)</code> per shard slot.</li>
-<li>Removing a data node forces re-replication of the shards that were on it, drawn from parity on the remaining nodes. The repair scheduler picks which target node receives each rebuilt shard using the same HRW so future reads find the shard without metadata lookup.</li>
-<li>Failure-domain awareness is opt-in via the per-node <code>rack</code> / <code>zone</code> tag. When set, the placement algorithm rejects layouts where multiple shards of the same <code>(key, part)</code> land in the same domain, falling back to a degraded placement only when the cluster has insufficient diverse domains.</li>
+<li><strong>Active-active.</strong> Each site is registered as the other's peer; writes flow both
+  ways and converge. There is no primary.</li>
+<li><strong>Loop-safe by construction.</strong> For every object the worker does a <code>HEAD</code> on the peer
+  and only <code>PUT</code>s when the object is missing or its ETag differs. An object bouncing
+  between two active-active sites therefore converges <em>without an infinite copy loop</em> —
+  no wire tagging or oplog needed for the common case. (ShannonStore's ETag is the MD5
+  of the plaintext, which is identical after a re-encrypting copy, so single-PUT
+  objects match on both sides.)</li>
+<li><strong>Each site keeps its own KMS.</strong> Objects are read <strong>decrypted</strong> at the source and
+  re-PUT at the peer, which <strong>re-encrypts with its own keys</strong> — physically separated
+  sites never share key material.</li>
+<li><strong>Leader-only.</strong> The <code>SiteReplicationService</code> runs on the leader of each cluster, so
+  each object is copied once per cycle.</li>
+<li><strong>Versioning</strong> on the source bucket is recommended (and auto-enabled on the peer);
+  every write is a new immutable version, which makes convergence a simple
+  last-writer-wins on the current pointer.</li>
 </ul>
-<p>The placement is deterministic given <code>{cluster topology, key, part}</code> — so two clients hitting the same object converge on the same shard set without coordination.</p>
-<h2 id="repair">Repair</h2>
-<p>Two paths feed the repair pipeline:</p>
-<table>
-<thead>
-<tr>
-<th>Trigger</th>
-<th>Source</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Reactive</td>
-<td>A GET found a missing or CRC-mismatched shard; the request used parity to satisfy the read and emitted a repair task for the failed shard.</td>
-</tr>
-<tr>
-<td>Proactive</td>
-<td>The optional <a href="../data-integrity/">Bitrot Scrubber</a> periodically verifies every shard's CRC32C and emits repair tasks for any mismatch.</td>
-</tr>
-</tbody>
-</table>
-<p><code>DiskRepairService</code> consumes the task queue:</p>
-<ol>
-<li>Find a healthy disk on a different node than the failed shard's owner (placement constraints).</li>
-<li>Reconstruct the missing shard from k other shards (data or parity).</li>
-<li>Write the reconstructed bytes to the new disk; update the metadata's shard layout entry to point at the new <code>{nodeAddress, diskPath, checksum}</code>.</li>
-<li>Replicate the updated metadata to peer API nodes.</li>
-</ol>
-<p>The service throttles itself by <code>shannonstore.api.disk.repair.rate.limit.bytes.per.sec</code> so a large repair doesn't consume the inbound write bandwidth of the cluster.</p>
-<h2 id="operational-sizing">Operational sizing</h2>
-<p>A practical rule:</p>
+<h2 id="configure-peers">Configure peers</h2>
+<p>The config is cluster-global (one per cluster), leader-routed and replicated to every
+node. Set it from the Admin UI (<strong>Site Replication</strong> page) or the admin REST API:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># On site A — register site B as a peer and enable</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>curl<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span>http://siteA:8888/admin/replication/sites<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span><span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="s1">    &quot;enabled&quot;: true,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="s1">    &quot;peers&quot;: [</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="s1">      { &quot;siteId&quot;: &quot;B&quot;, &quot;endpoint&quot;: &quot;https://siteB:8080&quot;,</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="s1">        &quot;accessKey&quot;: &quot;&lt;B-access-key&gt;&quot;, &quot;secretKey&quot;: &quot;&lt;B-secret-key&gt;&quot;, &quot;region&quot;: &quot;us-east-1&quot; }</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="s1">    ]</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="s1">  }&#39;</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># On site B — register site A (the symmetric half makes it active-active)</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>curl<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span>http://siteB:8888/admin/replication/sites<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span><span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="s1">    &quot;enabled&quot;: true,</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="s1">    &quot;peers&quot;: [ { &quot;siteId&quot;: &quot;A&quot;, &quot;endpoint&quot;: &quot;https://siteA:8080&quot;,</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="s1">                 &quot;accessKey&quot;: &quot;&lt;A-access-key&gt;&quot;, &quot;secretKey&quot;: &quot;&lt;A-secret-key&gt;&quot;, &quot;region&quot;: &quot;us-east-1&quot; } ]</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="s1">  }&#39;</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>curl<span class="w">     </span>http://siteA:8888/admin/replication/sites/status<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://siteA:8888/admin/replication/sites/trigger<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span><span class="w">  </span><span class="c1"># run a cycle now</span>
+</code></pre></div>
+<p>The peer <code>endpoint</code> is the peer cluster's <strong>S3 endpoint</strong>, and the credentials are an
+S3 access key/secret valid on the peer. The worker uses them to create buckets, set
+versioning, and copy objects there.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># shannonstore.properties — reuses the bucket-replication cadence knob</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="na">shannonstore.api.replication.scan.interval.ms</span><span class="o">=</span><span class="s">60000   # cycle every 60s</span>
+</code></pre></div>
+<h2 id="what-is-replicated-today">What is replicated (today)</h2>
 <ul>
-<li><strong>k + m ≤ healthy_data_nodes × disks_per_node × 0.9</strong> — every shard slot wants a distinct disk if at all possible; the 0.9 fudge factor reserves room for one disk to die without forcing degraded placement.</li>
-<li><strong>k + m ≤ failure_domain_count × disks_per_domain</strong> when failure-domain awareness is in use.</li>
+<li><strong>Buckets</strong> — created on the peer on demand (with versioning) so writes land.</li>
+<li><strong>Object data + content-type + tags</strong> — current versions of every bucket.</li>
 </ul>
-<p>A 12-node cluster with 4 disks per node (= 48 shard slots) comfortably runs k=8 m=4 with failure-domain awareness across 4 racks. Smaller clusters should stick with k=4 m=2; the storage-saving from k=8 m=4 is identical (50%), but the operational headroom is much tighter.</p>
+<p>A new cluster joins by being added as a peer on the existing sites (and adding them as
+its peers); the next cycles copy the existing objects across, then steady-state only
+new/changed objects move.</p>
+<div class="admonition note">
+<p class="admonition-title">Roadmap</p>
+<p>Full control-plane replication (IAM users/keys/policies, all bucket sub-configs,
+KMS key metadata) and an incremental change-log with per-peer cursors are the next
+increments. Today's worker focuses on buckets + object data, which already covers
+cross-region DR and active-active object availability.</p>
+</div>
 <h2 id="see-also">See also</h2>
 <ul>
-<li><a href="../data-integrity/">Data Integrity</a> — the CRC32C and scrubber that protect EC shards from silent corruption.</li>
-<li><a href="../kms/">Encryption &amp; Key Management</a> — the per-shard encryption applied after splitting and before placement.</li>
-<li><a href="../distributed-architecture/">Distributed Architecture</a> — how data nodes communicate the shards.</li>
-<li><a href="../disk-repair/">Disk Repair Service</a> — the repair queue consumer that rebuilds lost shards.</li>
-<li><a href="../multi-disk-storage/">Multi-Disk Storage</a> — the local-disk layout each data node serves shards from.</li>
+<li><a href="../bucket-configuration/#bucket-replication">Bucket Configuration → Bucket Replication</a> — single-bucket replication this builds on.</li>
+<li><a href="../kms/">Encryption &amp; Key Management</a> — why each site re-encrypts with its own KMS.</li>
+<li><a href="../worm/">Object Lock (WORM)</a> and <a href="../iam/">Identity &amp; Access Management</a>.</li>
 </ul>
 
 
