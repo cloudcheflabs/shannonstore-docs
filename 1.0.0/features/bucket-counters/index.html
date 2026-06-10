@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/distributed-architecture/">
+        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/bucket-counters/">
       
       
-        <link rel="prev" href="../site-replication/">
+        <link rel="prev" href="../storage-classes-tiering/">
       
       
-        <link rel="next" href="../ec/">
+        <link rel="next" href="../site-replication/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Distributed Architecture - ShannonStore</title>
+        <title>Bucket Counters - ShannonStore</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#distributed-architecture" class="md-skip">
+        <a href="#bucket-counters-object-count-size" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Distributed Architecture
+              Bucket Counters
             
           </span>
         </div>
@@ -719,10 +719,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../bucket-counters/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bucket Counters
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -738,6 +765,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wire" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wire
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-the-counters-are-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What the counters are NOT
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bootstrap
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -775,37 +866,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Distributed Architecture
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../distributed-architecture/" class="md-nav__link">
         
   
   
@@ -821,70 +885,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#api-nodes-control-plane" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        API Nodes (Control Plane)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#data-nodes-data-plane" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Data Nodes (Data Plane)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cluster-coordination" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cluster coordination
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#two-port-architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two-Port Architecture
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1533,32 +1533,39 @@
 
 
 
-<h1 id="distributed-architecture">Distributed Architecture</h1>
-<p>ShannonStore separates the request/control plane from the data plane so the two scale independently.</p>
-<h2 id="api-nodes-control-plane">API Nodes (Control Plane)</h2>
+<h1 id="bucket-counters-object-count-size">Bucket Counters (Object Count &amp; Size)</h1>
+<p>Every bucket exposes two running counters — object count and total bytes — that update on every PUT, multipart-complete, and DELETE rather than being recomputed from a full metadata scan. The admin UI <strong>Bucket Browser</strong> uses them, and they are served alongside the bucket listing.</p>
+<h2 id="how-it-works">How it works</h2>
+<p>Each API node maintains its own in-memory <code>ConcurrentHashMap&lt;bucket, count&gt;</code> and <code>ConcurrentHashMap&lt;bucket, sizeBytes&gt;</code> inside <code>BucketManager</code>. The node updates its own counter whenever it serves a write — under nginx round-robin, half the PUTs land on node A and half on node B, so each node carries half the delta.</p>
+<p>When a client reads stats, the leader fan-outs <code>TYPE_GET_BUCKET_STATS</code> to every API node, each returns its local pair, and the caller sums them — that sum is the <strong>cluster total</strong> with no RocksDB scan.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   GET /admin/browser/buckets
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>      │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>      ▼
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   ┌──────────────────────────────────────────────┐
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   │ for each API node: ask &quot;your delta?&quot; via RPC │
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   │   sum(count_i) → cluster object count        │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   │   sum(size_i)  → cluster total bytes         │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   └──────────────────────────────────────────────┘
+</code></pre></div>
+<p>Overwrites are tracked correctly: the writing node compares the new object size to the previous metadata and applies <code>Δsize = new - prev, Δcount = 0</code>. Deletes apply <code>Δsize = -prev.size, Δcount = -1</code> on the node that served the DELETE.</p>
+<h2 id="wire">Wire</h2>
+<p>The counters are surfaced as part of the bucket listing response:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-sS<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOK</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>http://api:8888/admin/browser/buckets<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="o">[</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="o">{</span><span class="w"> </span><span class="s2">&quot;name&quot;</span>:<span class="w"> </span><span class="s2">&quot;lakehouse&quot;</span>,<span class="w"> </span><span class="s2">&quot;objectCount&quot;</span>:<span class="w"> </span><span class="m">12842</span>,<span class="w"> </span><span class="s2">&quot;totalSizeBytes&quot;</span>:<span class="w"> </span><span class="m">5012398476</span><span class="w"> </span><span class="o">}</span>,
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="o">{</span><span class="w"> </span><span class="s2">&quot;name&quot;</span>:<span class="w"> </span><span class="s2">&quot;scratch&quot;</span>,<span class="w">   </span><span class="s2">&quot;objectCount&quot;</span>:<span class="w"> </span><span class="m">0</span>,<span class="w">     </span><span class="s2">&quot;totalSizeBytes&quot;</span>:<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">}</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="o">]</span>
+</code></pre></div>
+<p>Per-bucket details (storage class, EC profile) are on <code>/admin/buckets/{bucket}/storage-class</code> — see <a href="../storage-classes-tiering/">Storage Classes &amp; Tiering</a>.</p>
+<h2 id="what-the-counters-are-not">What the counters are NOT</h2>
 <ul>
-<li>Terminate the S3 protocol and serve the Admin UI / Admin API on a dedicated port.</li>
-<li>Hold and replicate object metadata across the API tier; adding or removing an API node moves only the small fraction of keys whose ownership changed.</li>
-<li>Erasure-code, encrypt, and compress objects before distributing shards to data nodes; reconstruct them on read.</li>
+<li><strong>Not</strong> per-prefix. The numbers are bucket-wide; a deep lakehouse with <code>iceberg/db/tbl/data/</code> subtrees does not get prefix-level stats from this counter. Per-prefix accounting is a future RFC.</li>
+<li><strong>Not</strong> snapshot-replicated. Each node's counter is local. A node restart resets that node's contribution; the cluster total then drops by the restarted node's previous delta until it re-observes traffic. This is acceptable for an operations gauge; it is not a billing source of truth.</li>
+<li><strong>Not</strong> authoritative across versioned DELETEs that write delete markers (the prior versions remain). Counters track <em>visible</em> objects.</li>
 </ul>
-<h2 id="data-nodes-data-plane">Data Nodes (Data Plane)</h2>
-<ul>
-<li>Store erasure-coded shards as plain files on local disks.</li>
-<li>Serve chunk read/write requests from API Nodes and report disk health back to the cluster.</li>
-<li>Support multi-disk configurations for scalable storage capacity.</li>
-</ul>
-<h2 id="cluster-coordination">Cluster coordination</h2>
-<ul>
-<li>A cluster opens to client traffic only when every API node and at least one data node is ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.</li>
-<li>The previous leader tends to win re-election after a restart (sticky leadership), so cluster state moves as little as possible.</li>
-<li>IAM and KMS changes always run on the leader. Admin requests that land on a follower are automatically routed to the leader so a single source of truth is preserved.</li>
-<li>Default <code>admin/admin</code> credentials are created only on the very first cluster bootstrap. After that, the cluster will never recreate defaults — protecting against any local issue silently overwriting your real IAM.</li>
-</ul>
-<h2 id="two-port-architecture">Two-Port Architecture</h2>
-<ul>
-<li><strong>S3 Port</strong> (default 8080): high-throughput object storage operations.</li>
-<li><strong>Admin Port</strong> (default 8888): Admin UI, REST API, and cluster management. Separated from the S3 port so admin traffic never contends with the data path.</li>
-</ul>
+<h2 id="bootstrap">Bootstrap</h2>
+<p>A freshly imported bucket (counter = 0) triggers the per-node fullscan <strong>once</strong> on first stats request, seeds the counter from that scan, and serves O(1) from then on. So the first stats call after a cluster start is slower than subsequent ones — but only once per bucket per node.</p>
 
 
 

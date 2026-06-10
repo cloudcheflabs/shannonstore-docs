@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/distributed-architecture/">
+        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/storage-classes-tiering/">
       
       
-        <link rel="prev" href="../site-replication/">
+        <link rel="prev" href="../bucket-configuration/">
       
       
-        <link rel="next" href="../ec/">
+        <link rel="next" href="../bucket-counters/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Distributed Architecture - ShannonStore</title>
+        <title>Storage Classes & Tiering - ShannonStore</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#distributed-architecture" class="md-skip">
+        <a href="#storage-classes-tiering" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Distributed Architecture
+              Storage Classes & Tiering
             
           </span>
         </div>
@@ -691,10 +691,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../storage-classes-tiering/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage Classes & Tiering
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -710,6 +737,126 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-registry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The registry
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The registry">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#admin-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Admin endpoints
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-bucket-ec-override" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-bucket EC override
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lifecycle-transition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle Transition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lifecycle Transition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lifecycle-scanner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle scanner
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-on-a-tiered-object-and-restoreobject" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET on a tiered object — and RestoreObject
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#async-cleanup-on-delete" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Async cleanup on DELETE
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#end-to-end-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        End-to-end example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -775,37 +922,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Distributed Architecture
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../distributed-architecture/" class="md-nav__link">
         
   
   
@@ -821,70 +941,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#api-nodes-control-plane" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        API Nodes (Control Plane)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#data-nodes-data-plane" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Data Nodes (Data Plane)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cluster-coordination" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cluster coordination
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#two-port-architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two-Port Architecture
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1533,32 +1589,141 @@
 
 
 
-<h1 id="distributed-architecture">Distributed Architecture</h1>
-<p>ShannonStore separates the request/control plane from the data plane so the two scale independently.</p>
-<h2 id="api-nodes-control-plane">API Nodes (Control Plane)</h2>
+<h1 id="storage-classes-tiering">Storage Classes &amp; Tiering</h1>
+<p>ShannonStore exposes an S3-compatible <strong>storage class registry</strong> that doubles as the destination map for <strong>lifecycle Transition</strong> rules. Cold data is moved out of the hot cluster into a second S3 endpoint (another ShannonStore, MinIO, or AWS S3) on a schedule, and <code>GET</code> on a transitioned object responds with <code>403 InvalidObjectState</code> until the client issues <code>RestoreObject</code>.</p>
+<h2 id="the-registry">The registry</h2>
+<p>A storage class is a cluster-global record with an EC profile and an optional tier destination:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;COLD&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">&quot;ecDataShards&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">&quot;ecParityShards&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">&quot;tierDestination&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="nt">&quot;endpoint&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://cold.example.com&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="nt">&quot;region&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;us-east-1&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="nt">&quot;bucket&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;lakehouse-cold&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="nt">&quot;accessKey&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;AKIA...&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="nt">&quot;secretKey&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="admin-endpoints">Admin endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Method</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/admin/storage-classes</code></td>
+<td>GET</td>
+<td>List all classes</td>
+</tr>
+<tr>
+<td><code>/admin/storage-classes/{name}</code></td>
+<td>GET</td>
+<td>Single class</td>
+</tr>
+<tr>
+<td><code>/admin/storage-classes/{name}</code></td>
+<td>PUT</td>
+<td>Create or replace</td>
+</tr>
+<tr>
+<td><code>/admin/storage-classes/{name}</code></td>
+<td>DELETE</td>
+<td>Remove (rejected if any bucket points at it)</td>
+</tr>
+<tr>
+<td><code>/admin/buckets/{bucket}/storage-class</code></td>
+<td>GET</td>
+<td>Bucket's assignment</td>
+</tr>
+<tr>
+<td><code>/admin/buckets/{bucket}/storage-class</code></td>
+<td>PUT</td>
+<td>Assign a class to the bucket</td>
+</tr>
+<tr>
+<td><code>/admin/buckets/{bucket}/storage-class</code></td>
+<td>DELETE</td>
+<td>Clear the assignment</td>
+</tr>
+</tbody>
+</table>
+<p>All mutations are <strong>leader-only</strong> — a write to a follower is proxied to the leader, and the leader broadcasts the updated registry to every follower synchronously, so a follower-routed GET right after the PUT already sees the new class.</p>
+<p>The admin UI <strong>Storage Classes</strong> page covers create / edit / delete + per-bucket assignment. A class that is in use cannot be deleted.</p>
+<h2 id="per-bucket-ec-override">Per-bucket EC override</h2>
+<p>Setting a bucket's storage class also changes the <strong>effective EC profile</strong> for PUTs on that bucket. The profile (<code>ecDataShards</code>/<code>ecParityShards</code> of the assigned class) is stamped onto each new object's metadata, so reads stay correct even after a later cluster default change.</p>
+<h2 id="lifecycle-transition">Lifecycle Transition</h2>
+<p>Once a class is registered with a <code>tierDestination</code>, an S3 lifecycle Transition rule moves objects there. Either wire path works — both go through the same leader-validated path:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">&lt;LifecycleConfiguration&gt;</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&lt;Rule&gt;</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">&lt;ID&gt;</span>tier-cold<span class="nt">&lt;/ID&gt;</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">&lt;Status&gt;</span>Enabled<span class="nt">&lt;/Status&gt;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nt">&lt;Filter&gt;&lt;Prefix&gt;&lt;/Prefix&gt;&lt;/Filter&gt;</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nt">&lt;Transition&gt;</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">      </span><span class="nt">&lt;Days&gt;</span>1<span class="nt">&lt;/Days&gt;</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">      </span><span class="nt">&lt;StorageClass&gt;</span>COLD<span class="nt">&lt;/StorageClass&gt;</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="nt">&lt;/Transition&gt;</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span><span class="nt">&lt;/Rule&gt;</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="nt">&lt;/LifecycleConfiguration&gt;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Wire</th>
+<th>Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S3</td>
+<td><code>PUT /&lt;bucket&gt;?lifecycle</code> (XML body)</td>
+</tr>
+<tr>
+<td>Admin alias</td>
+<td><code>PUT /admin/buckets/&lt;bucket&gt;/lifecycle</code> (XML body)</td>
+</tr>
+</tbody>
+</table>
+<p>The leader validates the rule's <code>StorageClass</code> against the registry <strong>at PUT time</strong> — referencing an unregistered class returns <code>400</code> immediately rather than silently no-oping on the next scan cycle. (ShannonStore extension: <code>&lt;Seconds&gt;N&lt;/Seconds&gt;</code> is accepted alongside the AWS-standard <code>&lt;Days&gt;</code> / <code>&lt;Date&gt;</code> for sub-day testing.)</p>
+<h3 id="lifecycle-scanner">Lifecycle scanner</h3>
+<p><code>LifecycleExpiryService</code> is a leader-only worker that periodically scans buckets, matches each object against the policy, and:</p>
 <ul>
-<li>Terminate the S3 protocol and serve the Admin UI / Admin API on a dedicated port.</li>
-<li>Hold and replicate object metadata across the API tier; adding or removing an API node moves only the small fraction of keys whose ownership changed.</li>
-<li>Erasure-code, encrypt, and compress objects before distributing shards to data nodes; reconstruct them on read.</li>
+<li>For <code>Expiration</code>: drops the object outright.</li>
+<li>For <code>Transition</code>: streams the decrypted bytes to the destination, marks <code>meta.storageClass / tierLocation / tieredAt</code>, and removes the local EC chunks (metadata remains, so the object is still listable).</li>
+<li>For <code>AbortIncompleteMultipartUpload</code>: drops parts older than the threshold.</li>
 </ul>
-<h2 id="data-nodes-data-plane">Data Nodes (Data Plane)</h2>
-<ul>
-<li>Store erasure-coded shards as plain files on local disks.</li>
-<li>Serve chunk read/write requests from API Nodes and report disk health back to the cluster.</li>
-<li>Support multi-disk configurations for scalable storage capacity.</li>
-</ul>
-<h2 id="cluster-coordination">Cluster coordination</h2>
-<ul>
-<li>A cluster opens to client traffic only when every API node and at least one data node is ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.</li>
-<li>The previous leader tends to win re-election after a restart (sticky leadership), so cluster state moves as little as possible.</li>
-<li>IAM and KMS changes always run on the leader. Admin requests that land on a follower are automatically routed to the leader so a single source of truth is preserved.</li>
-<li>Default <code>admin/admin</code> credentials are created only on the very first cluster bootstrap. After that, the cluster will never recreate defaults — protecting against any local issue silently overwriting your real IAM.</li>
-</ul>
-<h2 id="two-port-architecture">Two-Port Architecture</h2>
-<ul>
-<li><strong>S3 Port</strong> (default 8080): high-throughput object storage operations.</li>
-<li><strong>Admin Port</strong> (default 8888): Admin UI, REST API, and cluster management. Separated from the S3 port so admin traffic never contends with the data path.</li>
-</ul>
+<p>Status + manual trigger from the admin UI <strong>Maintenance → Lifecycle</strong> page, or:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-sS<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOK</span><span class="s2">&quot;</span><span class="w"> </span>http://api:8888/admin/maintenance/lifecycle/status
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>curl<span class="w"> </span>-sS<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOK</span><span class="s2">&quot;</span><span class="w"> </span>http://api:8888/admin/maintenance/lifecycle/trigger
+</code></pre></div>
+<h2 id="get-on-a-tiered-object-and-restoreobject">GET on a tiered object — and RestoreObject</h2>
+<p><code>GET /&lt;bucket&gt;/&lt;key&gt;</code> for a tiered object returns:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">403</span> <span class="ne">Forbidden</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/xml</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nt">&lt;Error&gt;&lt;Code&gt;</span>InvalidObjectState<span class="nt">&lt;/Code&gt;</span>...<span class="nt">&lt;/Error&gt;</span>
+</code></pre></div>
+<p><code>HEAD /&lt;bucket&gt;/&lt;key&gt;</code> is fine — it returns <code>x-amz-storage-class: COLD</code> (and <code>x-amz-restore</code> if a restore is in flight).</p>
+<p>To recall hot bytes, send <code>POST /&lt;bucket&gt;/&lt;key&gt;?restore</code> with <code>&lt;RestoreRequest&gt;&lt;Days&gt;7&lt;/Days&gt;&lt;/RestoreRequest&gt;</code> — the leader's <code>RestoreObjectService</code> pulls the object back from the tier destination, places it across the hot cluster, and stamps <code>restoreExpiresAt = now + 7d</code>. While the worker runs, <code>restoreStatus = IN_PROGRESS</code>; afterwards <code>COMPLETED</code> and <code>GET</code> succeeds again. Once <code>restoreExpiresAt</code> elapses, the lifecycle scanner re-tiers the object.</p>
+<h2 id="async-cleanup-on-delete">Async cleanup on DELETE</h2>
+<p>When a tiered object is deleted, the local metadata is dropped immediately (so the DELETE returns fast) and the destination object is queued for cleanup on the leader's <code>TieredCleanupService</code>. The queue has exponential back-off and a dead-letter list — failures don't block client DELETEs.</p>
+<h2 id="end-to-end-example">End-to-end example</h2>
+<p><code>tests/test-tier-e2e-two-clusters.sh</code> ships a two-cluster docker-compose scenario that walks the entire flow:</p>
+<ol>
+<li>Register <code>COLD</code> class with a <code>tierDestination</code> pointing at site B.</li>
+<li>Apply a lifecycle Transition rule with <code>&lt;Seconds&gt;2&lt;/Seconds&gt;</code>.</li>
+<li>After 4 s, trigger the scanner — the object moves to site B.</li>
+<li><code>HEAD</code> shows <code>x-amz-storage-class: COLD</code>; <code>GET</code> returns 403.</li>
+<li><code>POST ?restore</code> pulls it back; <code>GET</code> succeeds.</li>
+<li><code>DELETE</code> triggers async cleanup on site B.</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>bash<span class="w"> </span>tests/test-tier-e2e-two-clusters.sh
+</code></pre></div>
 
 
 

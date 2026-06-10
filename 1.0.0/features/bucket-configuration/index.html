@@ -14,7 +14,7 @@
         <link rel="prev" href="../s3-compatible-api/">
       
       
-        <link rel="next" href="../site-replication/">
+        <link rel="next" href="../storage-classes-tiering/">
       
       
         
@@ -805,6 +805,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#wire-paths-admin-alias" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wire paths (admin alias)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-expiry-scanner" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -891,6 +902,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../storage-classes-tiering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage Classes & Tiering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bucket-counters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bucket Counters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../site-replication/" class="md-nav__link">
         
   
@@ -955,6 +1022,34 @@
     
   
     Erasure Coding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../placement-cascade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Topology-Aware Placement
   
 
     
@@ -1724,10 +1819,45 @@ The configuration is parsed into a typed <code>LifecyclePolicy</code> and persis
   touched.</li>
 <li><strong><code>NoncurrentVersionExpiration.NoncurrentSeconds</code></strong> — <em>ShannonStore extension</em>, the
   sub-day form of the above (raw XML only; wins over <code>NoncurrentDays</code>).</li>
-<li><strong><code>Filter.Prefix</code></strong> — restrict a rule to a key prefix. <code>Status</code> must be <code>Enabled</code>.</li>
+<li>
+<p><strong><code>Filter.Prefix</code></strong> — restrict a rule to a key prefix. <code>Status</code> must be <code>Enabled</code>.</p>
+</li>
+<li>
+<p><strong><code>Transition.Days</code> / <code>Transition.Seconds</code> / <code>Transition.Date</code> + <code>Transition.StorageClass</code></strong> —
+  move objects out to the registered storage class's tier destination. Validation
+  is at PUT time: an unknown <code>StorageClass</code> returns <code>400 Bad Request</code> so a
+  silently-ignored policy can never reach production. See
+  <a href="../storage-classes-tiering/">Storage Classes &amp; Tiering</a> for the full flow
+  including <code>GET → 403 InvalidObjectState</code>, <code>?restore</code>, and async DELETE cleanup.</p>
+</li>
 </ul>
-<p>Transitions and storage-class rules are parsed but not applied (ShannonStore has a
-single storage tier) — they never fail the sweep.</p>
+<h3 id="wire-paths-admin-alias">Wire paths (admin alias)</h3>
+<p>Both routes go through the same leader-validated entry point so multi-node
+writes can never disagree:</p>
+<table>
+<thead>
+<tr>
+<th>Wire</th>
+<th>Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S3</td>
+<td><code>PUT /&lt;bucket&gt;?lifecycle</code> (XML body)</td>
+</tr>
+<tr>
+<td>Admin alias</td>
+<td><code>PUT /admin/buckets/&lt;bucket&gt;/lifecycle</code> (XML body)</td>
+</tr>
+<tr>
+<td>Admin (bucket-config)</td>
+<td><code>PUT /admin/browser/bucket-config/&lt;bucket&gt;/lifecycle</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>GET</code> and <code>DELETE</code> mirror the same triplet. The admin alias is convenient for
+ShannonStore's <code>&lt;Seconds&gt;</code> extension that <code>aws s3api</code> cannot emit.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="cm">&lt;!-- Sub-day expiration (ShannonStore extension) --&gt;</span>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nt">&lt;LifecycleConfiguration&gt;</span>
 <a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">&lt;Rule&gt;</span>

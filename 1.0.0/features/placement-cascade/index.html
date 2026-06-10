@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/distributed-architecture/">
+        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/placement-cascade/">
       
       
-        <link rel="prev" href="../site-replication/">
+        <link rel="prev" href="../ec/">
       
       
-        <link rel="next" href="../ec/">
+        <link rel="next" href="../data-integrity/">
       
       
         
@@ -25,7 +25,7 @@
     
     
       
-        <title>Distributed Architecture - ShannonStore</title>
+        <title>Topology-Aware Placement - ShannonStore</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#distributed-architecture" class="md-skip">
+        <a href="#topology-aware-placement-cascade" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Distributed Architecture
+              Topology-Aware Placement
             
           </span>
         </div>
@@ -775,37 +775,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Distributed Architecture
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../distributed-architecture/" class="md-nav__link">
         
   
   
@@ -821,70 +794,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#api-nodes-control-plane" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        API Nodes (Control Plane)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#data-nodes-data-plane" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Data Nodes (Data Plane)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cluster-coordination" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cluster coordination
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#two-port-architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Two-Port Architecture
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -922,10 +831,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../placement-cascade/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Topology-Aware Placement
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -941,6 +877,59 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#topology-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Topology labels
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#weighted-hrw-heterogeneous-disks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Weighted HRW (heterogeneous disks)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#chunk-rebalance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Chunk rebalance
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1533,32 +1522,56 @@
 
 
 
-<h1 id="distributed-architecture">Distributed Architecture</h1>
-<p>ShannonStore separates the request/control plane from the data plane so the two scale independently.</p>
-<h2 id="api-nodes-control-plane">API Nodes (Control Plane)</h2>
-<ul>
-<li>Terminate the S3 protocol and serve the Admin UI / Admin API on a dedicated port.</li>
-<li>Hold and replicate object metadata across the API tier; adding or removing an API node moves only the small fraction of keys whose ownership changed.</li>
-<li>Erasure-code, encrypt, and compress objects before distributing shards to data nodes; reconstruct them on read.</li>
-</ul>
-<h2 id="data-nodes-data-plane">Data Nodes (Data Plane)</h2>
-<ul>
-<li>Store erasure-coded shards as plain files on local disks.</li>
-<li>Serve chunk read/write requests from API Nodes and report disk health back to the cluster.</li>
-<li>Support multi-disk configurations for scalable storage capacity.</li>
-</ul>
-<h2 id="cluster-coordination">Cluster coordination</h2>
-<ul>
-<li>A cluster opens to client traffic only when every API node and at least one data node is ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.</li>
-<li>The previous leader tends to win re-election after a restart (sticky leadership), so cluster state moves as little as possible.</li>
-<li>IAM and KMS changes always run on the leader. Admin requests that land on a follower are automatically routed to the leader so a single source of truth is preserved.</li>
-<li>Default <code>admin/admin</code> credentials are created only on the very first cluster bootstrap. After that, the cluster will never recreate defaults — protecting against any local issue silently overwriting your real IAM.</li>
-</ul>
-<h2 id="two-port-architecture">Two-Port Architecture</h2>
-<ul>
-<li><strong>S3 Port</strong> (default 8080): high-throughput object storage operations.</li>
-<li><strong>Admin Port</strong> (default 8888): Admin UI, REST API, and cluster management. Separated from the S3 port so admin traffic never contends with the data path.</li>
-</ul>
+<h1 id="topology-aware-placement-cascade">Topology-Aware Placement Cascade</h1>
+<p>Erasure-coded shards (data + parity) must land on <strong>distinct failure domains</strong>, otherwise the survive-<em>m</em>-losses guarantee silently degrades. ShannonStore's placement strategy is a 6-pass cascade that walks the topology from the widest blast-radius down to the disk.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   Zone   →   Rack   →   Host   →   Node   →   Disk   →   Cyclic reuse
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   (Pass A)  (Pass B)  (Pass C)  (Pass D)  (Pass E)  (Pass F — desperation, warns)
+</code></pre></div>
+<p>Each pass picks shards from the HRW-ranked candidate set whose chosen label is <em>not yet covered</em> by the prior passes. When a label is absent at a layer (host id not configured, etc.) the cascade falls back <strong>upward</strong> — <code>hostId == null → nodeId</code>, <code>rackId == null → hostKey</code>, <code>zoneId == null → rackKey</code> — so a cluster with no labels behaves identically to the legacy strategy.</p>
+<h2 id="topology-labels">Topology labels</h2>
+<p>Each node advertises three optional labels in its registration payload:</p>
+<table>
+<thead>
+<tr>
+<th>Label</th>
+<th>Default</th>
+<th>Override</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hostId</code></td>
+<td>the registration <code>host</code> (IP/hostname)</td>
+<td><code>-Dshannonstore.host.id=...</code> or <code>SHANNONSTORE_HOST_ID=...</code></td>
+</tr>
+<tr>
+<td><code>rackId</code></td>
+<td>unset</td>
+<td><code>-Dshannonstore.rack.id=...</code> or <code>SHANNONSTORE_RACK_ID=...</code></td>
+</tr>
+<tr>
+<td><code>zoneId</code></td>
+<td>unset</td>
+<td><code>-Dshannonstore.zone.id=...</code> or <code>SHANNONSTORE_ZONE_ID=...</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>hostId</code> defaults to the registration host so an operator running multiple data nodes on the same physical machine gets host-distinct placement <strong>out of the box</strong> — no per-machine configuration required.</p>
+<p>Inspect the live topology from any API node:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-sS<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOK</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span>http://api:8888/admin/nodes/data<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.[] | {id, hostId, rackId, zoneId}&#39;</span>
+</code></pre></div>
+<p>The admin UI <strong>Nodes</strong> page shows the same labels per node and a Topology Summary box (zones / racks / hosts / nodes / disks count + a <em>rack-distinct feasible</em> flag for the current EC profile).</p>
+<h2 id="weighted-hrw-heterogeneous-disks">Weighted HRW (heterogeneous disks)</h2>
+<p>When <code>shannonstore.api.s3.ec.weighted.placement=true</code>, the placement strategy switches from plain Rendezvous hashing to <strong>weighted Rendezvous (Schindelhauer-Schomaker)</strong> using each disk's capacity as its weight. A node with 2× the storage gets 2× the expected shards over time. Disabled by default — turn on for clusters with unequal disks.</p>
+<h2 id="chunk-rebalance">Chunk rebalance</h2>
+<p>When the topology changes (a node added, a label updated), the existing chunk metadata still points at the <em>old</em> shard locations. The leader-only <code>RebalanceService</code> walks objects, recomputes the desired placement, and migrates chunks whose actual placement differs from the new cascade. Trigger from the admin UI <strong>Rebalance</strong> page or via:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-sS<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOK</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>http://api:8888/admin/rebalance/run
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>curl<span class="w"> </span>-sS<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOK</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>http://api:8888/admin/rebalance<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</code></pre></div>
+<p>Status JSON shows <code>enabled</code>, <code>cycles</code>, <code>objectsScanned</code>, <code>chunksMoved</code>, <code>lastError</code>. Tiered objects (storage class != STANDARD) are skipped — their location lives outside this cluster.</p>
 
 
 
