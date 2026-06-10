@@ -180,8 +180,26 @@ Supported rule actions:
   sub-day form of the above (raw XML only; wins over `NoncurrentDays`).
 - **`Filter.Prefix`** — restrict a rule to a key prefix. `Status` must be `Enabled`.
 
-Transitions and storage-class rules are parsed but not applied (ShannonStore has a
-single storage tier) — they never fail the sweep.
+- **`Transition.Days` / `Transition.Seconds` / `Transition.Date` + `Transition.StorageClass`** —
+  move objects out to the registered storage class's tier destination. Validation
+  is at PUT time: an unknown `StorageClass` returns `400 Bad Request` so a
+  silently-ignored policy can never reach production. See
+  [Storage Classes & Tiering](storage-classes-tiering.md) for the full flow
+  including `GET → 403 InvalidObjectState`, `?restore`, and async DELETE cleanup.
+
+### Wire paths (admin alias)
+
+Both routes go through the same leader-validated entry point so multi-node
+writes can never disagree:
+
+| Wire | Path |
+|---|---|
+| S3 | `PUT /<bucket>?lifecycle` (XML body) |
+| Admin alias | `PUT /admin/buckets/<bucket>/lifecycle` (XML body) |
+| Admin (bucket-config) | `PUT /admin/browser/bucket-config/<bucket>/lifecycle` |
+
+`GET` and `DELETE` mirror the same triplet. The admin alias is convenient for
+ShannonStore's `<Seconds>` extension that `aws s3api` cannot emit.
 
 ```xml
 <!-- Sub-day expiration (ShannonStore extension) -->
