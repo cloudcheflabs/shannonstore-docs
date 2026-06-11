@@ -47,6 +47,7 @@ nav:
       - "Distributed Architecture": features/distributed-architecture.md
       - "Erasure Coding": features/ec.md
       - "Topology-Aware Placement": features/placement-cascade.md
+      - "NIC Silent-Fail Safety": features/nic-fail-safety.md
       - "Data Integrity": features/data-integrity.md
       - "Encryption & Key Management": features/kms.md
       - "Data Compression": features/data-compression.md
