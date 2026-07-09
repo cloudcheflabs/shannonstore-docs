@@ -778,6 +778,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../event-notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object Event Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../distributed-architecture/" class="md-nav__link">
         
   
@@ -1468,6 +1496,28 @@
     <span class="md-ellipsis">
       
         5b. Bitrot Scrubber Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5f-object-event-notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5f. Object Event Notifications
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5g-chunk-rebalance-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5g. Chunk Rebalance Worker
       
     </span>
   </a>
@@ -2316,6 +2366,75 @@
 <td><code>shannonstore.api.scrubber.state.file</code></td>
 <td><code>${shannonstore.base.data.dir}/scrubber-state.json</code></td>
 <td>File where the runtime enabled/disabled toggle is persisted across restarts. The toggle is currently per-node, not cluster-wide.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5f-object-event-notifications">5f. Object Event Notifications</h2>
+<p>Per-node tuning of the <a href="../event-notifications/">event-notification dispatcher</a>. The
+targets and rules themselves are cluster-global and stored in the replicated bucket
+config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.notification.queue.size</code></td>
+<td><code>10000</code></td>
+<td>Bounded in-memory dispatch queue per API node. When full, events are dropped (counted) rather than blocking the S3 request path.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.notification.worker.threads</code></td>
+<td><code>4</code></td>
+<td>Worker threads draining the queue and delivering to webhook/Kafka targets.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.notification.max.retries</code></td>
+<td><code>3</code></td>
+<td>Max delivery retries per event before it is counted as failed (<code>0</code> = no retry).</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.notification.retry.backoff.ms</code></td>
+<td><code>200</code></td>
+<td>Base backoff (ms) between delivery retries; exponential, capped at 5s.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.notification.config.poll.seconds</code></td>
+<td><code>5</code></td>
+<td>How often (seconds) each node re-reads the replicated notification config so target/rule/enable changes take effect.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.bucket.config.rocksdb.path</code></td>
+<td><code>${shannonstore.base.data.dir}/s3-metadata/bucket-config-rocksdb</code></td>
+<td>Per-node RocksDB that durably holds ALL cluster-global bucket config (policy/CORS/lifecycle/tagging/object-lock/versioning/storage-classes/site-replication/notification) so it survives a full cluster restart.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5g-chunk-rebalance-worker">5g. Chunk Rebalance Worker</h2>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.rebalance.enabled</code></td>
+<td><code>false</code></td>
+<td>Enabled state on FIRST boot only; the Admin UI toggle wins afterwards.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.rebalance.state.file</code></td>
+<td><code>${shannonstore.base.data.dir}/rebalance-state.json</code></td>
+<td>Where the runtime rebalance toggle is persisted (survives restart), one file per node.</td>
 </tr>
 </tbody>
 </table>

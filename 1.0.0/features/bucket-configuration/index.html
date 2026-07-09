@@ -862,6 +862,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Cluster consistency (leader-routed writes)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#durable-across-a-full-restart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Durable across a full restart
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -966,6 +983,34 @@
     
   
     Site Replication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object Event Notifications
   
 
     
@@ -2025,6 +2070,15 @@ replicated to every follower, so a <code>PUT</code> on one node is immediately v
 </ul>
 <p>This is why all four surfaces return consistent results regardless of which node a
 request is routed to.</p>
+<h3 id="durable-across-a-full-restart">Durable across a full restart</h3>
+<p>Beyond in-memory replication, every node <strong>persists the whole bucket configuration to
+a local RocksDB</strong> (<code>shannonstore.api.bucket.config.rocksdb.path</code>) and reloads it on
+startup. This matters when the <em>entire</em> cluster is restarted at once: the leader boots
+from its own on-disk copy rather than an empty map, so bucket policy, CORS, lifecycle,
+tagging, Object Lock, versioning, storage classes, site replication and
+<a href="../event-notifications/">event notification</a> config all survive — not just the objects
+themselves. Followers persist each replicated snapshot too, so any node can take over
+as leader after a restart with the config intact.</p>
 <hr />
 <h2 id="admin-ui">Admin UI</h2>
 <p>Each surface is editable from the <strong>Browser → bucket → ⚙ (gear)</strong> configuration panel

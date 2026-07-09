@@ -778,6 +778,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../event-notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object Event Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../distributed-architecture/" class="md-nav__link">
         
   
@@ -1235,6 +1263,17 @@
     <span class="md-ellipsis">
       
         Metadata + replication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#object-event-notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object event notifications
       
     </span>
   </a>
@@ -1885,20 +1924,68 @@
 </tr>
 </tbody>
 </table>
+<h4 id="object-event-notifications">Object event notifications</h4>
+<p>Per-node counters for the <a href="../event-notifications/">event-notification dispatcher</a>.
+Because each node runs its own dispatcher, sum across nodes for a cluster total.</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore_notification_emitted_total</code></td>
+<td>counter</td>
+<td>events accepted onto the dispatch queue</td>
+</tr>
+<tr>
+<td><code>shannonstore_notification_delivered_total</code></td>
+<td>counter</td>
+<td>events successfully delivered to a target</td>
+</tr>
+<tr>
+<td><code>shannonstore_notification_dropped_total</code></td>
+<td>counter</td>
+<td>events dropped because the queue was full (overload)</td>
+</tr>
+<tr>
+<td><code>shannonstore_notification_failed_total</code></td>
+<td>counter</td>
+<td>deliveries that failed after all retries</td>
+</tr>
+<tr>
+<td><code>shannonstore_notification_retried_total</code></td>
+<td>counter</td>
+<td>delivery retry attempts</td>
+</tr>
+<tr>
+<td><code>shannonstore_notification_queue_depth</code></td>
+<td>gauge</td>
+<td>current dispatch queue depth</td>
+</tr>
+</tbody>
+</table>
+<p>A useful alert is a sustained drop rate — it means a target is down and the queue is
+overflowing:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kr">rate</span><span class="o">(</span><span class="nv">shannonstore_notification_dropped_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
 <h4 id="process-jvm">Process / JVM</h4>
 <p>Standard Micrometer JVM bindings: <code>jvm.memory.used</code>, <code>jvm.gc.pause</code>, <code>process.cpu.usage</code>, <code>system.load.average.1m</code>, etc. — every Grafana dashboard built for a Java service works unchanged.</p>
 <h3 id="suggested-alerts">Suggested alerts</h3>
 <p>Three production alerts catch the vast majority of operationally important conditions:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># High request error rate — anything over 1% sustained for 5 minutes is investigation-worthy.</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">shannonstore_s3_api_errors</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">method</span><span class="o">)</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">shannonstore_s3_api_requests_count</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">method</span><span class="o">)</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.01</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="c1"># Disk repair backlog — repair is normal but a growing backlog signals a node is dying.</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="kr">increase</span><span class="o">(</span><span class="nv">shannonstore_disk_repair_repairs_total</span><span class="p">[</span><span class="s">1h</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1000</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="c1"># Connection pool exhaustion — acquire timeouts mean a peer is slow or dead.</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="kr">rate</span><span class="o">(</span><span class="nv">shannonstore_nio_connection_pool_acquire_timeout_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># High request error rate — anything over 1% sustained for 5 minutes is investigation-worthy.</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">shannonstore_s3_api_errors</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">method</span><span class="o">)</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">shannonstore_s3_api_requests_count</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">method</span><span class="o">)</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.01</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1"># Disk repair backlog — repair is normal but a growing backlog signals a node is dying.</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="kr">increase</span><span class="o">(</span><span class="nv">shannonstore_disk_repair_repairs_total</span><span class="p">[</span><span class="s">1h</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1000</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># Connection pool exhaustion — acquire timeouts mean a peer is slow or dead.</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="kr">rate</span><span class="o">(</span><span class="nv">shannonstore_nio_connection_pool_acquire_timeout_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
 </code></pre></div>
 <h2 id="internal-metrics-store">Internal metrics store</h2>
 <p>For operators who don't run Prometheus, the API node also collects metrics into its own RocksDB-backed store (<code>MetricsManager</code>). The Admin UI's charts read directly from this store, so a fresh install gets useful dashboards immediately with no external system to deploy.</p>
