@@ -44,6 +44,7 @@ nav:
       - "Storage Classes & Tiering": features/storage-classes-tiering.md
       - "Bucket Counters": features/bucket-counters.md
       - "Site Replication": features/site-replication.md
+      - "Object Event Notifications": features/event-notifications.md
       - "Distributed Architecture": features/distributed-architecture.md
       - "Erasure Coding": features/ec.md
       - "Topology-Aware Placement": features/placement-cascade.md

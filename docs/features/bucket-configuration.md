@@ -371,6 +371,17 @@ replicated to every follower, so a `PUT` on one node is immediately visible to a
 This is why all four surfaces return consistent results regardless of which node a
 request is routed to.
 
+### Durable across a full restart
+
+Beyond in-memory replication, every node **persists the whole bucket configuration to
+a local RocksDB** (`shannonstore.api.bucket.config.rocksdb.path`) and reloads it on
+startup. This matters when the *entire* cluster is restarted at once: the leader boots
+from its own on-disk copy rather than an empty map, so bucket policy, CORS, lifecycle,
+tagging, Object Lock, versioning, storage classes, site replication and
+[event notification](event-notifications.md) config all survive — not just the objects
+themselves. Followers persist each replicated snapshot too, so any node can take over
+as leader after a restart with the config intact.
+
 ---
 
 ## Admin UI
