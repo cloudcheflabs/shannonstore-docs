@@ -95,6 +95,27 @@ The most useful counters and gauges, by domain. (The exact metric names follow M
 | `shannonstore.index.rocksdb.puts.total` | counter | `node` |
 | `shannonstore.metadata.replication.lag.ms` | gauge | `mode=PULL|SYNC|ASYNC_PUSH` |
 
+#### Object event notifications
+
+Per-node counters for the [event-notification dispatcher](event-notifications.md).
+Because each node runs its own dispatcher, sum across nodes for a cluster total.
+
+| Metric | Type | Meaning |
+| --- | --- | --- |
+| `shannonstore_notification_emitted_total` | counter | events accepted onto the dispatch queue |
+| `shannonstore_notification_delivered_total` | counter | events successfully delivered to a target |
+| `shannonstore_notification_dropped_total` | counter | events dropped because the queue was full (overload) |
+| `shannonstore_notification_failed_total` | counter | deliveries that failed after all retries |
+| `shannonstore_notification_retried_total` | counter | delivery retry attempts |
+| `shannonstore_notification_queue_depth` | gauge | current dispatch queue depth |
+
+A useful alert is a sustained drop rate — it means a target is down and the queue is
+overflowing:
+
+```promql
+rate(shannonstore_notification_dropped_total[5m]) > 0
+```
+
 #### Process / JVM
 
 Standard Micrometer JVM bindings: `jvm.memory.used`, `jvm.gc.pause`, `process.cpu.usage`, `system.load.average.1m`, etc. — every Grafana dashboard built for a Java service works unchanged.

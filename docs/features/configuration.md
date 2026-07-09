@@ -213,6 +213,32 @@ Periodically reads every chunk on disk and verifies its CRC32C against the check
 
 ---
 
+## 5f. Object Event Notifications
+
+Per-node tuning of the [event-notification dispatcher](event-notifications.md). The
+targets and rules themselves are cluster-global and stored in the replicated bucket
+config (Admin UI → Event Notifications), **not** here.
+
+| Property | Default | Description |
+| --- | --- | --- |
+| `shannonstore.api.notification.queue.size` | `10000` | Bounded in-memory dispatch queue per API node. When full, events are dropped (counted) rather than blocking the S3 request path. |
+| `shannonstore.api.notification.worker.threads` | `4` | Worker threads draining the queue and delivering to webhook/Kafka targets. |
+| `shannonstore.api.notification.max.retries` | `3` | Max delivery retries per event before it is counted as failed (`0` = no retry). |
+| `shannonstore.api.notification.retry.backoff.ms` | `200` | Base backoff (ms) between delivery retries; exponential, capped at 5s. |
+| `shannonstore.api.notification.config.poll.seconds` | `5` | How often (seconds) each node re-reads the replicated notification config so target/rule/enable changes take effect. |
+| `shannonstore.api.bucket.config.rocksdb.path` | `${shannonstore.base.data.dir}/s3-metadata/bucket-config-rocksdb` | Per-node RocksDB that durably holds ALL cluster-global bucket config (policy/CORS/lifecycle/tagging/object-lock/versioning/storage-classes/site-replication/notification) so it survives a full cluster restart. |
+
+---
+
+## 5g. Chunk Rebalance Worker
+
+| Property | Default | Description |
+| --- | --- | --- |
+| `shannonstore.api.rebalance.enabled` | `false` | Enabled state on FIRST boot only; the Admin UI toggle wins afterwards. |
+| `shannonstore.api.rebalance.state.file` | `${shannonstore.base.data.dir}/rebalance-state.json` | Where the runtime rebalance toggle is persisted (survives restart), one file per node. |
+
+---
+
 ## 6. Operational Tuning
 
 | Property | Default | Description |
