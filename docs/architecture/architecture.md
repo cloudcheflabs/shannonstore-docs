@@ -31,7 +31,7 @@ ZooKeeper provides cluster membership, leader election, and the readiness signal
 - **Service discovery** — every node registers itself and its readiness state.
 - **Sticky leader election** — exactly one API node is elected leader; on restart, the previous leader tends to win re-election so the cluster minimises state movement.
 - **Cluster opening guarantees**:
-    - Traffic is accepted only after every API node and at least one data node is ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.
+    - Traffic is accepted only after every API node is ready **and** at least one data node has registered with every registered data node ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.
     - Default `admin/admin` credentials are created only on the very first bootstrap, never again. A leader whose local state looks empty for any local reason refuses to recreate defaults — your real IAM cannot be silently overwritten.
 
 ### Architectural Properties

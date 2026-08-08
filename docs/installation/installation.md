@@ -5,7 +5,7 @@ This page walks through downloading the ShannonStore distribution and bringing u
 ## Prerequisites
 
 - **Java 17** — ShannonStore is written in Java and ships as a tarball; Java 17 (or newer) must be on `PATH`.
-- **A 32+ character master key** — used to derive the cluster's root encryption key. Set as the environment variable `SHANNONSTORE_MASTER_KEY` before starting any node.
+- **A strong master key (32+ characters recommended)** — used to derive the cluster's root encryption key. Set as the environment variable `SHANNONSTORE_MASTER_KEY` before starting any node. The only thing the process actually enforces at startup is that the variable is set and non-blank (`ClusterKmsProvider` fails closed with a `SecurityException` otherwise) — there is no minimum-length check in code, so the 32-character guidance is an operational recommendation, not an enforced requirement.
 - **macOS or Linux** — the supplied start scripts are bash and assume a POSIX shell.
 
 ## Download the Release Archive
@@ -41,7 +41,7 @@ export SHANNONSTORE_MASTER_KEY="ShannonStoreMasterKey1200303003abc"
 bin/start-example-servers.sh
 ```
 
-> The master key must be at least 32 characters. The same value must be supplied to **every** ShannonStore process (API or Data) in a real deployment — losing it means losing access to all encrypted data.
+> A 32+ character master key is recommended (not enforced by the process — only presence is checked). The same value must be supplied to **every** ShannonStore process (API or Data) in a real deployment — losing it means losing access to all encrypted data.
 
 After a few seconds the cluster is ready. The API Server listens on:
 

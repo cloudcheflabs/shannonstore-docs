@@ -91,9 +91,9 @@ A background scrubber walks each disk on a configurable interval, verifies shard
 
 ## Disaster Recovery
 
-**Backup and restore is moving to an external destination** (e.g., a different S3 bucket). The previous in-cluster backup mechanism has been removed. For now, snapshot the leader's IAM and KMS state out-of-band as part of your existing backup tooling.
+ShannonStore ships an in-cluster S3 Backup mechanism — content-addressed, incremental, parallel-fan-out to an external S3-compatible destination bucket (another ShannonStore, MinIO, or AWS S3), configured and triggered from the Admin UI or the `/admin/backup/*` REST endpoints, with a staged restore that swaps in atomically on restart. See [Backup & Restore](../features/backup.md) for the full mechanism, scheduling, and restore procedure.
 
-Runtime self-healing — parity reconstruction, bitrot scrubbing, disk repair, leader re-election — continues to handle in-flight failures without operator intervention.
+Runtime self-healing — parity reconstruction, bitrot scrubbing, disk repair, leader re-election — continues to handle in-flight failures without operator intervention and is not a substitute for the offsite backup above.
 
 ## Scaling
 

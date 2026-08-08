@@ -73,17 +73,19 @@ bin/shannonstore-cli.sh iam:reset-password --user some-user --new-password 'NewP
 
 ## Configuration
 
-The recovery socket is enabled by default. The CLI resolves the socket path
-in this order:
+The recovery socket is enabled by default. Two layers resolve the socket path: the
+`bin/shannonstore-cli.sh` wrapper script sets `SHANNONSTORE_ADMIN_SOCKET` if it isn't
+already set, then the Java CLI itself reads `--socket` / that env var:
 
-1. `--socket /path/to/admin.sock` command-line flag
-2. `SHANNONSTORE_ADMIN_SOCKET` environment variable
-3. First existing socket among:
+1. `--socket /path/to/admin.sock` command-line flag — checked by the Java CLI, highest priority, always wins.
+2. `SHANNONSTORE_ADMIN_SOCKET` environment variable, if already set in the caller's shell before invoking the script.
+3. Otherwise, the wrapper script prefers the path the *running* api node published to `bin/api.socket` (written by the server itself at startup) — this is the one authoritative source when the IAM RocksDB dir was overridden with a `-D` flag or edited after startup, since it reflects whatever the live process actually bound.
+4. If that marker file is missing or stale, the wrapper falls back to the first existing socket among:
    - `<base_dir>/data/s3-metadata/admin.sock`
    - `<base_dir>/data/admin.sock`
    - `/data/s3-metadata/admin.sock`
    - `/data/admin.sock`
-4. Fallback: `<base_dir>/data/s3-metadata/admin.sock`
+5. Final fallback: `<base_dir>/data/s3-metadata/admin.sock`
 
 The api node creates the socket beside its IAM directory: with the default
 `shannonstore.api.iam.rocksdb.dir = ./data/s3-metadata/iam`, the socket

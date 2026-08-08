@@ -16,7 +16,7 @@ ShannonStore separates the request/control plane from the data plane so the two 
 
 ## Cluster coordination
 
-- A cluster opens to client traffic only when every API node and at least one data node is ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.
+- A cluster opens to client traffic only when every API node is ready **and** at least one data node has registered with every registered data node ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.
 - The previous leader tends to win re-election after a restart (sticky leadership), so cluster state moves as little as possible.
 - IAM and KMS changes always run on the leader. Admin requests that land on a follower are automatically routed to the leader so a single source of truth is preserved.
 - Default `admin/admin` credentials are created only on the very first cluster bootstrap. After that, the cluster will never recreate defaults — protecting against any local issue silently overwriting your real IAM.

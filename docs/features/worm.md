@@ -246,7 +246,7 @@ Object Lock introduces seven distinct IAM verbs in the `s3:` namespace. Each map
 
 | Verb | Triggered by |
 | --- | --- |
-| `s3:PutBucketObjectLockConfiguration` | `PUT /<bucket>?object-lock`, `DELETE /<bucket>?object-lock` |
+| `s3:PutBucketObjectLockConfiguration` | `PUT /<bucket>?object-lock` (there is no `DELETE /<bucket>?object-lock` route — the bucket-level Object Lock flag is one-way and cannot be unset via the API, consistent with the "What if I try `?object-lock` on a non-lock bucket?" section above) |
 | `s3:GetBucketObjectLockConfiguration` | `GET /<bucket>?object-lock` |
 | `s3:PutObjectRetention` | `PUT /<key>?retention`, `PUT /<key>` with retention headers |
 | `s3:GetObjectRetention` | `GET /<key>?retention` |
@@ -258,7 +258,7 @@ Build policies that name these verbs explicitly. A blanket `s3:*` matches them b
 
 ## Operational guidance
 
-- **Plan the legal-hold workflow before going live**. The most common operational failure is a bucket that ends up with a thicket of legal holds nobody remembers to release. Track legal-hold issuance through a ticketing system and audit `shannonstore_legal_hold_set_total` quarterly.
+- **Plan the legal-hold workflow before going live**. The most common operational failure is a bucket that ends up with a thicket of legal holds nobody remembers to release. Track legal-hold issuance through a ticketing system and audit it quarterly — there is currently no dedicated `legal_hold_set` Prometheus counter (see [Monitoring & Metrics](monitoring.md)), so this has to be done by querying object metadata directly.
 - **GOVERNANCE for routine compliance, COMPLIANCE for true tamper-resistance**. Treat COMPLIANCE as a one-way door — pick it only when the workload genuinely demands that even the root admin be unable to delete.
 - **Don't enable Object Lock on a bucket "just in case"**. The flag is one-way and force-enables versioning, which doubles the metadata footprint for most workloads. Buckets that aren't compliance targets cost more without giving anything back.
 - **Audit `s3:BypassGovernanceRetention` grants**. The grant should sit on a small number of well-known roles (compliance officers, security incident responders) and never on application credentials. Cluster INFO logs name every bypass event with userId + key + original retain-until-date — retain those logs for the same window as the bucket's retention rule.

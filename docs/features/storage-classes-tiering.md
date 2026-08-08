@@ -9,6 +9,7 @@ A storage class is a cluster-global record with an EC profile and an optional ti
 ```json
 {
   "name": "COLD",
+  "description": "Cold tier for infrequently accessed data",
   "ecDataShards": 2,
   "ecParityShards": 1,
   "tierDestination": {
@@ -16,10 +17,13 @@ A storage class is a cluster-global record with an EC profile and an optional ti
     "region": "us-east-1",
     "bucket": "lakehouse-cold",
     "accessKey": "AKIA...",
-    "secretKey": "..."
+    "secretKey": "...",
+    "kmsKeyId": "optional-informational-key-id"
   }
 }
 ```
+
+`description` and `tierDestination.kmsKeyId` are both optional fields on the `StorageClass` model.
 
 ### Admin endpoints
 
@@ -63,8 +67,9 @@ Once a class is registered with a `tierDestination`, an S3 lifecycle Transition 
 |---|---|
 | S3 | `PUT /<bucket>?lifecycle` (XML body) |
 | Admin alias | `PUT /admin/buckets/<bucket>/lifecycle` (XML body) |
+| Admin (bucket-config) | `PUT /admin/browser/bucket-config/<bucket>/lifecycle` |
 
-The leader validates the rule's `StorageClass` against the registry **at PUT time** — referencing an unregistered class returns `400` immediately rather than silently no-oping on the next scan cycle. (ShannonStore extension: `<Seconds>N</Seconds>` is accepted alongside the AWS-standard `<Days>` / `<Date>` for sub-day testing.)
+The leader validates the rule's `StorageClass` against the registry **at PUT time** — referencing an unregistered class throws immediately rather than silently no-oping on the next scan cycle — but the HTTP status differs by wire path: only the admin alias (`PUT /admin/buckets/<bucket>/lifecycle`) catches the error and returns `400 Bad Request`. The S3-native path and the admin bucket-config path both surface it as `500 Internal Server Error` instead. (ShannonStore extension: `<Seconds>N</Seconds>` is accepted alongside the AWS-standard `<Days>` / `<Date>` for sub-day testing.)
 
 ### Lifecycle scanner
 

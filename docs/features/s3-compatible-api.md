@@ -40,7 +40,7 @@ The dispatch table in `S3RequestHandler` routes the following verb × subresourc
 | **UploadPartCopy** | `PUT /<bucket>/<key>?uploadId=<id>&partNumber=N` with `x-amz-copy-source` — copies a byte range from another object into a part. |
 | **CompleteMultipartUpload** | `POST /<bucket>/<key>?uploadId=<id>` — assembles cached parts in part-number order and writes the final object. ETag becomes `MD5(concat MD5s) + "-" + partCount`. |
 | **AbortMultipartUpload** | `DELETE /<bucket>/<key>?uploadId=<id>` — drops cached parts; reclaims their storage. |
-| **ListParts** | `GET /<bucket>/<key>?uploadId=<id>` — pagination via `part-number-marker`. |
+| **ListParts** | `GET /<bucket>/<key>?uploadId=<id>` — returns every cached part in one response (`IsTruncated` is always `false`); `part-number-marker`-based pagination is not implemented. |
 | **ListMultipartUploads** | `GET /<bucket>?uploads` |
 
 The part-buffer store is the source of truth for in-flight uploads — it survives an API-node restart so a multipart begun on one node and resumed on another still completes (provided IAM state has propagated).
@@ -49,14 +49,14 @@ The part-buffer store is the source of truth for in-flight uploads — it surviv
 
 | Operation | Trigger | Notes |
 | --- | --- | --- |
-| **CreateBucket** | `PUT /<bucket>` | Owner becomes the caller. |
-| **DeleteBucket** | `DELETE /<bucket>` | Bucket must be empty (S3 spec). |
+| **CreateBucket** | `PUT /<bucket>` | Owner becomes the caller. There is no existence/ownership check — a repeat `CreateBucket` call against a name that already exists (by the owner or anyone else) succeeds with `200` and resets the bucket's ACL rather than returning a conflict. |
+| **DeleteBucket** | `DELETE /<bucket>` | Unlike AWS S3, the bucket does **not** need to be empty: a non-WORM-protected bucket is deleted along with every object it contains (WORM/object-lock-protected objects still block the delete). |
 | **ListBuckets** | `GET /` | Returns every bucket the IAM credential can `s3:ListAllMyBuckets`. |
 | **HeadBucket** | `HEAD /<bucket>` | Existence probe — used by `aws s3 ls` to discover buckets. |
 | **ListObjects v1** | `GET /<bucket>?prefix=…&marker=…&max-keys=…` | `delimiter=/` returns `CommonPrefixes` for directory-style listing. |
 | **ListObjects v2** | `GET /<bucket>?list-type=2&continuation-token=…&start-after=…` | Continuation token round-trips the next key (server-issued opaque base64 ≡ key for predictability). |
-| **GetBucketLocation** | `GET /<bucket>?location` | Returns the configured region (default `us-east-1` constraint). |
-| **GetBucketAcl** | `GET /<bucket>?acl` | Returns the owner + grants persisted in `BucketManager`. |
+| **GetBucketLocation** | `GET /<bucket>?location` | Always returns an empty `<LocationConstraint></LocationConstraint>` (S3-legal shorthand for `us-east-1`) — no per-bucket or per-cluster region setting is consulted. |
+| **GetBucketAcl** | `GET /<bucket>?acl` | Does **not** read the ACL persisted in `BucketManager`; it synthesizes a static `FULL_CONTROL` grant owned by the *requesting caller's* access key on every call. |
 | **PutBucketVersioning** / **GetBucketVersioning** | `PUT/GET /<bucket>?versioning` | Versioning state is persisted per bucket and replicated in the IAM/bucket snapshot. |
 | **ListObjectVersions** | `GET /<bucket>?versions` | Returns object versions interleaved with delete markers. |
 
@@ -203,10 +203,8 @@ Most-encountered codes:
 | 404 | `NoSuchBucket` | Bucket does not exist |
 | 404 | `NoSuchKey` | Object does not exist |
 | 404 | `NoSuchBucketPolicy` / `NoSuchCORSConfiguration` / `NoSuchLifecycleConfiguration` | Subresource never configured |
-| 409 | `BucketAlreadyOwnedByYou` | CreateBucket on a bucket the caller already owns |
-| 503 | `SlowDown` | Returned during `MaintenanceMode` to back off clients |
 
-The body is intentionally identical to AWS S3 — SDK error parsers don't need a ShannonStore-specific path.
+The body is intentionally identical to AWS S3 for the codes above — SDK error parsers don't need a ShannonStore-specific path. Two AWS-standard codes are **not** currently emitted: `CreateBucket` never returns `409 BucketAlreadyOwnedByYou` (see the CreateBucket row above — it always succeeds), and [Maintenance Mode](maintenance.md)'s `503` response carries no XML `<Error>` body or code at all (just `Retry-After: 30`), not `SlowDown`.
 
 ## Two-port topology
 
@@ -225,4 +223,4 @@ The admin port is the only place CCL cross-product tooling (chango, ontul, kiok,
 - [IAM](iam.md) — policy schema, evaluator semantics, action / resource ARNs.
 - [Distributed Architecture](distributed-architecture.md) — how object writes fan out to data nodes.
 - [Erasure Coding](ec.md) — the storage layout PUT and GET operate against.
-- [Maintenance Mode](maintenance.md) — the 503 `SlowDown` source.
+- [Maintenance Mode](maintenance.md) — the 503 + `Retry-After` source.

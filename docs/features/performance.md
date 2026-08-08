@@ -38,7 +38,7 @@ Knobs:
 | --- | --- | --- |
 | `shannonstore.api.part.buffer.enabled` | `true` | Master switch. |
 | `shannonstore.api.part.buffer.memory.max.bytes` | (configured) | In-memory cap per node before spilling. |
-| `shannonstore.api.part.buffer.rocksdb.path` | `./data/part-buffer` | Spill location. |
+| `shannonstore.api.part.buffer.rocksdb.path` | `./data/s3-metadata/part-buffer` | Spill location. |
 | `shannonstore.api.part.buffer.flush.interval.ms` | (configured) | Background flush cadence for the spill. |
 | `shannonstore.api.part.buffer.peer.fetch.timeout.seconds` | (configured) | Timeout when CompleteMultipart needs a part buffered on a peer. |
 
@@ -102,14 +102,14 @@ Three independent pools serve three different waiting patterns:
 | Pool | Sized via | Workload pattern |
 | --- | --- | --- |
 | Netty workers | `netty.worker.threads.multiplier × cpus` | IO multiplexing for 8080/8888 |
-| Fetch pool | `fetch.thread.pool.size` (default `2 × cpus`) | Per-shard NIO reads on the internal plane |
-| Chunk pool | `chunk.thread.pool.size` (default `2 × cpus`) | EC encode/decode, KMS unwrap, compression |
+| Fetch pool | `fetch.thread.pool.size` (default `max(16, 4 × cpus)`) | Per-shard NIO reads on the internal plane |
+| Chunk pool | `chunk.thread.pool.size` (default `max(16, 4 × cpus)`) | EC encode/decode, KMS unwrap, compression |
 
 The split exists because doubling the wrong pool wastes the resource. Fetch threads spend nearly all their time blocked on sockets; doubling them gives more concurrency at near-zero CPU cost. Chunk threads spend nearly all their time on CPU; doubling them past `availableProcessors()` produces no gain. An operator confused about which pool to scale can read the metrics:
 
 | Metric | Saturation hint |
 | --- | --- |
-| `shannonstore.nio.connection.pool.acquire.timeout.total` rising | fetch pool too small (or pool size per host too small) |
+| Fetch-pool acquire timeouts appearing in the API-node logs | fetch pool too small (or pool size per host too small) |
 | `system.cpu.usage` pegged at 100% | chunk pool can't process incoming work; PUT/GET latency is CPU-bound |
 | Netty event-loop time near 100% | netty pool too small for connection count |
 

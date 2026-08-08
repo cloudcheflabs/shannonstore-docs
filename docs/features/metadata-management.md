@@ -181,16 +181,16 @@ Two subtleties:
 
 ## Diagnostics
 
-Prometheus exposes:
+The metadata layer's health is visible in the Admin UI, sourced from each API node's internal metrics store. There are **no** dedicated Prometheus series for the RocksDB index or replication lag — the only custom `/metrics` families today are the S3 request timer and the event-notification counters (see [Monitoring](monitoring.md)). The quantities worth watching:
 
-| Metric | Meaning |
+| Signal | Meaning |
 | --- | --- |
-| `shannonstore.index.rocksdb.size.bytes` | per-disk RocksDB footprint |
-| `shannonstore.index.rocksdb.gets.total` / `puts.total` | hot-path counters |
-| `shannonstore.metadata.replication.lag.ms` | difference between writer's `seq` and the slowest owner's `seq` |
-| `shannonstore.metadata.changelog.rollover.total` | full-snapshot fall-back trigger count |
+| RocksDB index footprint | per-disk on-disk size of the index store |
+| Index read / write volume | hot-path `Get` / `Put` counters |
+| Metadata replication lag | difference between the writer's `seq` and the slowest owner's `seq` |
+| Changelog rollover count | how often a follower fell back to a full snapshot because the bounded changelog rolled past its position |
 
-A growing `replication.lag.ms` in PULL mode is the most common symptom an operator should investigate first — usually a peer's RocksDB compaction is unhealthily slow.
+A growing replication lag in PULL mode is the most common symptom an operator should investigate first — usually a peer's RocksDB compaction is unhealthily slow.
 
 ## See also
 

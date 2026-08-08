@@ -129,17 +129,12 @@ The default config (SNAPPY object + SNAPPY network + off metadata + NONE chunk) 
 
 ## Diagnostics
 
-Prometheus exposes counters per layer:
-
-| Metric | Meaning |
-| --- | --- |
-| `shannonstore_object_compression_skipped_total{reason="mime"}` | objects that bypassed compression due to MIME |
-| `shannonstore_object_compression_bytes_in_total` | raw client bytes seen by the compressor |
-| `shannonstore_object_compression_bytes_out_total` | bytes after compression — ratio is `out / in` |
-| `shannonstore_network_compression_skipped_total{reason="below_threshold"}` | messages too small to compress |
-| `shannonstore_network_compression_bytes_in_total` / `_out_total` | per-message wire savings |
-
-A useful first dashboard tile is `out/in` of object compression by MIME — operators see at a glance which content types benefit and which are noise.
+There are currently no dedicated Prometheus counters for compression ratio or
+skip-rate by layer — grepping the whole codebase for compression-related metric
+registrations (`Counter.builder`, `Gauge.builder`, etc.) turns up none. See
+[Monitoring & Metrics](monitoring.md) for the actual (much smaller) set of exported
+metrics. Verifying compression effectiveness today means comparing object size on
+disk to the client-reported `Content-Length`, not reading a ratio off a dashboard.
 
 ## See also
 

@@ -6,7 +6,7 @@ Every bucket exposes two running counters — object count and total bytes — t
 
 Each API node maintains its own in-memory `ConcurrentHashMap<bucket, count>` and `ConcurrentHashMap<bucket, sizeBytes>` inside `BucketManager`. The node updates its own counter whenever it serves a write — under nginx round-robin, half the PUTs land on node A and half on node B, so each node carries half the delta.
 
-When a client reads stats, the leader fan-outs `TYPE_GET_BUCKET_STATS` to every API node, each returns its local pair, and the caller sums them — that sum is the **cluster total** with no RocksDB scan.
+When a client reads stats, the API node that received the request (not necessarily the leader — `GET /admin/browser/buckets` is not leader-forwarded) fans out `TYPE_GET_BUCKET_STATS` to every other API node, each returns its local pair, and the requesting node sums them — that sum is the **cluster total** with no RocksDB scan.
 
 ```text
    GET /admin/browser/buckets
@@ -44,4 +44,13 @@ Per-bucket details (storage class, EC profile) are on `/admin/buckets/{bucket}/s
 
 ## Bootstrap
 
-A freshly imported bucket (counter = 0) triggers the per-node fullscan **once** on first stats request, seeds the counter from that scan, and serves O(1) from then on. So the first stats call after a cluster start is slower than subsequent ones — but only once per bucket per node.
+There is no fullscan-seeding step. `ApiMessageHandler`'s `TYPE_GET_BUCKET_STATS` handler
+returns *only* the requested node's in-memory `BucketManager` counter and explicitly does
+**not** fall back to a RocksDB fullscan (metadata is replicated to every node, so a
+per-node fullscan would return the full object count and summing across nodes would
+multiply the total by the node count). A `BucketManager.resetBucketCounters(bucket, count,
+sizeBytes)` method exists that could seed a counter from an external count, but nothing in
+the codebase currently calls it. In practice this means a freshly imported bucket's
+counters start at whatever value they were initialized to (typically `0`) and only move as
+PUT/DELETE traffic accumulates deltas on each node going forward — there is no automatic
+correction toward the true object count.

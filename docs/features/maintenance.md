@@ -13,7 +13,7 @@ Maintenance mode is a single cluster-wide toggle that tells every API node "shed
               └──────────────────────────────────┘
 ```
 
-The check is the very first thing `S3RequestHandler` does after the request body lands — even authentication is skipped, because the cluster has decided not to serve dataplane work at all. The mode is a single in-memory `AtomicBoolean` flipped via the admin REST and broadcast to every peer API node, so a `true` value on the leader is visible everywhere within the IAM/bucket sync round-trip.
+`S3RequestHandler` checks maintenance mode early, but not before every other gate: the cluster-ready check (self/cluster not yet initialized → `503` with no `Retry-After`) and the CORS-preflight / `Authorization`-header-presence gate (a request with no header and no matching anonymous bucket policy still gets `401 Unauthorized`) both run first. Maintenance mode is checked immediately after that — before SigV4/SigV2 signature verification, access-key validation, or dispatch — so a request that *does* carry some form of authorization is turned away with `503` before its signature is ever checked. The mode is a single in-memory `AtomicBoolean` flipped via the admin REST and broadcast to every peer API node, so a `true` value on the leader is visible everywhere within the IAM/bucket sync round-trip.
 
 ## When to use
 
@@ -29,7 +29,7 @@ The right mental model: maintenance mode is *defense* — pause the cluster prec
 
 ## Activation
 
-`POST /admin/maintenance` against any API node:
+`POST /admin/maintenance/mode` against any API node:
 
 ```bash
 TOKEN=$(curl -sf -X POST http://localhost:8888/admin/auth/login \
@@ -38,13 +38,13 @@ TOKEN=$(curl -sf -X POST http://localhost:8888/admin/auth/login \
     | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
 
 # Enable
-curl -sf -X POST http://localhost:8888/admin/maintenance \
+curl -sf -X POST http://localhost:8888/admin/maintenance/mode \
     -H "Authorization: Bearer $TOKEN" \
     -H 'Content-Type: application/json' \
     -d '{"enabled":true}'
 
 # Disable
-curl -sf -X POST http://localhost:8888/admin/maintenance \
+curl -sf -X POST http://localhost:8888/admin/maintenance/mode \
     -H "Authorization: Bearer $TOKEN" \
     -d '{"enabled":false}'
 ```
