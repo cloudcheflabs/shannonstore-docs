@@ -132,21 +132,29 @@ Action=AssumeRole&Version=2011-06-15&RoleSessionName=etl-shard-12&DurationSecond
 The handler mints a new `AccessKeyRecord` with the `ASIA` prefix, returns the AWS canonical XML response:
 
 ```xml
-<AssumeRoleResponse>
+<AssumeRoleResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
   <AssumeRoleResult>
+    <AssumedRoleUser>
+      <Arn>arn:aws:iam::000000000000:role/default/etl-shard-12</Arn>
+      <AssumedRoleId>AROAXXXXXXXXXXXXXXXXX:etl-shard-12</AssumedRoleId>
+    </AssumedRoleUser>
     <Credentials>
       <AccessKeyId>ASIAXXXXXXXXXXXXXXXX</AccessKeyId>
       <SecretAccessKey>…</SecretAccessKey>
       <SessionToken>…</SessionToken>
       <Expiration>2026-05-30T01:23:45Z</Expiration>
     </Credentials>
+    <PackedPolicySize>1</PackedPolicySize>
   </AssumeRoleResult>
+  <ResponseMetadata>
+    <RequestId>…</RequestId>
+  </ResponseMetadata>
 </AssumeRoleResponse>
 ```
 
 Lifetime rules:
 
-- `DurationSeconds` is honoured up to the cluster-wide `shannonstore.api.sts.default.session.duration.seconds` cap.
+- `DurationSeconds` defaults to `shannonstore.api.sts.default.session.duration.seconds` (3600) when omitted, and is always clamped to the AWS-compatible range `[900, 43200]` seconds regardless of what the client requests.
 - The temp credential is bound to the *parent* access key — every S3 call must carry the security token and the parent's authorizations propagate.
 - A cleanup thread evicts expired temp credentials every `cleanupIntervalMs`.
 - Temp creds are excluded from regular at-rest persistence by default but ride the IAM sync snapshot so other API nodes see them quickly.

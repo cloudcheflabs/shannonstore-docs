@@ -74,7 +74,7 @@ aws s3 rm s3://test-bucket/values-dev_old.yaml \
   --endpoint=http://localhost:8080
 ```
 
-The objects you uploaded are erasure-coded into 2+1 (configurable) shards on upload, and reconstructed transparently on download — even if one Data Node or one disk is unavailable.
+The objects you uploaded are erasure-coded into 4+2 (configurable) shards on upload, and reconstructed transparently on download — even if one Data Node or one disk is unavailable.
 
 ## What's Next
 

@@ -97,12 +97,12 @@ Inter-node payloads compress transparently above a configurable size threshold:
 
 | Key | Default | Effect |
 | --- | --- | --- |
-| `shannonstore.network.compression.type` | `SNAPPY` | Algorithm: `NONE` / `SNAPPY` / `GZIP` / `ZSTD`. |
+| `shannonstore.network.compression.type` | `SNAPPY` | Algorithm: only `NONE` / `SNAPPY` are actually supported at this layer — see caveat below. |
 | `shannonstore.network.compression.threshold` | `1024` | Bytes — below this the payload ships uncompressed. |
 
-The 1 KiB default is chosen so that small control messages (heartbeats, membership pings) don't pay the compression latency, while shard payloads (the dominant byte flow) do. The compression header is a single byte at the start of the payload, so a peer running a different algorithm at the same `shannonstore.network.compression.type` setting still decodes correctly — change the setting on a rolling restart without coordination.
+**Caveat:** unlike the object-level `shannonstore.api.s3.object.compression.type` (which does support `NONE`/`SNAPPY`/`GZIP`/`ZSTD` — see [Data Compression](data-compression.md)), `NetworkHelper.compress(byte[], String type)` on the internal NIO plane ignores its `type` argument entirely and always compresses with Snappy; `decompress()` only recognizes the Snappy header byte and throws for anything else. Setting `shannonstore.network.compression.type` to `GZIP` or `ZSTD` has no effect — Snappy is used regardless. The shipped `shannonstore.properties` template itself documents this: "Supported: NONE, SNAPPY" for this key (as opposed to the four-way list on the object-level key two sections later).
 
-SNAPPY is the safe default. ZSTD gives a better ratio at the cost of CPU; reserve it for clusters that are network-bound rather than CPU-bound. GZIP exists for environments where SNAPPY/ZSTD native libraries can't be loaded.
+The 1 KiB default is chosen so that small control messages (heartbeats, membership pings) don't pay the compression latency, while shard payloads (the dominant byte flow) do. The compression header is a single byte at the start of the payload, so a peer running a different setting still decodes correctly (Snappy either way) — change the setting on a rolling restart without coordination.
 
 ## Thread-pool isolation
 
@@ -111,8 +111,8 @@ Three distinct pools serve the three planes so a runaway worker on one path neve
 | Pool | Default size | Workload |
 | --- | --- | --- |
 | Netty boss + worker | `4 × cpus` | Accept + read/write on 8080 and 8888 |
-| Fetch pool | `2 × cpus` | Per-request shard fan-out reads |
-| Chunk pool | `2 × cpus` | EC encode / decode, KMS unwrap, compression |
+| Fetch pool | `max(16, 4 × cpus)` | Per-request shard fan-out reads |
+| Chunk pool | `max(16, 4 × cpus)` | EC encode / decode, KMS unwrap, compression |
 
 The fetch and chunk pools are independently sized via `shannonstore.api.fetch.thread.pool.size` and `shannonstore.api.chunk.thread.pool.size`. The split exists because shard reads are network-bound (waiting for sockets) while chunk work is CPU-bound (RS decoding, AES-GCM, snappy/zstd). Doubling one without the other has no global effect.
 

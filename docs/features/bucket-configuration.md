@@ -182,8 +182,13 @@ Supported rule actions:
 
 - **`Transition.Days` / `Transition.Seconds` / `Transition.Date` + `Transition.StorageClass`** —
   move objects out to the registered storage class's tier destination. Validation
-  is at PUT time: an unknown `StorageClass` returns `400 Bad Request` so a
-  silently-ignored policy can never reach production. See
+  is at PUT time: an unknown `StorageClass` throws (`StorageService.putBucketLifecycleXml`),
+  so a silently-ignored policy can never reach production — but the HTTP status that
+  reaches the client depends on which wire path was used. Only the
+  `PUT /admin/buckets/<bucket>/lifecycle` admin alias catches the validation error and
+  returns `400 Bad Request`; the S3-native `PUT /<bucket>?lifecycle` path and the
+  `PUT /admin/browser/bucket-config/<bucket>/lifecycle` path both fall through to the
+  generic handler and return `500 Internal Server Error` instead. See
   [Storage Classes & Tiering](storage-classes-tiering.md) for the full flow
   including `GET → 403 InvalidObjectState`, `?restore`, and async DELETE cleanup.
 
@@ -318,7 +323,9 @@ aws --endpoint-url http://localhost:8000 s3api get-bucket-replication --bucket l
 
 How it works:
 
-- **Versioning is required** on the source bucket (each PUT is a new immutable version).
+- **Versioning is not enforced** — `ReplicationService` does not check whether the source
+  bucket has versioning enabled before replicating; it simply lists current objects and
+  replicates whichever ones have `replicationStatus != COMPLETED`, versioned or not.
 - A **leader-only** `ReplicationService` re-attempts any object whose
   `replicationStatus` is not `COMPLETED`; on success it marks the version `COMPLETED`.
 - Each object is read **decrypted** at the source and **re-PUT** at the destination,

@@ -22,7 +22,7 @@ A single `AuthManager` instance is the source of truth for the cluster:
               └───────────────────────────────────────────┘
 ```
 
-The full state is serialized as a single blob on every mutation, KMS-encrypted at rest in RocksDB at `data/iam-rocksdb/`, and broadcast to peers through the existing IAM sync channel so multi-API-node clusters converge without leader/follower divergence.
+The full state is serialized as a single blob on every mutation, KMS-encrypted at rest in RocksDB at `data/s3-metadata/iam/` (the default for `shannonstore.api.iam.rocksdb.dir`), and broadcast to peers through the existing IAM sync channel so multi-API-node clusters converge without leader/follower divergence.
 
 ## Entities
 
@@ -31,7 +31,7 @@ The full state is serialized as a single blob on every mutation, KMS-encrypted a
 ```java
 class User {
     String userId;                       // unique id, doubles as the login name
-    String password;                     // PBKDF2-hashed
+    String password;                     // stored/compared as plaintext, see below
     boolean requirePasswordChange;        // default-credential gate
     List<String> groups;                  // group names this user belongs to
     List<AccessKeyRecord> credentials;     // permanent + STS-minted keys
@@ -39,7 +39,7 @@ class User {
 ```
 
 - `userId` is the natural identifier — group membership and access keys reference it.
-- `password` is stored as a salted hash; raw passwords never appear at rest or in logs.
+- `password` is **not** hashed — `AuthManager.login()`/`changePassword()`/`adminResetPassword()` store and compare it as a raw `String` (`u.getPassword().equals(p)`). There is no PBKDF2/bcrypt/salt on the login password (this is unrelated to the PBKDF2 stretching used for the KMS master key — see [Encryption & Key Management](kms.md)). Its only protection is that the whole `AuthManager` IAM blob is KMS-encrypted at rest in RocksDB; anyone with the cluster master key, or anyone who can read the decrypted state in a running process, sees the raw password.
 - `requirePasswordChange = true` blocks the user from issuing new tokens until they call the change-password endpoint with the real current password. The default `admin/admin` user is bootstrapped with this flag set, gating every privileged operation until it's cleared.
 
 ### Group
@@ -135,7 +135,7 @@ A bounded `PATTERN_CACHE` keeps compiled regexes around (default 10 000 entries,
 
 ## Action verbs
 
-S3 actions follow standard AWS naming, derived from the HTTP verb × subresource combination at dispatch time. The verbs in active use today:
+S3 actions follow standard AWS naming, derived from the HTTP verb × subresource combination at dispatch time. This is not the complete catalog — Object Lock and lifecycle verbs are covered separately in [Object Lock (WORM)](worm.md#iam-action-verbs) (`s3:GetBucketObjectLockConfiguration`, `s3:GetObjectRetention`, `s3:GetObjectLegalHold`, `s3:GetLifecycleConfiguration`, `s3:PutBucketObjectLockConfiguration`, `s3:PutObjectRetention`, `s3:PutObjectLegalHold`, `s3:PutLifecycleConfiguration`, `s3:BypassGovernanceRetention`). The remaining core verbs in active use:
 
 | Verb | Used by |
 | --- | --- |
@@ -156,7 +156,7 @@ S3 actions follow standard AWS naming, derived from the HTTP verb × subresource
 | `s3:DeleteBucket` | `DELETE /<bucket>` |
 | `s3:AbortMultipartUpload` | `DELETE /<bucket>/<key>?uploadId=…` |
 
-Build policies that reference exactly these verbs — actions Authors invent will silently fail the wildcard match and surface as `403 AccessDenied`.
+Build policies that reference real dispatched verbs (the ones above, plus the Object Lock/lifecycle verbs linked above) — actions you invent will silently fail the wildcard match and surface as `403 AccessDenied`.
 
 ## Resource ARNs
 
@@ -190,7 +190,7 @@ Every privileged Admin REST and S3 path is blocked until the `admin` user change
 
 ## At-rest encryption + cluster sync
 
-`AuthManager.saveToLocalDb()` writes a single blob to RocksDB at `data/iam-rocksdb/iam_state`. The blob is encrypted by the same `KmsProvider` that protects object data — losing the data-encryption key permanently locks the IAM state too.
+`AuthManager.saveToLocalDb()` writes a single blob under the key `iam_state` to the RocksDB directory configured by `shannonstore.api.iam.rocksdb.dir` (default `./data/s3-metadata/iam`). The blob is encrypted by the same `KmsProvider` that protects object data — losing the data-encryption key permanently locks the IAM state too.
 
 On a successful write, the `updateListener` callback receives the encrypted snapshot and broadcasts it to peer API nodes through the standard IAM sync channel. Followers receive the bytes, decrypt locally, swap their in-memory maps under a write lock, and persist back to their own RocksDB. Loops are avoided because the listener guards on the local node's leadership state.
 

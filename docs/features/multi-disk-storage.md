@@ -112,7 +112,7 @@ For a *failed* disk that's already gone, the steps are identical without the man
 - **Disks should be similar in size**. HRW placement is uniform across the available set, so a 16-TiB disk in a node otherwise full of 8-TiB disks will fill twice as fast and become the bottleneck.
 - **Distinct filesystems matter**. The same-partition deduplication above is a safety net, not a recommendation; configure each disk as its own filesystem.
 - **Watch for `available: false` in the heartbeat**. The Admin UI's data-node panel highlights any disk in this state. A single disk going unavailable for more than the repair grace window triggers reconstruction.
-- **Plan for the rebuild window**. With k=4 m=2, losing a disk on a node holding ~150 000 shards rebuilds roughly proportional to the EC throughput per second. A throttled repair (default rate-limit is per-cluster, not per-disk) takes hours to days for a multi-terabyte disk — clusters that need shorter windows should raise `shannonstore.api.disk.repair.rate.limit.bytes.per.sec`.
+- **Plan for the rebuild window**. With k=4 m=2, losing a disk on a node holding ~150 000 shards rebuilds roughly proportional to the EC throughput per second. A throttled repair takes hours to days for a multi-terabyte disk — clusters that need shorter windows should raise `shannonstore.api.repair.max.concurrent` (the number of shards reconstructed in parallel).
 
 ## See also
 

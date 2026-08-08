@@ -22,7 +22,7 @@ ShannonStore exposes two telemetry surfaces side by side: a live Prometheus endp
 
 ## Prometheus endpoint
 
-Each API node serves `/metrics` on the admin port (`:8888` by default) in the standard text exposition format. Enable / disable with `shannonstore.api.prometheus.enabled = true|false` (default `true`). Data nodes expose the same endpoint on their admin surface.
+Each API node serves `/metrics` on the admin port (`:8888` by default) in the standard text exposition format. Enable / disable with `shannonstore.api.prometheus.enabled = true|false` (default `true`). **Data nodes do not expose `/metrics` or any HTTP surface at all** — a Data node's only listener is the internal NIO port (`shannonstore.nio.port`); there is no `AdminHandler` equivalent, no HTTP server, and no `/metrics` route in `shannonstore-data`. Data-node system/disk stats reach Prometheus only indirectly, via whatever an API node's `/metrics` endpoint exposes about the cluster (see below).
 
 A minimal scrape config:
 
@@ -35,65 +35,21 @@ scrape_configs:
           - api-1:8888
           - api-2:8888
           - api-3:8888
-  - job_name: shannonstore-data
-    metrics_path: /metrics
-    static_configs:
-      - targets:
-          - data-1:8889
-          - data-2:8889
-          - data-3:8889
 ```
 
 The endpoint requires no authentication — it's safe to scrape internally and behind any reverse proxy that hides it from the public internet.
 
 ### Metric inventory
 
-The most useful counters and gauges, by domain. (The exact metric names follow Micrometer conventions: dot-separated identifiers, Prometheus auto-renames dots to underscores.)
+This is the **complete** set of custom (non-JVM) Micrometer meters actually registered in source today — it is much smaller than a MinIO/Ceph-class exporter. Grepping the whole codebase for `Counter.builder(`, `Gauge.builder(`, `FunctionCounter.builder(`, and `MetricsRegistry.getTimer(` turns up exactly two families: the S3 request timer, and the object-event-notification counters/gauge below. There is currently **no** per-disk, per-connection-pool, bitrot-scrubber, RocksDB-index, or replication-lag Prometheus metric — those numbers are visible in the Admin UI (sourced from the internal metrics store's periodic snapshot, see "What's collected" below) but are not exported as individually named `/metrics` series.
 
 #### S3 dataplane
 
 | Metric | Type | Labels |
 | --- | --- | --- |
-| `shannonstore.s3.api.requests` | timer | `method=PutObject|GetObject|…` |
-| `shannonstore.s3.api.errors` | counter | `method`, `code=NoSuchKey|AccessDenied|…` |
-| `shannonstore.s3.api.bytes.in` | counter | `method` |
-| `shannonstore.s3.api.bytes.out` | counter | `method` |
-| `shannonstore.s3.put.duration` | histogram | percentile buckets |
-| `shannonstore.s3.get.duration` | histogram | percentile buckets |
-| `shannonstore.s3.multipart.in.flight` | gauge | per node |
+| `s3.api.requests` (Prometheus renders as `s3_api_requests_seconds_*`) | timer | `method=PutObject|GetObject|…` |
 
-#### Internal NIO plane
-
-| Metric | Type | Labels |
-| --- | --- | --- |
-| `shannonstore.nio.connection.pool.idle` | gauge | `peer=host:port` |
-| `shannonstore.nio.connection.pool.acquire.timeout.total` | counter | `peer` |
-| `shannonstore.nio.fetch.timeout.total` | counter | `peer` |
-| `shannonstore.network.compression.bytes.in.total` | counter | `algorithm` |
-| `shannonstore.network.compression.bytes.out.total` | counter | `algorithm` |
-
-#### Storage
-
-| Metric | Type | Labels |
-| --- | --- | --- |
-| `shannonstore.disk.bytes.total` | gauge | `node`, `disk=/mnt/disk-1\|…` |
-| `shannonstore.disk.bytes.used` | gauge | `node`, `disk` |
-| `shannonstore.disk.available` | gauge (0/1) | `node`, `disk` |
-| `shannonstore.disk.chunks.count` | gauge | `node`, `disk` |
-| `shannonstore.disk.repair.repairs.total` | counter | `node` |
-| `shannonstore.disk.repair.bytes.rebuilt.total` | counter | `node` |
-| `shannonstore.bitrot.scrubber.scanned.total` | counter | `node` |
-| `shannonstore.bitrot.scrubber.corrupt.total` | counter | `node` |
-| `shannonstore.bitrot.scrubber.repaired.total` | counter | `node` |
-
-#### Metadata + replication
-
-| Metric | Type | Labels |
-| --- | --- | --- |
-| `shannonstore.index.rocksdb.size.bytes` | gauge | `node` |
-| `shannonstore.index.rocksdb.gets.total` | counter | `node` |
-| `shannonstore.index.rocksdb.puts.total` | counter | `node` |
-| `shannonstore.metadata.replication.lag.ms` | gauge | `mode=PULL|SYNC|ASYNC_PUSH` |
+This is the only S3-request-path metric — there is no separate error counter, bytes-in/out counter, per-verb duration histogram, or multipart-in-flight gauge; error and byte-count breakdowns are only available through the internal metrics store's `s3_api` snapshot section (see "What's collected"), not as their own Prometheus series.
 
 #### Object event notifications
 
@@ -122,20 +78,27 @@ Standard Micrometer JVM bindings: `jvm.memory.used`, `jvm.gc.pause`, `process.cp
 
 ### Suggested alerts
 
-Three production alerts catch the vast majority of operationally important conditions:
+Given how small the current Prometheus surface is, the one alert that's directly
+actionable from `/metrics` today is request-volume/latency drift on `s3_api_requests`:
 
 ```promql
-# High request error rate — anything over 1% sustained for 5 minutes is investigation-worthy.
-sum(rate(shannonstore_s3_api_errors[5m])) by (method)
-  / sum(rate(shannonstore_s3_api_requests_count[5m])) by (method)
-  > 0.01
+# Sustained drop in request throughput for a given S3 method — could mean the
+# method is erroring out upstream of the timer, or clients have stopped calling it.
+rate(s3_api_requests_seconds_count[5m])
 
-# Disk repair backlog — repair is normal but a growing backlog signals a node is dying.
-increase(shannonstore_disk_repair_repairs_total[1h]) > 1000
+# p99 latency creeping up by method.
+histogram_quantile(0.99, sum(rate(s3_api_requests_seconds_bucket[5m])) by (le, method))
 
-# Connection pool exhaustion — acquire timeouts mean a peer is slow or dead.
-rate(shannonstore_nio_connection_pool_acquire_timeout_total[5m]) > 0
+# Object-event notification backlog — a sustained drop rate means a target is
+# down and the dispatch queue is overflowing (see below).
+rate(shannonstore_notification_dropped_total[5m]) > 0
 ```
+
+Error rates, disk-repair backlog, and connection-pool exhaustion are all visible in the
+Admin UI (sourced from the internal metrics store) but are **not** currently exported as
+their own named Prometheus series — there is no `s3.api.errors`, `disk.repair.*`, or
+`nio.connection.pool.*` meter in source, despite those names appearing plausible for a
+store of this shape.
 
 ## Internal metrics store
 
@@ -154,32 +117,37 @@ Retention sweeps run on a background timer; an operator can also force a sweep t
 
 ## What's collected
 
-Every interval, each node samples:
+Every interval, the leader pulls a snapshot from every node (API and Data alike) over
+the internal NIO protocol (`TYPE_METRICS_REQ`/`TYPE_METRICS_RES`, KMS-encrypted in
+transit) via `MetricsRegistry.getMetricsSnapshot()`. What that snapshot actually
+contains today:
 
-| Group | Examples |
+| Group | Fields |
 | --- | --- |
-| System | CPU usage %, load average, free + total memory, page faults |
-| Disk | per-disk capacity, used bytes, IO ops/sec, errors |
-| Network | bytes in / out, dropped packets, retransmits |
-| JVM | heap used, GC pause time, thread counts, open file descriptors |
-| S3 ops | counts and durations by method since last sample |
-| Cluster | leader id, membership, replication lag |
+| System | process CPU usage, JVM heap used/max, live thread count |
+| Disk | per configured storage-dir: canonical path, total/used/available bytes, usage % |
+| S3 ops | per-method request count, mean latency, max latency (from the `s3.api.requests` timer) |
+| Raw Prometheus scrape | the node's full `/metrics` text exposition, embedded verbatim under `prometheus_data` |
 
-The same surface backs the Admin UI's overview, per-node detail, and per-bucket throughput panes. Aggregations are pre-computed at sample time so the UI query is cheap (point lookups against a single RocksDB column family).
+Network (bytes in/out, drops, retransmits) and cluster-level fields (leader id,
+membership, replication lag) are **not** part of this snapshot — there is no code path
+that samples them. The same surface backs the Admin UI's overview and per-node detail
+panes; aggregation is done by `MetricsCollectorService` on the leader (see below), not
+pre-computed per-sample.
 
 ## Cluster-wide aggregation
 
-A `MetricsCollectorService` running on the leader pulls the per-node samples and produces cluster-aggregate rows (total throughput, cluster-wide capacity, weighted average latencies). These aggregates are what the Admin UI's overview shows and what alert rules typically threshold against; they ship in the same RocksDB store under a distinct prefix.
+A `MetricsCollectorService` runs only on the leader (`collectAll()` is a no-op on followers) and, on every collection tick, pulls a `TYPE_METRICS_REQ` snapshot from every registered API and Data node and stores each one as its own row — `RocksDBMetricsStore`'s key is `[timestamp][nodeId][metricName]` with `metricName` always the literal string `"all"` (one blob per node per tick). There is no separate pre-computed "cluster-aggregate" row stored under a distinct prefix; any cluster-wide totals the Admin UI shows are computed by summing/averaging the per-node snapshots at query time, not read back from a pre-aggregated record.
 
-If the leader changes, the new leader picks up the aggregation work on the next collection tick — no data is lost across the handoff because each follower's local store has the raw samples and the aggregation is recomputed from them.
+If the leader changes, the new leader simply starts pulling on its own next collection tick — no data is lost across the handoff because each node's local `MetricsManager` store already has its own raw samples going back through the retention window.
 
 ## Operational guidance
 
 - **Always scrape Prometheus** if you have any external observability stack — the internal store is convenient but Prometheus + Grafana is what production runs against.
 - **Don't rely on the internal store as the only source of truth**. It's a self-contained convenience; an operator who needs cross-cluster correlation, long-term retention, or 9s SLO calculations runs Prometheus + a time-series database (VictoriaMetrics, M3, Mimir) behind it.
-- **Watch `disk.available == 0` aggressively**. A flap of the disk-health probe is normal; sustained unavailability for more than the repair grace window kicks in reconstruction, and operators want to know before the cluster does.
-- **Alert on `shannonstore.nio.connection.pool.acquire.timeout.total`**, not just on `shannonstore.s3.api.errors`. The connection-pool timeout precedes the S3 error by enough seconds to be worth catching early.
-- **Tune `metrics.retention.days` based on RocksDB footprint**. 30 days × 60-second samples × ~200 metrics per sample is a few hundred MB per node — comfortable. 365 days is order-of-magnitude larger; only use it if you genuinely need year-old samples.
+- **Watch per-disk `usagePercent` in the internal metrics store aggressively** (Admin UI per-node detail pane). Sustained near-full disks are what eventually trigger [Disk Repair](disk-repair.md)'s grace-period reconstruction, and operators want to know before the cluster does.
+- **Don't expect a pre-built alert catalog out of the box** — with only `s3.api.requests` and the notification counters exported to Prometheus today, most alerting has to be built against the internal metrics store's snapshot fields or against your own instrumentation layered on top.
+- **Tune `metrics.retention.days` based on RocksDB footprint**. The snapshot payload per node per tick is small (system + disk + per-method S3 stats), so 30 days at a 60-second interval is comfortable; 365 days is an order of magnitude larger — only use it if you genuinely need year-old samples.
 
 ## See also
 
@@ -187,4 +155,4 @@ If the leader changes, the new leader picks up the aggregation work on the next 
 - [Cluster Operations](../operations/operations.md) — runbooks built around the alerts above.
 - [Maintenance Mode](maintenance.md) — the toggle that briefly stalls metric counters on the dataplane.
 - [Encryption & Key Management](kms.md) — what protects the internal metrics store at rest.
-- [Disk Repair Service](disk-repair.md) — the source of the repair counters.
+- [Disk Repair Service](disk-repair.md) — repair progress is surfaced via `GET /admin/maintenance/repair/status`, not a Prometheus metric.

@@ -4,24 +4,28 @@
 
 ```text
    ┌───────────────────────────────────────────────────────────┐
-   │  Reactive trigger                                          │
-   │   GET path found a missing or CRC-mismatched shard         │
-   │   → enqueue repair task for that shard                     │
+   │  Reactive trigger (write-time, not read-time)              │
+   │   PUT / multipart-flush committed with all k data shards   │
+   │   ACK'd but one or more PARITY shards failed to write      │
+   │   → enqueue on the in-memory reactiveQueue                 │
    │                                                            │
    │  Proactive triggers                                        │
-   │   Bitrot Scrubber found a CRC mismatch                     │
-   │   Disk-health probe marked a disk unavailable              │
-   │   Operator hit "Repair now" in the Admin UI                │
+   │   Scheduled scan finds ChunkInfo on a disk that has been   │
+   │     unhealthy longer than the grace period                 │
+   │   Bitrot Scrubber found a CRC mismatch (delegates directly │
+   │     to repairShards(), not the reactive queue)              │
+   │   Operator hit "Trigger" / "Scan" in the Admin UI           │
    └────────────────┬───────────────────────────────────────────┘
                     │
                     ▼
-        ┌───────────────────────┐
-        │  Repair task queue     │
-        └────────┬───────────────┘
-                 │  (bounded worker pool)
+        ┌────────────────────────────────────┐
+        │  reactiveQueue (write-time) OR      │
+        │  scheduled-scan cycle (dead disks)  │
+        └────────┬─────────────────────────────┘
+                 │
                  ▼
    ┌───────────────────────────────────────────────────────────┐
-   │  For each task:                                            │
+   │  For each shard needing rebuild:                            │
    │   1. Look up the object's metadata                         │
    │   2. Fetch k healthy shards (data or parity) from peers    │
    │   3. Reconstruct the missing shard via Reed-Solomon decode │
@@ -32,19 +36,18 @@
    └───────────────────────────────────────────────────────────┘
 ```
 
-The repair is reactive *and* proactive on purpose: the GET path doesn't wait for a scheduled scan to learn that a shard is gone, and the scheduled scan doesn't wait for a GET to drive coverage of cold data. The two paths feed the same queue and the same worker pool.
+Repair is reactive *and* proactive, but **there is no GET-triggered repair path**: `StorageService`'s read path reconstructs a missing/corrupt shard from parity to satisfy the client response, but it never calls into `DiskRepairService` to persist a fix — `enqueueReactiveRepair()` is only called from the PUT (`shannonstore-api/.../StorageService.java:2153`) and multipart-flush (`StorageService.java:756`) write paths, when a write finished with a data shard set intact but a parity shard missing. Under-replication discovered purely by reads is instead picked up later by the scheduled scan or the scrubber.
 
 ## What triggers a repair
 
-| Trigger | Initiator | Latency to repair |
+| Trigger | Initiator | Mechanism |
 | --- | --- | --- |
-| GET found shard missing | `S3RequestHandler` (read path) | seconds — task enqueued before the GET response goes back |
-| GET found CRC mismatch | `S3RequestHandler` | seconds |
-| Bitrot Scrubber CRC mismatch | `BitrotScrubberService` | minutes — the scrubber batches before emitting |
-| Disk-health probe failure (sustained) | data-node heartbeat | minutes after grace window |
-| Manual trigger | operator via Admin UI / `POST /admin/disk-repair/start` | immediate |
+| Write committed with missing parity shard(s) | `StorageService` (PUT / multipart-flush path) | Enqueued on `DiskRepairService`'s in-memory `reactiveQueue`; a dedicated worker thread drains it, typically within seconds. |
+| Scheduled scan finds a disk down past the grace period | `DiskRepairService`'s own scheduler | Runs every `shannonstore.api.repair.interval.seconds` (default 300s) when `shannonstore.api.repair.enabled=true`; scans locally-indexed metadata for `ChunkInfo` entries on disks unavailable longer than `shannonstore.api.repair.grace.period.seconds` (default 600s). |
+| Bitrot Scrubber CRC mismatch | `BitrotScrubberService` | Calls `DiskRepairService.repairShards()` directly on mismatch — bypasses the reactive queue. A *missing* chunk (not a checksum mismatch) is explicitly left to the scheduled scan; the scrubber's own code comment says this "is not the scrubber's concern." |
+| Manual trigger | operator via Admin UI / `POST /admin/maintenance/repair/trigger` (run a cycle) or `POST /admin/maintenance/repair/scan` (scan for dead disks) | Immediate. |
 
-The grace window on disk-health is essential — a transient mount glitch (filesystem freezing while flushing, kernel-level retry) should not kick off a multi-hour rebuild of a disk that's about to come back. Default grace is one minute of sustained unavailability; tunable via configuration.
+The grace window on disk-health is essential — a transient mount glitch (filesystem freezing while flushing, kernel-level retry) should not kick off a rebuild of a disk that's about to come back. Default grace is **10 minutes** (`shannonstore.api.repair.grace.period.seconds=600`), configurable.
 
 ## The repair pipeline
 
@@ -63,16 +66,16 @@ The single-task surface above is what gets parallelized — multiple workers pro
 
 ## Throttling
 
-A naive rebuild of a 4 TiB disk would saturate every other disk and every NIC in the cluster for hours. The service throttles in three dimensions:
+A naive rebuild of a failed multi-terabyte disk would saturate every other disk and every NIC in the cluster. The service bounds its impact with:
 
 | Knob | Default | Effect |
 | --- | --- | --- |
-| `shannonstore.api.disk.repair.scan.interval.seconds` | minutes | How often the proactive sweep checks for under-replicated shards. |
-| `shannonstore.api.disk.repair.concurrency` | small (4) | Number of parallel repair workers. |
-| `shannonstore.api.disk.repair.rate.limit.bytes.per.sec` | configured | Cluster-wide cap on rebuilt-shard write throughput. |
-| `shannonstore.api.disk.repair.min.target.disk.bytes` | configured | Minimum free bytes a target disk must have to accept a rebuilt shard. |
+| `shannonstore.api.repair.interval.seconds` | 300 | How often the proactive sweep checks for shards referencing dead disks. |
+| `shannonstore.api.repair.max.concurrent` | 4 | Number of shards reconstructed in parallel — the primary throttle on repair load. |
+| `shannonstore.api.repair.grace.period.seconds` | 600 | How long a disk may stay missing before its shards become eligible for reconstruction (avoids wasteful repair during brief data-node restarts). |
+| `shannonstore.api.repair.min.available.bytes` | 104857600 (100 MiB) | Minimum free space a candidate disk must have to receive a reconstructed shard. |
 
-The rate limit is the single most operationally important knob. On a cluster where client throughput is the priority and a few hours of partial under-replication is acceptable, throttle low (10–50 MiB/s). On a cluster where every minute under-replicated is a compliance risk, throttle high (hundreds of MB/s) and accept the dataplane contention.
+`repair.max.concurrent` is the primary lever: lower it to protect client throughput (accepting a longer window of partial under-replication), raise it to shorten the rebuild window at the cost of more dataplane contention.
 
 Repairs **pause** when maintenance mode is active — the operator likely flipped maintenance precisely to perform the kind of work that would interfere with repair.
 
@@ -124,7 +127,7 @@ A repair task can fail for two reasons:
 1. **Insufficient source shards** — fewer than k healthy shards exist anywhere in the cluster. The repair is impossible until at least one more shard becomes available; the task re-queues with a backoff and a critical log line is emitted. Operators should investigate immediately — this is the data-loss precursor.
 2. **No eligible target disk** — every healthy disk is too full to accept the rebuilt shard, or the placement constraints (failure-domain, distinct-node) admit no candidate. The task re-queues; operators should add capacity or relax constraints.
 
-Both failures increment `shannonstore.disk.repair.repairs.failed.total`, which the recommended alert rule (see [Monitoring & Metrics](monitoring.md)) catches as `increase(... > 0)` over five minutes.
+Both failures emit a critical log line. There is no dedicated repair Prometheus series (see [Monitoring & Metrics](monitoring.md) — the only custom meters today are the S3 request timer and the notification counters), so alert on those log lines: a sustained inability to reconstruct is the data-loss precursor operators must catch.
 
 ## Coordination with the Bitrot Scrubber
 
