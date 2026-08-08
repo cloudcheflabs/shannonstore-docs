@@ -37,8 +37,9 @@ rotation.
 
 | Property | Value |
 |---|---|
-| **Socket path** | `data/s3-metadata/admin.sock` (mode `600`) |
+| **Socket path** | `./data/s3-metadata/admin.sock` by default, mode `600` — the live value is published to `bin/api.socket` |
 | **Authentication** | OS file permission — same user as the api node process |
+| **Socket path marker** | `bin/api.socket` — written when the socket binds, removed on shutdown |
 | **Network surface** | none — Unix domain socket only |
 | **Downtime** | none — applied in-process on the live api node |
 | **Cluster sync** | automatic — IAM state propagates to peer nodes via the existing sync path |
@@ -73,25 +74,113 @@ bin/shannonstore-cli.sh iam:reset-password --user some-user --new-password 'NewP
 
 ## Configuration
 
-The recovery socket is enabled by default. Two layers resolve the socket path: the
-`bin/shannonstore-cli.sh` wrapper script sets `SHANNONSTORE_ADMIN_SOCKET` if it isn't
-already set, then the Java CLI itself reads `--socket` / that env var:
+The recovery socket is enabled by default. Every key below lives in
+`conf/shannonstore.properties` and is read at api node startup:
 
-1. `--socket /path/to/admin.sock` command-line flag — checked by the Java CLI, highest priority, always wins.
-2. `SHANNONSTORE_ADMIN_SOCKET` environment variable, if already set in the caller's shell before invoking the script.
-3. Otherwise, the wrapper script prefers the path the *running* api node published to `bin/api.socket` (written by the server itself at startup) — this is the one authoritative source when the IAM RocksDB dir was overridden with a `-D` flag or edited after startup, since it reflects whatever the live process actually bound.
-4. If that marker file is missing or stale, the wrapper falls back to the first existing socket among:
-   - `<base_dir>/data/s3-metadata/admin.sock`
-   - `<base_dir>/data/admin.sock`
-   - `/data/s3-metadata/admin.sock`
-   - `/data/admin.sock`
-5. Final fallback: `<base_dir>/data/s3-metadata/admin.sock`
+```properties
+# conf/shannonstore.properties
+# Set false to remove the local recovery path entirely.
+shannonstore.api.admin.socket.enabled      = true
+# Leave EMPTY to derive the path from the IAM store
+# (<parent of shannonstore.api.iam.rocksdb.dir>/admin.sock), which is the default.
+shannonstore.api.admin.socket.path    =
+# Name of the file under <shannonstore.home>/bin that receives the socket path the
+# api node actually bound to (see "How the CLI finds the socket" below).
+shannonstore.api.admin.socket.marker.file  = api.socket
+# Append-only audit trail of socket operations.
+shannonstore.api.iam.audit.dir = <socket dir>/iam-audit
+```
 
-The api node creates the socket beside its IAM directory: with the default
-`shannonstore.api.iam.rocksdb.dir = ./data/s3-metadata/iam`, the socket
-lives at `./data/s3-metadata/admin.sock` and the audit log at
-`./data/s3-metadata/iam-audit/reset.log`. If you override the IAM RocksDB
-dir, both paths move with it.
+With the shipped `shannonstore.api.iam.rocksdb.dir = ./data/s3-metadata/iam`, the socket
+lands at `./data/s3-metadata/admin.sock` and the audit log at
+`./data/s3-metadata/iam-audit/reset.log`. Setting `shannonstore.api.admin.socket.path`
+moves the socket without moving the IAM store; leaving it empty keeps the two together.
+
+### How the CLI finds the socket
+
+Re-deriving the socket path from `conf/shannonstore.properties` is not reliable on its own:
+`shannonstore.base.data.dir` can be overridden with `-D` at launch or edited after
+startup, and the file does not record which value the live process used. So the
+api node **publishes the path it actually bound to** into
+`<install dir>/bin/api.socket` when the socket comes up, and removes that file on
+shutdown. `bin/shannonstore-cli.sh` prefers it.
+
+Full resolution order, highest priority first:
+
+1. `--socket /path/to/admin.sock` — read by the Java CLI, always wins.
+2. `$SHANNONSTORE_ADMIN_SOCKET` — if already exported in the caller's shell.
+3. `<install dir>/bin/api.socket` — the path published by the running api node.
+   Used only when the file exists *and* the path in it is a live socket.
+4. `shannonstore.api.admin.socket.path` from `conf/shannonstore.properties`, with
+   `${shannonstore.base.data.dir}` expanded. A value that still contains a
+   `${...}` placeholder is rejected rather than used literally.
+5. `<install dir>/data/admin.sock`, then `/data/admin.sock`.
+
+Step 3 is what makes a moved data dir work: with the socket at
+`/data/admin.sock` and the properties file still saying `./data`, only the marker
+knows where to connect.
+
+To rename the marker, change one key — both ends read it:
+
+```bash
+# conf/shannonstore.properties
+shannonstore.api.admin.socket.marker.file = shannonstore-recovery.socket
+```
+
+Restart the api node; it publishes `bin/shannonstore-recovery.socket`, and the CLI
+picks the new name up from the same properties file.
+
+### The master key is for the api node, not the CLI
+
+`SHANNONSTORE_MASTER_KEY` must be exported for the api node process. `bin/start-api-server.sh` checks it up front and refuses to start when it is unset.
+The variable name itself is configurable — `shannonstore.kms.master.key.env` in
+`conf/shannonstore.properties` names the variable the api node reads:
+
+```bash
+export SHANNONSTORE_MASTER_KEY='replace-with-a-32-char-or-longer-secret'
+bin/start-api-server.sh
+```
+
+`bin/shannonstore-cli.sh` does **not** need it. The CLI only opens the Unix socket and
+hands the request to the running api node, which already holds the unsealed key,
+so this works with the variable unset:
+
+```bash
+unset SHANNONSTORE_MASTER_KEY
+bin/shannonstore-cli.sh ping
+# pong
+```
+
+If a CLI invocation complains about the key rather than the socket, you are
+running a start script, not the CLI.
+
+### Worked examples
+
+```bash
+# 1. On the host, as the same OS user that runs the api node:
+cd /opt/shannonstore
+bin/shannonstore-cli.sh ping
+bin/shannonstore-cli.sh iam:reset-password
+
+# 2. The api node runs as a service account and you are root:
+sudo -u shannonstore /opt/shannonstore/bin/shannonstore-cli.sh iam:reset-password
+
+# 3. Inside a container:
+docker exec -it shannonstore-api-1 /app/bin/shannonstore-cli.sh iam:reset-password
+
+# 4. Data dir was relocated at launch — no extra flags needed, the CLI
+#    reads the published marker:
+cat /opt/shannonstore/bin/api.socket
+# /var/lib/shannonstore/admin.sock
+bin/shannonstore-cli.sh ping
+
+# 5. Socket in a non-standard place and no marker (the api node is stopped,
+#    or you are on a host where the marker was cleaned up):
+bin/shannonstore-cli.sh --socket /var/lib/shannonstore/admin.sock iam:reset-password
+
+# 6. Non-interactive automation, password from stdin so it never reaches argv:
+echo 'S0me!Strong!Pass' | bin/shannonstore-cli.sh iam:reset-password --new-password -
+```
 
 ## Security model
 
