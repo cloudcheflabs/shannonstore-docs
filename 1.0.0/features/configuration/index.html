@@ -1957,6 +1957,21 @@
 <td>RocksDB directory for IAM state (users, access keys, policies). The leader is authoritative; followers pull and replay it.</td>
 </tr>
 <tr>
+<td><code>shannonstore.api.admin.socket.enabled</code></td>
+<td><code>true</code></td>
+<td>Whether the API node exposes the local Unix-domain admin recovery socket used by <code>bin/shannonstore-cli.sh</code> (<code>ping</code>, <code>iam:reset-password</code>). Authentication is the socket's mode <code>600</code>; never exposed on the network. See <a href="../admin-password-recovery/">Admin Password Recovery</a>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.admin.socket.path</code></td>
+<td>(empty)</td>
+<td>Filesystem path of the recovery socket. Empty means derive it from the IAM store — <code>&lt;parent of shannonstore.api.iam.rocksdb.dir&gt;/admin.sock</code> — which keeps the socket beside the IAM state this node owns. <code>$SHANNONSTORE_ADMIN_SOCKET</code> overrides both.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.admin.socket.marker.file</code></td>
+<td><code>api.socket</code></td>
+<td>Name of the file under <code>&lt;shannonstore.home&gt;/bin</code> where the API node writes the socket path it actually bound to; <code>bin/shannonstore-cli.sh</code> prefers it over guessing candidate locations. Removed on shutdown.</td>
+</tr>
+<tr>
 <td><code>shannonstore.api.admin.ui.static.path</code></td>
 <td><code>admin-ui</code></td>
 <td>Path to the Admin Web Console's static front-end assets. <strong>Caveat:</strong> the in-code default is <code>shannonstore-admin-ui/dist</code>; the bundled file sets <code>admin-ui</code> to match the packaged layout.</td>
