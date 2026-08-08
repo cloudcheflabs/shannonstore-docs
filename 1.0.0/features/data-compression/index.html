@@ -1928,38 +1928,12 @@
 </table>
 <p>The default config (SNAPPY object + SNAPPY network + off metadata + NONE chunk) is a reasonable middle ground for the analytics workload that dominates ShannonStore deployments today.</p>
 <h2 id="diagnostics">Diagnostics</h2>
-<p>Prometheus exposes counters per layer:</p>
-<table>
-<thead>
-<tr>
-<th>Metric</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>shannonstore_object_compression_skipped_total{reason="mime"}</code></td>
-<td>objects that bypassed compression due to MIME</td>
-</tr>
-<tr>
-<td><code>shannonstore_object_compression_bytes_in_total</code></td>
-<td>raw client bytes seen by the compressor</td>
-</tr>
-<tr>
-<td><code>shannonstore_object_compression_bytes_out_total</code></td>
-<td>bytes after compression — ratio is <code>out / in</code></td>
-</tr>
-<tr>
-<td><code>shannonstore_network_compression_skipped_total{reason="below_threshold"}</code></td>
-<td>messages too small to compress</td>
-</tr>
-<tr>
-<td><code>shannonstore_network_compression_bytes_in_total</code> / <code>_out_total</code></td>
-<td>per-message wire savings</td>
-</tr>
-</tbody>
-</table>
-<p>A useful first dashboard tile is <code>out/in</code> of object compression by MIME — operators see at a glance which content types benefit and which are noise.</p>
+<p>There are currently no dedicated Prometheus counters for compression ratio or
+skip-rate by layer — grepping the whole codebase for compression-related metric
+registrations (<code>Counter.builder</code>, <code>Gauge.builder</code>, etc.) turns up none. See
+<a href="../monitoring/">Monitoring &amp; Metrics</a> for the actual (much smaller) set of exported
+metrics. Verifying compression effectiveness today means comparing object size on
+disk to the client-reported <code>Content-Length</code>, not reading a ratio off a dashboard.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="../ec/">Erasure Coding</a> — runs <em>after</em> object compression on the same payload.</li>

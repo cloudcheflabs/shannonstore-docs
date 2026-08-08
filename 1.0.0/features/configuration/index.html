@@ -1503,6 +1503,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#5c-object-lifecycle-ilm-expiry-scanner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5c. Object Lifecycle (ILM) Expiry Scanner
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5d-bucket-replication-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5d. Bucket Replication Worker
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#5f-object-event-notifications" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1833,7 +1855,7 @@
 <tr>
 <td><code>shannonstore.nio.port</code></td>
 <td><code>9090</code></td>
-<td>TCP port for the internal NIO RPC server on both API and Data nodes — all inter-node traffic (chunk transfer, metadata RPC, KMS pull, backup fan-out) uses it. Must be open between all nodes.</td>
+<td>TCP port for the internal NIO RPC server on both API and Data nodes — all inter-node traffic (chunk transfer, metadata RPC, KMS pull, backup fan-out) uses it. Must be open between all nodes. <strong>Caveat:</strong> the in-code default is <code>9090</code> on the API node but <code>9000</code> on the Data node; the shipped file sets both to <code>9090</code>, so an external override file that omits this key would leave a Data node listening on a different port than the API node expects.</td>
 </tr>
 <tr>
 <td><code>shannonstore.zk.connect</code></td>
@@ -1864,11 +1886,6 @@
 <td><code>shannonstore.network.compression.threshold</code></td>
 <td><code>1024</code></td>
 <td>Minimum payload size (bytes) below which network compression is skipped. Only consulted when compression type is not <code>NONE</code>.</td>
-</tr>
-<tr>
-<td><code>shannonstore.network.direct.buffer.enabled</code></td>
-<td><code>true</code></td>
-<td>Whether the NIO layer allocates direct (off-heap) ByteBuffers for socket I/O, avoiding a heap-to-native copy at the cost of off-heap memory.</td>
 </tr>
 <tr>
 <td><code>shannonstore.network.socket.send.buffer</code></td>
@@ -1923,6 +1940,11 @@
 <td><code>shannonstore.api.s3.port</code></td>
 <td><code>8080</code></td>
 <td>TCP port for the public S3-compatible HTTP API (PutObject/GetObject/ListObjects, SigV4). The endpoint S3 clients connect to.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.direct.buffer.enabled</code></td>
+<td><code>true</code></td>
+<td>Whether the NIO layer allocates direct (off-heap) ByteBuffers for socket I/O, avoiding a heap-to-native copy at the cost of off-heap memory. Read only on the API node (<code>ApiApplication</code>, <code>StorageService</code>) — the Data node has no equivalent setting despite the <code>shannonstore.network.*</code> prefix.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.admin.port</code></td>
@@ -2078,6 +2100,11 @@
 <td><code>shannonstore.api.s3.ec.parity.shards</code></td>
 <td><code>2</code></td>
 <td>Erasure Coding parity-shard count <em>m</em>: redundant shards per object; tolerates up to <em>m</em> simultaneous failures (4+2 scheme by default).</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.ec.weighted.placement</code></td>
+<td><code>false</code></td>
+<td>When true, shard placement across Data nodes weighs candidates by available capacity/load instead of a flat round-robin. Not present in the shipped <code>shannonstore.properties</code>.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.zk.discovery.path</code></td>
@@ -2237,6 +2264,16 @@
 <td><code>${shannonstore.base.data.dir}/shannon-data-kms-rocksdb</code></td>
 <td>Local KMS keystore RocksDB cache. The Data node pulls KEKs from the leader on startup and caches them here.</td>
 </tr>
+<tr>
+<td><code>shannonstore.data.storage.chunk.compression.type</code></td>
+<td><code>NONE</code></td>
+<td>Codec the Data node applies to a chunk before writing it to disk, independent of the API-level <code>shannonstore.api.s3.object.compression.type</code>. Not present in the shipped <code>shannonstore.properties</code>, so it defaults to <code>NONE</code> unless set explicitly.</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.storage.chunk.encryption.type</code></td>
+<td><code>NONE</code></td>
+<td>Encryption the Data node applies to a chunk before writing it to disk, independent of the API-level <code>shannonstore.api.s3.object.encryption.type</code>. Not present in the shipped <code>shannonstore.properties</code>, so it defaults to <code>NONE</code> unless set explicitly.</td>
+</tr>
 </tbody>
 </table>
 <hr />
@@ -2370,6 +2407,64 @@
 </tbody>
 </table>
 <hr />
+<h2 id="5c-object-lifecycle-ilm-expiry-scanner">5c. Object Lifecycle (ILM) Expiry Scanner</h2>
+<p>Enforces S3 bucket lifecycle policies set via <code>PutBucketLifecycleConfiguration</code>. Like the scrubber and rebalance workers, the runtime on/off state is controlled from the Admin UI (<code>/admin/maintenance/lifecycle/enable</code>) and persisted to <code>lifecycle.scan.state.file</code>; the <code>enabled</code> key only seeds the initial value when no state file exists.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.lifecycle.scan.enabled</code></td>
+<td><code>false</code></td>
+<td>Initial enabled state on first boot when no state file is present.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.lifecycle.scan.state.file</code></td>
+<td><code>${shannonstore.base.data.dir}/lifecycle-state.json</code></td>
+<td>File where the runtime enabled/disabled toggle is persisted across restarts.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.lifecycle.scan.interval.ms</code></td>
+<td><code>3600000</code> (1 h)</td>
+<td>Interval (ms) between lifecycle scan cycles. Each cycle lists objects matching configured lifecycle rules and expires/transitions them.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="5d-bucket-replication-worker">5d. Bucket Replication Worker</h2>
+<p>Asynchronously copies objects from buckets that have a replication config (<code>PutBucketReplication</code> / <code>?replication</code>) to a destination bucket — another ShannonStore cluster, MinIO, or AWS S3 — the way MinIO bucket replication does. The runtime toggle is controlled from the Admin UI (<code>/admin/maintenance/replication/enable</code>, persisted and leader-proxied); the <code>enabled</code> key only seeds the initial value when no state file exists.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.replication.enabled</code></td>
+<td><code>false</code></td>
+<td>Initial enabled state on first boot when no state file is present.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.replication.state.file</code></td>
+<td><code>${shannonstore.base.data.dir}/replication-state.json</code></td>
+<td>File where the runtime enabled/disabled toggle is persisted across restarts.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.replication.scan.interval.ms</code></td>
+<td><code>60000</code> (1 min)</td>
+<td>Interval (ms) between replication cycles. Each cycle re-attempts any object whose <code>replicationStatus != COMPLETED</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
 <h2 id="5f-object-event-notifications">5f. Object Event Notifications</h2>
 <p>Per-node tuning of the <a href="../event-notifications/">event-notification dispatcher</a>. The
 targets and rules themselves are cluster-global and stored in the replicated bucket
@@ -2429,7 +2524,7 @@ config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
 <tr>
 <td><code>shannonstore.api.rebalance.enabled</code></td>
 <td><code>false</code></td>
-<td>Enabled state on FIRST boot only; the Admin UI toggle wins afterwards.</td>
+<td>Present in the shipped file, but <code>RebalanceService.loadEnabledStateOrDefault()</code> does not read this key — it hardcodes <code>false</code> whenever no state file exists yet (or if the state file can't be parsed), and afterwards only the persisted <code>rebalance.state.file</code> toggle matters. In practice this key currently has no effect; the worker is always disabled until switched on from the Admin UI.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.rebalance.state.file</code></td>
@@ -2515,6 +2610,16 @@ config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
 <td>Poll/sleep granularity (ms) of the busy-wait loop while <code>NioRpcClient.connect()</code> waits for the channel.</td>
 </tr>
 <tr>
+<td><code>shannonstore.network.nio.client.connect.timeout.seconds</code></td>
+<td><code>10</code></td>
+<td>Connect timeout (seconds) used by the internal NIO client when opening a new outbound connection to a peer. Not present in the shipped <code>shannonstore.properties</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.nio.client.write.timeout.seconds</code></td>
+<td><code>10</code></td>
+<td>Write timeout (seconds) used by the internal NIO client when sending a message to a peer. Not present in the shipped <code>shannonstore.properties</code>.</td>
+</tr>
+<tr>
 <td><code>shannonstore.network.http.header.buffer.size</code></td>
 <td><code>65536</code> (64 KiB)</td>
 <td>Max buffer (bytes) for parsing an incoming HTTP request line + headers; larger header blocks are rejected.</td>
@@ -2593,6 +2698,31 @@ config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
 <td><code>shannonstore.api.metadata.reconcile.dry.run</code></td>
 <td><code>false</code></td>
 <td>When true, the sweep logs what it would delete but deletes nothing — useful for verifying ownership math first.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.metadata.latest.cache.size</code></td>
+<td><code>100000</code></td>
+<td>Max entries in the in-memory "latest version" metadata cache. Not present in the shipped <code>shannonstore.properties</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.metadata.rocksdb.sync.writes</code></td>
+<td><code>false</code></td>
+<td>Whether metadata RocksDB writes call <code>fsync</code> synchronously (<code>WriteOptions.setSync</code>). Not present in the shipped <code>shannonstore.properties</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.metadata.pull.interval.ms</code></td>
+<td><code>500</code></td>
+<td>Poll interval (ms) for a follower pulling metadata changes from the owning node under <code>PULL</code> replication mode. Not present in the shipped <code>shannonstore.properties</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.metadata.pull.batch.size</code></td>
+<td><code>1000</code></td>
+<td>Max metadata change-log entries fetched per pull request. Not present in the shipped <code>shannonstore.properties</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.metadata.changelog.capacity</code></td>
+<td><code>10000</code></td>
+<td>Max entries retained in the in-memory metadata change-log ring buffer that pull-mode followers read from. Not present in the shipped <code>shannonstore.properties</code>.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.part.buffer.peer.fetch.timeout.seconds</code></td>

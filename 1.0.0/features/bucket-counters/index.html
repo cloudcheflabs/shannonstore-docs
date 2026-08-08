@@ -1593,7 +1593,7 @@
 <p>Every bucket exposes two running counters — object count and total bytes — that update on every PUT, multipart-complete, and DELETE rather than being recomputed from a full metadata scan. The admin UI <strong>Bucket Browser</strong> uses them, and they are served alongside the bucket listing.</p>
 <h2 id="how-it-works">How it works</h2>
 <p>Each API node maintains its own in-memory <code>ConcurrentHashMap&lt;bucket, count&gt;</code> and <code>ConcurrentHashMap&lt;bucket, sizeBytes&gt;</code> inside <code>BucketManager</code>. The node updates its own counter whenever it serves a write — under nginx round-robin, half the PUTs land on node A and half on node B, so each node carries half the delta.</p>
-<p>When a client reads stats, the leader fan-outs <code>TYPE_GET_BUCKET_STATS</code> to every API node, each returns its local pair, and the caller sums them — that sum is the <strong>cluster total</strong> with no RocksDB scan.</p>
+<p>When a client reads stats, the API node that received the request (not necessarily the leader — <code>GET /admin/browser/buckets</code> is not leader-forwarded) fans out <code>TYPE_GET_BUCKET_STATS</code> to every other API node, each returns its local pair, and the requesting node sums them — that sum is the <strong>cluster total</strong> with no RocksDB scan.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   GET /admin/browser/buckets
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>      │
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>      ▼
@@ -1621,7 +1621,16 @@
 <li><strong>Not</strong> authoritative across versioned DELETEs that write delete markers (the prior versions remain). Counters track <em>visible</em> objects.</li>
 </ul>
 <h2 id="bootstrap">Bootstrap</h2>
-<p>A freshly imported bucket (counter = 0) triggers the per-node fullscan <strong>once</strong> on first stats request, seeds the counter from that scan, and serves O(1) from then on. So the first stats call after a cluster start is slower than subsequent ones — but only once per bucket per node.</p>
+<p>There is no fullscan-seeding step. <code>ApiMessageHandler</code>'s <code>TYPE_GET_BUCKET_STATS</code> handler
+returns <em>only</em> the requested node's in-memory <code>BucketManager</code> counter and explicitly does
+<strong>not</strong> fall back to a RocksDB fullscan (metadata is replicated to every node, so a
+per-node fullscan would return the full object count and summing across nodes would
+multiply the total by the node count). A <code>BucketManager.resetBucketCounters(bucket, count,
+sizeBytes)</code> method exists that could seed a counter from an external count, but nothing in
+the codebase currently calls it. In practice this means a freshly imported bucket's
+counters start at whatever value they were initialized to (typically <code>0</code>) and only move as
+PUT/DELETE traffic accumulates deltas on each node going forward — there is no automatic
+correction toward the true object count.</p>
 
 
 

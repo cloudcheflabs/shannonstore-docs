@@ -1632,7 +1632,7 @@
 <li><strong>Service discovery</strong> — every node registers itself and its readiness state.</li>
 <li><strong>Sticky leader election</strong> — exactly one API node is elected leader; on restart, the previous leader tends to win re-election so the cluster minimises state movement.</li>
 <li><strong>Cluster opening guarantees</strong>:<ul>
-<li>Traffic is accepted only after every API node and at least one data node is ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.</li>
+<li>Traffic is accepted only after every API node is ready <strong>and</strong> at least one data node has registered with every registered data node ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.</li>
 <li>Default <code>admin/admin</code> credentials are created only on the very first bootstrap, never again. A leader whose local state looks empty for any local reason refuses to recreate defaults — your real IAM cannot be silently overwritten.</li>
 </ul>
 </li>

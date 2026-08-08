@@ -1832,8 +1832,8 @@
 <h3 id="bitrot-scrubbing">Bitrot Scrubbing</h3>
 <p>A background scrubber walks each disk on a configurable interval, verifies shard checksums, and triggers parity-based repair on mismatch. Disabled by default; enable per-node from the admin UI. See <a href="../../features/data-integrity/">Data Integrity</a>.</p>
 <h2 id="disaster-recovery">Disaster Recovery</h2>
-<p><strong>Backup and restore is moving to an external destination</strong> (e.g., a different S3 bucket). The previous in-cluster backup mechanism has been removed. For now, snapshot the leader's IAM and KMS state out-of-band as part of your existing backup tooling.</p>
-<p>Runtime self-healing — parity reconstruction, bitrot scrubbing, disk repair, leader re-election — continues to handle in-flight failures without operator intervention.</p>
+<p>ShannonStore ships an in-cluster S3 Backup mechanism — content-addressed, incremental, parallel-fan-out to an external S3-compatible destination bucket (another ShannonStore, MinIO, or AWS S3), configured and triggered from the Admin UI or the <code>/admin/backup/*</code> REST endpoints, with a staged restore that swaps in atomically on restart. See <a href="../../features/backup/">Backup &amp; Restore</a> for the full mechanism, scheduling, and restore procedure.</p>
+<p>Runtime self-healing — parity reconstruction, bitrot scrubbing, disk repair, leader re-election — continues to handle in-flight failures without operator intervention and is not a substitute for the offsite backup above.</p>
 <h2 id="scaling">Scaling</h2>
 <ul>
 <li><strong>Adding an API Server</strong> — start a new node pointing at the same ZooKeeper and master key. It joins as a follower, synchronises IAM/KMS from the leader, and immediately picks up the metadata it now owns. No maintenance window required. Once the cluster is steady, enable the reconciliation sweep on older nodes to free metadata they no longer own.</li>

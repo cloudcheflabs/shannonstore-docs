@@ -1655,7 +1655,7 @@
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>              │     dispatch normally            │
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>              └──────────────────────────────────┘
 </code></pre></div>
-<p>The check is the very first thing <code>S3RequestHandler</code> does after the request body lands — even authentication is skipped, because the cluster has decided not to serve dataplane work at all. The mode is a single in-memory <code>AtomicBoolean</code> flipped via the admin REST and broadcast to every peer API node, so a <code>true</code> value on the leader is visible everywhere within the IAM/bucket sync round-trip.</p>
+<p><code>S3RequestHandler</code> checks maintenance mode early, but not before every other gate: the cluster-ready check (self/cluster not yet initialized → <code>503</code> with no <code>Retry-After</code>) and the CORS-preflight / <code>Authorization</code>-header-presence gate (a request with no header and no matching anonymous bucket policy still gets <code>401 Unauthorized</code>) both run first. Maintenance mode is checked immediately after that — before SigV4/SigV2 signature verification, access-key validation, or dispatch — so a request that <em>does</em> carry some form of authorization is turned away with <code>503</code> before its signature is ever checked. The mode is a single in-memory <code>AtomicBoolean</code> flipped via the admin REST and broadcast to every peer API node, so a <code>true</code> value on the leader is visible everywhere within the IAM/bucket sync round-trip.</p>
 <h2 id="when-to-use">When to use</h2>
 <table>
 <thead>
@@ -1689,20 +1689,20 @@
 </table>
 <p>The right mental model: maintenance mode is <em>defense</em> — pause the cluster precisely when you don't want a write landing midway through your action. It is <strong>not</strong> a step in any routine scaling or upgrade procedure.</p>
 <h2 id="activation">Activation</h2>
-<p><code>POST /admin/maintenance</code> against any API node:</p>
+<p><code>POST /admin/maintenance/mode</code> against any API node:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">TOKEN</span><span class="o">=</span><span class="k">$(</span>curl<span class="w"> </span>-sf<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8888/admin/auth/login<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>-H<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;userId&quot;:&quot;admin&quot;,&quot;password&quot;:&quot;…&quot;}&#39;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="p">|</span><span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import sys,json;print(json.load(sys.stdin)[&#39;token&#39;])&quot;</span><span class="k">)</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># Enable</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>curl<span class="w"> </span>-sf<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8888/admin/maintenance<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>curl<span class="w"> </span>-sf<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8888/admin/maintenance/mode<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span>-H<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;enabled&quot;:true}&#39;</span>
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="c1"># Disable</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>curl<span class="w"> </span>-sf<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8888/admin/maintenance<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>curl<span class="w"> </span>-sf<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8888/admin/maintenance/mode<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;enabled&quot;:false}&#39;</span>
 </code></pre></div>

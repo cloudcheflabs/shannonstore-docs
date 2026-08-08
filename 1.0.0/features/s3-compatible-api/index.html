@@ -1833,7 +1833,7 @@
 </tr>
 <tr>
 <td><strong>ListParts</strong></td>
-<td><code>GET /&lt;bucket&gt;/&lt;key&gt;?uploadId=&lt;id&gt;</code> — pagination via <code>part-number-marker</code>.</td>
+<td><code>GET /&lt;bucket&gt;/&lt;key&gt;?uploadId=&lt;id&gt;</code> — returns every cached part in one response (<code>IsTruncated</code> is always <code>false</code>); <code>part-number-marker</code>-based pagination is not implemented.</td>
 </tr>
 <tr>
 <td><strong>ListMultipartUploads</strong></td>
@@ -1855,12 +1855,12 @@
 <tr>
 <td><strong>CreateBucket</strong></td>
 <td><code>PUT /&lt;bucket&gt;</code></td>
-<td>Owner becomes the caller.</td>
+<td>Owner becomes the caller. There is no existence/ownership check — a repeat <code>CreateBucket</code> call against a name that already exists (by the owner or anyone else) succeeds with <code>200</code> and resets the bucket's ACL rather than returning a conflict.</td>
 </tr>
 <tr>
 <td><strong>DeleteBucket</strong></td>
 <td><code>DELETE /&lt;bucket&gt;</code></td>
-<td>Bucket must be empty (S3 spec).</td>
+<td>Unlike AWS S3, the bucket does <strong>not</strong> need to be empty: a non-WORM-protected bucket is deleted along with every object it contains (WORM/object-lock-protected objects still block the delete).</td>
 </tr>
 <tr>
 <td><strong>ListBuckets</strong></td>
@@ -1885,12 +1885,12 @@
 <tr>
 <td><strong>GetBucketLocation</strong></td>
 <td><code>GET /&lt;bucket&gt;?location</code></td>
-<td>Returns the configured region (default <code>us-east-1</code> constraint).</td>
+<td>Always returns an empty <code>&lt;LocationConstraint&gt;&lt;/LocationConstraint&gt;</code> (S3-legal shorthand for <code>us-east-1</code>) — no per-bucket or per-cluster region setting is consulted.</td>
 </tr>
 <tr>
 <td><strong>GetBucketAcl</strong></td>
 <td><code>GET /&lt;bucket&gt;?acl</code></td>
-<td>Returns the owner + grants persisted in <code>BucketManager</code>.</td>
+<td>Does <strong>not</strong> read the ACL persisted in <code>BucketManager</code>; it synthesizes a static <code>FULL_CONTROL</code> grant owned by the <em>requesting caller's</em> access key on every call.</td>
 </tr>
 <tr>
 <td><strong>PutBucketVersioning</strong> / <strong>GetBucketVersioning</strong></td>
@@ -2116,19 +2116,9 @@ signature. Anonymous-policy evaluation is only attempted for requests that are
 <td><code>NoSuchBucketPolicy</code> / <code>NoSuchCORSConfiguration</code> / <code>NoSuchLifecycleConfiguration</code></td>
 <td>Subresource never configured</td>
 </tr>
-<tr>
-<td>409</td>
-<td><code>BucketAlreadyOwnedByYou</code></td>
-<td>CreateBucket on a bucket the caller already owns</td>
-</tr>
-<tr>
-<td>503</td>
-<td><code>SlowDown</code></td>
-<td>Returned during <code>MaintenanceMode</code> to back off clients</td>
-</tr>
 </tbody>
 </table>
-<p>The body is intentionally identical to AWS S3 — SDK error parsers don't need a ShannonStore-specific path.</p>
+<p>The body is intentionally identical to AWS S3 for the codes above — SDK error parsers don't need a ShannonStore-specific path. Two AWS-standard codes are <strong>not</strong> currently emitted: <code>CreateBucket</code> never returns <code>409 BucketAlreadyOwnedByYou</code> (see the CreateBucket row above — it always succeeds), and <a href="../maintenance/">Maintenance Mode</a>'s <code>503</code> response carries no XML <code>&lt;Error&gt;</code> body or code at all (just <code>Retry-After: 30</code>), not <code>SlowDown</code>.</p>
 <h2 id="two-port-topology">Two-port topology</h2>
 <p>Object storage and admin/management traffic are bound to separate sockets so the dataplane and the controlplane never compete:</p>
 <table>
@@ -2159,7 +2149,7 @@ signature. Anonymous-policy evaluation is only attempted for requests that are
 <li><a href="../iam/">IAM</a> — policy schema, evaluator semantics, action / resource ARNs.</li>
 <li><a href="../distributed-architecture/">Distributed Architecture</a> — how object writes fan out to data nodes.</li>
 <li><a href="../ec/">Erasure Coding</a> — the storage layout PUT and GET operate against.</li>
-<li><a href="../maintenance/">Maintenance Mode</a> — the 503 <code>SlowDown</code> source.</li>
+<li><a href="../maintenance/">Maintenance Mode</a> — the 503 + <code>Retry-After</code> source.</li>
 </ul>
 
 

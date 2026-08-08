@@ -1828,7 +1828,7 @@
 <tr>
 <td><code>shannonstore.network.compression.type</code></td>
 <td><code>SNAPPY</code></td>
-<td>Algorithm: <code>NONE</code> / <code>SNAPPY</code> / <code>GZIP</code> / <code>ZSTD</code>.</td>
+<td>Algorithm: only <code>NONE</code> / <code>SNAPPY</code> are actually supported at this layer — see caveat below.</td>
 </tr>
 <tr>
 <td><code>shannonstore.network.compression.threshold</code></td>
@@ -1837,8 +1837,8 @@
 </tr>
 </tbody>
 </table>
-<p>The 1 KiB default is chosen so that small control messages (heartbeats, membership pings) don't pay the compression latency, while shard payloads (the dominant byte flow) do. The compression header is a single byte at the start of the payload, so a peer running a different algorithm at the same <code>shannonstore.network.compression.type</code> setting still decodes correctly — change the setting on a rolling restart without coordination.</p>
-<p>SNAPPY is the safe default. ZSTD gives a better ratio at the cost of CPU; reserve it for clusters that are network-bound rather than CPU-bound. GZIP exists for environments where SNAPPY/ZSTD native libraries can't be loaded.</p>
+<p><strong>Caveat:</strong> unlike the object-level <code>shannonstore.api.s3.object.compression.type</code> (which does support <code>NONE</code>/<code>SNAPPY</code>/<code>GZIP</code>/<code>ZSTD</code> — see <a href="../data-compression/">Data Compression</a>), <code>NetworkHelper.compress(byte[], String type)</code> on the internal NIO plane ignores its <code>type</code> argument entirely and always compresses with Snappy; <code>decompress()</code> only recognizes the Snappy header byte and throws for anything else. Setting <code>shannonstore.network.compression.type</code> to <code>GZIP</code> or <code>ZSTD</code> has no effect — Snappy is used regardless. The shipped <code>shannonstore.properties</code> template itself documents this: "Supported: NONE, SNAPPY" for this key (as opposed to the four-way list on the object-level key two sections later).</p>
+<p>The 1 KiB default is chosen so that small control messages (heartbeats, membership pings) don't pay the compression latency, while shard payloads (the dominant byte flow) do. The compression header is a single byte at the start of the payload, so a peer running a different setting still decodes correctly (Snappy either way) — change the setting on a rolling restart without coordination.</p>
 <h2 id="thread-pool-isolation">Thread-pool isolation</h2>
 <p>Three distinct pools serve the three planes so a runaway worker on one path never starves another:</p>
 <table>
@@ -1857,12 +1857,12 @@
 </tr>
 <tr>
 <td>Fetch pool</td>
-<td><code>2 × cpus</code></td>
+<td><code>max(16, 4 × cpus)</code></td>
 <td>Per-request shard fan-out reads</td>
 </tr>
 <tr>
 <td>Chunk pool</td>
-<td><code>2 × cpus</code></td>
+<td><code>max(16, 4 × cpus)</code></td>
 <td>EC encode / decode, KMS unwrap, compression</td>
 </tr>
 </tbody>

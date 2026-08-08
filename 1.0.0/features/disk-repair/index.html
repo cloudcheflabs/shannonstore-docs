@@ -1636,72 +1636,71 @@
 <h1 id="disk-repair-service">Disk Repair Service</h1>
 <p><code>DiskRepairService</code> is the worker that turns disk loss back into full redundancy. A disk dies; its shards are now under-replicated; the service finds them, reconstructs the missing bytes from erasure-coded parity, and places the rebuilt shards on healthy disks elsewhere in the cluster. The same code path serves silent-corruption recovery from the <a href="../data-integrity/">Bitrot Scrubber</a> — corrupt shards are treated identically to missing ones.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   ┌───────────────────────────────────────────────────────────┐
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   │  Reactive trigger                                          │
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   │   GET path found a missing or CRC-mismatched shard         │
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   │   → enqueue repair task for that shard                     │
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   │                                                            │
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   │  Proactive triggers                                        │
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   │   Bitrot Scrubber found a CRC mismatch                     │
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   │   Disk-health probe marked a disk unavailable              │
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   │   Operator hit &quot;Repair now&quot; in the Admin UI                │
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   └────────────────┬───────────────────────────────────────────┘
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>                    │
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                    ▼
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        ┌───────────────────────┐
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        │  Repair task queue     │
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        └────────┬───────────────┘
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>                 │  (bounded worker pool)
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>                 ▼
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>   ┌───────────────────────────────────────────────────────────┐
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>   │  For each task:                                            │
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>   │   1. Look up the object&#39;s metadata                         │
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>   │   2. Fetch k healthy shards (data or parity) from peers    │
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>   │   3. Reconstruct the missing shard via Reed-Solomon decode │
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>   │   4. Pick a target disk on a different node                │
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>   │   5. Write the rebuilt shard to the target                 │
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>   │   6. Update the metadata&#39;s shard layout entry              │
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>   │   7. Replicate the metadata to peer API nodes              │
-<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>   └───────────────────────────────────────────────────────────┘
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   │  Reactive trigger (write-time, not read-time)              │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   │   PUT / multipart-flush committed with all k data shards   │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   │   ACK&#39;d but one or more PARITY shards failed to write      │
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   │   → enqueue on the in-memory reactiveQueue                 │
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   │                                                            │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   │  Proactive triggers                                        │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   │   Scheduled scan finds ChunkInfo on a disk that has been   │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   │     unhealthy longer than the grace period                 │
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   │   Bitrot Scrubber found a CRC mismatch (delegates directly │
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   │     to repairShards(), not the reactive queue)              │
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>   │   Operator hit &quot;Trigger&quot; / &quot;Scan&quot; in the Admin UI           │
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>   └────────────────┬───────────────────────────────────────────┘
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>                    │
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>                    ▼
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>        ┌────────────────────────────────────┐
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>        │  reactiveQueue (write-time) OR      │
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>        │  scheduled-scan cycle (dead disks)  │
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>        └────────┬─────────────────────────────┘
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>                 │
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>                 ▼
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>   ┌───────────────────────────────────────────────────────────┐
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>   │  For each shard needing rebuild:                            │
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>   │   1. Look up the object&#39;s metadata                         │
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>   │   2. Fetch k healthy shards (data or parity) from peers    │
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>   │   3. Reconstruct the missing shard via Reed-Solomon decode │
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>   │   4. Pick a target disk on a different node                │
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>   │   5. Write the rebuilt shard to the target                 │
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>   │   6. Update the metadata&#39;s shard layout entry              │
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>   │   7. Replicate the metadata to peer API nodes              │
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>   └───────────────────────────────────────────────────────────┘
 </code></pre></div>
-<p>The repair is reactive <em>and</em> proactive on purpose: the GET path doesn't wait for a scheduled scan to learn that a shard is gone, and the scheduled scan doesn't wait for a GET to drive coverage of cold data. The two paths feed the same queue and the same worker pool.</p>
+<p>Repair is reactive <em>and</em> proactive, but <strong>there is no GET-triggered repair path</strong>: <code>StorageService</code>'s read path reconstructs a missing/corrupt shard from parity to satisfy the client response, but it never calls into <code>DiskRepairService</code> to persist a fix — <code>enqueueReactiveRepair()</code> is only called from the PUT (<code>shannonstore-api/.../StorageService.java:2153</code>) and multipart-flush (<code>StorageService.java:756</code>) write paths, when a write finished with a data shard set intact but a parity shard missing. Under-replication discovered purely by reads is instead picked up later by the scheduled scan or the scrubber.</p>
 <h2 id="what-triggers-a-repair">What triggers a repair</h2>
 <table>
 <thead>
 <tr>
 <th>Trigger</th>
 <th>Initiator</th>
-<th>Latency to repair</th>
+<th>Mechanism</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>GET found shard missing</td>
-<td><code>S3RequestHandler</code> (read path)</td>
-<td>seconds — task enqueued before the GET response goes back</td>
+<td>Write committed with missing parity shard(s)</td>
+<td><code>StorageService</code> (PUT / multipart-flush path)</td>
+<td>Enqueued on <code>DiskRepairService</code>'s in-memory <code>reactiveQueue</code>; a dedicated worker thread drains it, typically within seconds.</td>
 </tr>
 <tr>
-<td>GET found CRC mismatch</td>
-<td><code>S3RequestHandler</code></td>
-<td>seconds</td>
+<td>Scheduled scan finds a disk down past the grace period</td>
+<td><code>DiskRepairService</code>'s own scheduler</td>
+<td>Runs every <code>shannonstore.api.repair.interval.seconds</code> (default 300s) when <code>shannonstore.api.repair.enabled=true</code>; scans locally-indexed metadata for <code>ChunkInfo</code> entries on disks unavailable longer than <code>shannonstore.api.repair.grace.period.seconds</code> (default 600s).</td>
 </tr>
 <tr>
 <td>Bitrot Scrubber CRC mismatch</td>
 <td><code>BitrotScrubberService</code></td>
-<td>minutes — the scrubber batches before emitting</td>
-</tr>
-<tr>
-<td>Disk-health probe failure (sustained)</td>
-<td>data-node heartbeat</td>
-<td>minutes after grace window</td>
+<td>Calls <code>DiskRepairService.repairShards()</code> directly on mismatch — bypasses the reactive queue. A <em>missing</em> chunk (not a checksum mismatch) is explicitly left to the scheduled scan; the scrubber's own code comment says this "is not the scrubber's concern."</td>
 </tr>
 <tr>
 <td>Manual trigger</td>
-<td>operator via Admin UI / <code>POST /admin/disk-repair/start</code></td>
-<td>immediate</td>
+<td>operator via Admin UI / <code>POST /admin/maintenance/repair/trigger</code> (run a cycle) or <code>POST /admin/maintenance/repair/scan</code> (scan for dead disks)</td>
+<td>Immediate.</td>
 </tr>
 </tbody>
 </table>
-<p>The grace window on disk-health is essential — a transient mount glitch (filesystem freezing while flushing, kernel-level retry) should not kick off a multi-hour rebuild of a disk that's about to come back. Default grace is one minute of sustained unavailability; tunable via configuration.</p>
+<p>The grace window on disk-health is essential — a transient mount glitch (filesystem freezing while flushing, kernel-level retry) should not kick off a rebuild of a disk that's about to come back. Default grace is <strong>10 minutes</strong> (<code>shannonstore.api.repair.grace.period.seconds=600</code>), configurable.</p>
 <h2 id="the-repair-pipeline">The repair pipeline</h2>
 <p>For each task the worker:</p>
 <ol>
@@ -1716,7 +1715,7 @@
 </ol>
 <p>The single-task surface above is what gets parallelized — multiple workers process distinct tasks concurrently subject to the configured concurrency cap.</p>
 <h2 id="throttling">Throttling</h2>
-<p>A naive rebuild of a 4 TiB disk would saturate every other disk and every NIC in the cluster for hours. The service throttles in three dimensions:</p>
+<p>A naive rebuild of a failed multi-terabyte disk would saturate every other disk and every NIC in the cluster. The service bounds its impact with:</p>
 <table>
 <thead>
 <tr>
@@ -1727,28 +1726,28 @@
 </thead>
 <tbody>
 <tr>
-<td><code>shannonstore.api.disk.repair.scan.interval.seconds</code></td>
-<td>minutes</td>
-<td>How often the proactive sweep checks for under-replicated shards.</td>
+<td><code>shannonstore.api.repair.interval.seconds</code></td>
+<td>300</td>
+<td>How often the proactive sweep checks for shards referencing dead disks.</td>
 </tr>
 <tr>
-<td><code>shannonstore.api.disk.repair.concurrency</code></td>
-<td>small (4)</td>
-<td>Number of parallel repair workers.</td>
+<td><code>shannonstore.api.repair.max.concurrent</code></td>
+<td>4</td>
+<td>Number of shards reconstructed in parallel — the primary throttle on repair load.</td>
 </tr>
 <tr>
-<td><code>shannonstore.api.disk.repair.rate.limit.bytes.per.sec</code></td>
-<td>configured</td>
-<td>Cluster-wide cap on rebuilt-shard write throughput.</td>
+<td><code>shannonstore.api.repair.grace.period.seconds</code></td>
+<td>600</td>
+<td>How long a disk may stay missing before its shards become eligible for reconstruction (avoids wasteful repair during brief data-node restarts).</td>
 </tr>
 <tr>
-<td><code>shannonstore.api.disk.repair.min.target.disk.bytes</code></td>
-<td>configured</td>
-<td>Minimum free bytes a target disk must have to accept a rebuilt shard.</td>
+<td><code>shannonstore.api.repair.min.available.bytes</code></td>
+<td>104857600 (100 MiB)</td>
+<td>Minimum free space a candidate disk must have to receive a reconstructed shard.</td>
 </tr>
 </tbody>
 </table>
-<p>The rate limit is the single most operationally important knob. On a cluster where client throughput is the priority and a few hours of partial under-replication is acceptable, throttle low (10–50 MiB/s). On a cluster where every minute under-replicated is a compliance risk, throttle high (hundreds of MB/s) and accept the dataplane contention.</p>
+<p><code>repair.max.concurrent</code> is the primary lever: lower it to protect client throughput (accepting a longer window of partial under-replication), raise it to shorten the rebuild window at the cost of more dataplane contention.</p>
 <p>Repairs <strong>pause</strong> when maintenance mode is active — the operator likely flipped maintenance precisely to perform the kind of work that would interfere with repair.</p>
 <h2 id="grace-period">Grace period</h2>
 <p>A disk that fails one probe is not immediately written off. The grace period gives a transient fault time to clear:</p>
@@ -1803,7 +1802,7 @@
 <li><strong>Insufficient source shards</strong> — fewer than k healthy shards exist anywhere in the cluster. The repair is impossible until at least one more shard becomes available; the task re-queues with a backoff and a critical log line is emitted. Operators should investigate immediately — this is the data-loss precursor.</li>
 <li><strong>No eligible target disk</strong> — every healthy disk is too full to accept the rebuilt shard, or the placement constraints (failure-domain, distinct-node) admit no candidate. The task re-queues; operators should add capacity or relax constraints.</li>
 </ol>
-<p>Both failures increment <code>shannonstore.disk.repair.repairs.failed.total</code>, which the recommended alert rule (see <a href="../monitoring/">Monitoring &amp; Metrics</a>) catches as <code>increase(... &gt; 0)</code> over five minutes.</p>
+<p>Both failures emit a critical log line. There is no dedicated repair Prometheus series (see <a href="../monitoring/">Monitoring &amp; Metrics</a> — the only custom meters today are the S3 request timer and the notification counters), so alert on those log lines: a sustained inability to reconstruct is the data-loss precursor operators must catch.</p>
 <h2 id="coordination-with-the-bitrot-scrubber">Coordination with the Bitrot Scrubber</h2>
 <p>The scrubber doesn't repair shards directly — it computes the CRC32C of each shard it reads and, on mismatch, enqueues a repair task with the same shape as a GET-found mismatch. The repair service then handles it identically to a missing shard: pull k healthy shards, reconstruct the corrupt slot from parity, write the rebuilt shard, update metadata. From the operator's perspective there's exactly one repair pipeline and exactly one set of repair counters; the trigger (read-path, scrubber, manual) is just a label on the source.</p>
 <h2 id="see-also">See also</h2>

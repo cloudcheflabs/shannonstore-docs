@@ -1744,17 +1744,19 @@ admin's next login (the <code>requirePasswordChange</code> flag is set automatic
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password<span class="w"> </span>--user<span class="w"> </span>some-user<span class="w"> </span>--new-password<span class="w"> </span><span class="s1">&#39;NewPass123&#39;</span>
 </code></pre></div>
 <h2 id="configuration">Configuration</h2>
-<p>The recovery socket is enabled by default. The CLI resolves the socket path
-in this order:</p>
+<p>The recovery socket is enabled by default. Two layers resolve the socket path: the
+<code>bin/shannonstore-cli.sh</code> wrapper script sets <code>SHANNONSTORE_ADMIN_SOCKET</code> if it isn't
+already set, then the Java CLI itself reads <code>--socket</code> / that env var:</p>
 <ol>
-<li><code>--socket /path/to/admin.sock</code> command-line flag</li>
-<li><code>SHANNONSTORE_ADMIN_SOCKET</code> environment variable</li>
-<li>First existing socket among:</li>
+<li><code>--socket /path/to/admin.sock</code> command-line flag — checked by the Java CLI, highest priority, always wins.</li>
+<li><code>SHANNONSTORE_ADMIN_SOCKET</code> environment variable, if already set in the caller's shell before invoking the script.</li>
+<li>Otherwise, the wrapper script prefers the path the <em>running</em> api node published to <code>bin/api.socket</code> (written by the server itself at startup) — this is the one authoritative source when the IAM RocksDB dir was overridden with a <code>-D</code> flag or edited after startup, since it reflects whatever the live process actually bound.</li>
+<li>If that marker file is missing or stale, the wrapper falls back to the first existing socket among:</li>
 <li><code>&lt;base_dir&gt;/data/s3-metadata/admin.sock</code></li>
 <li><code>&lt;base_dir&gt;/data/admin.sock</code></li>
 <li><code>/data/s3-metadata/admin.sock</code></li>
 <li><code>/data/admin.sock</code></li>
-<li>Fallback: <code>&lt;base_dir&gt;/data/s3-metadata/admin.sock</code></li>
+<li>Final fallback: <code>&lt;base_dir&gt;/data/s3-metadata/admin.sock</code></li>
 </ol>
 <p>The api node creates the socket beside its IAM directory: with the default
 <code>shannonstore.api.iam.rocksdb.dir = ./data/s3-metadata/iam</code>, the socket

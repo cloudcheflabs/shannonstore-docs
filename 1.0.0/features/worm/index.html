@@ -2054,7 +2054,7 @@
 <tbody>
 <tr>
 <td><code>s3:PutBucketObjectLockConfiguration</code></td>
-<td><code>PUT /&lt;bucket&gt;?object-lock</code>, <code>DELETE /&lt;bucket&gt;?object-lock</code></td>
+<td><code>PUT /&lt;bucket&gt;?object-lock</code> (there is no <code>DELETE /&lt;bucket&gt;?object-lock</code> route — the bucket-level Object Lock flag is one-way and cannot be unset via the API, consistent with the "What if I try <code>?object-lock</code> on a non-lock bucket?" section above)</td>
 </tr>
 <tr>
 <td><code>s3:GetBucketObjectLockConfiguration</code></td>
@@ -2085,7 +2085,7 @@
 <p>Build policies that name these verbs explicitly. A blanket <code>s3:*</code> matches them by wildcard, but production IAM should grant the bypass verb separately so it can be audited and rotated independently from generic write access. See <a href="../iam/">IAM</a> for the policy schema and evaluator semantics.</p>
 <h2 id="operational-guidance">Operational guidance</h2>
 <ul>
-<li><strong>Plan the legal-hold workflow before going live</strong>. The most common operational failure is a bucket that ends up with a thicket of legal holds nobody remembers to release. Track legal-hold issuance through a ticketing system and audit <code>shannonstore_legal_hold_set_total</code> quarterly.</li>
+<li><strong>Plan the legal-hold workflow before going live</strong>. The most common operational failure is a bucket that ends up with a thicket of legal holds nobody remembers to release. Track legal-hold issuance through a ticketing system and audit it quarterly — there is currently no dedicated <code>legal_hold_set</code> Prometheus counter (see <a href="../monitoring/">Monitoring &amp; Metrics</a>), so this has to be done by querying object metadata directly.</li>
 <li><strong>GOVERNANCE for routine compliance, COMPLIANCE for true tamper-resistance</strong>. Treat COMPLIANCE as a one-way door — pick it only when the workload genuinely demands that even the root admin be unable to delete.</li>
 <li><strong>Don't enable Object Lock on a bucket "just in case"</strong>. The flag is one-way and force-enables versioning, which doubles the metadata footprint for most workloads. Buckets that aren't compliance targets cost more without giving anything back.</li>
 <li><strong>Audit <code>s3:BypassGovernanceRetention</code> grants</strong>. The grant should sit on a small number of well-known roles (compliance officers, security incident responders) and never on application credentials. Cluster INFO logs name every bypass event with userId + key + original retain-until-date — retain those logs for the same window as the bucket's retention rule.</li>

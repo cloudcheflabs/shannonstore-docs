@@ -1667,7 +1667,7 @@
 <li><strong>Interval</strong> is a relative "at least N minutes since the last successful backup" timer. Use it for safety-net cadence ("never let more than 6 hours pass between backups").</li>
 <li><strong>Cron</strong> is wall-clock based. Use it for predictable schedules ("nightly at 02:00", "every Sunday at 06:00").</li>
 </ul>
-<p>The cron expression is evaluated in the leader's local time zone. The first sighting after the cron is set, or after a leader handoff, <strong>arms from "now"</strong> — ShannonStore does not back-fire missed cron times on startup. An invalid cron is rejected with HTTP 400 at config-save time rather than being persisted and silently skipped at tick time.</p>
+<p>The cron expression is evaluated in the leader's local time zone. The first sighting after the cron is set, or after a leader handoff, <strong>arms from "now"</strong> — ShannonStore does not back-fire missed cron times on startup. An invalid cron is rejected at config-save time (the response body carries <code>{"status":"error", ...}</code>, HTTP 200) rather than being persisted and silently skipped at tick time.</p>
 <h2 id="incremental-by-design">Incremental by Design</h2>
 <p>Files are content-addressed: anything whose <code>(path, size, mtime)</code> hasn't changed is matched against the destination and skipped. The cost in steady state is one HEAD per file plus uploads of just the parts that actually changed. A re-run with no cluster activity uploads zero bytes.</p>
 <h2 id="history-retention">History Retention</h2>

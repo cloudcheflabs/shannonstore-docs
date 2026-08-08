@@ -1237,39 +1237,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#internal-nio-plane" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Internal NIO plane
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#storage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Storage
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#metadata-replication" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Metadata + replication
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#object-event-notifications" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1730,7 +1697,7 @@
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>                   retention swept periodically)
 </code></pre></div>
 <h2 id="prometheus-endpoint">Prometheus endpoint</h2>
-<p>Each API node serves <code>/metrics</code> on the admin port (<code>:8888</code> by default) in the standard text exposition format. Enable / disable with <code>shannonstore.api.prometheus.enabled = true|false</code> (default <code>true</code>). Data nodes expose the same endpoint on their admin surface.</p>
+<p>Each API node serves <code>/metrics</code> on the admin port (<code>:8888</code> by default) in the standard text exposition format. Enable / disable with <code>shannonstore.api.prometheus.enabled = true|false</code> (default <code>true</code>). <strong>Data nodes do not expose <code>/metrics</code> or any HTTP surface at all</strong> — a Data node's only listener is the internal NIO port (<code>shannonstore.nio.port</code>); there is no <code>AdminHandler</code> equivalent, no HTTP server, and no <code>/metrics</code> route in <code>shannonstore-data</code>. Data-node system/disk stats reach Prometheus only indirectly, via whatever an API node's <code>/metrics</code> endpoint exposes about the cluster (see below).</p>
 <p>A minimal scrape config:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">scrape_configs</span><span class="p">:</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">shannonstore-api</span>
@@ -1740,17 +1707,10 @@
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api-1:8888</span>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api-2:8888</span>
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">api-3:8888</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">job_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">shannonstore-data</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="nt">metrics_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/metrics</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="nt">static_configs</span><span class="p">:</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">targets</span><span class="p">:</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">data-1:8889</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">data-2:8889</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">data-3:8889</span>
 </code></pre></div>
 <p>The endpoint requires no authentication — it's safe to scrape internally and behind any reverse proxy that hides it from the public internet.</p>
 <h3 id="metric-inventory">Metric inventory</h3>
-<p>The most useful counters and gauges, by domain. (The exact metric names follow Micrometer conventions: dot-separated identifiers, Prometheus auto-renames dots to underscores.)</p>
+<p>This is the <strong>complete</strong> set of custom (non-JVM) Micrometer meters actually registered in source today — it is much smaller than a MinIO/Ceph-class exporter. Grepping the whole codebase for <code>Counter.builder(</code>, <code>Gauge.builder(</code>, <code>FunctionCounter.builder(</code>, and <code>MetricsRegistry.getTimer(</code> turns up exactly two families: the S3 request timer, and the object-event-notification counters/gauge below. There is currently <strong>no</strong> per-disk, per-connection-pool, bitrot-scrubber, RocksDB-index, or replication-lag Prometheus metric — those numbers are visible in the Admin UI (sourced from the internal metrics store's periodic snapshot, see "What's collected" below) but are not exported as individually named <code>/metrics</code> series.</p>
 <h4 id="s3-dataplane">S3 dataplane</h4>
 <table>
 <thead>
@@ -1762,168 +1722,13 @@
 </thead>
 <tbody>
 <tr>
-<td><code>shannonstore.s3.api.requests</code></td>
+<td><code>s3.api.requests</code> (Prometheus renders as <code>s3_api_requests_seconds_*</code>)</td>
 <td>timer</td>
 <td><code>method=PutObject|GetObject|…</code></td>
 </tr>
-<tr>
-<td><code>shannonstore.s3.api.errors</code></td>
-<td>counter</td>
-<td><code>method</code>, <code>code=NoSuchKey|AccessDenied|…</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.s3.api.bytes.in</code></td>
-<td>counter</td>
-<td><code>method</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.s3.api.bytes.out</code></td>
-<td>counter</td>
-<td><code>method</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.s3.put.duration</code></td>
-<td>histogram</td>
-<td>percentile buckets</td>
-</tr>
-<tr>
-<td><code>shannonstore.s3.get.duration</code></td>
-<td>histogram</td>
-<td>percentile buckets</td>
-</tr>
-<tr>
-<td><code>shannonstore.s3.multipart.in.flight</code></td>
-<td>gauge</td>
-<td>per node</td>
-</tr>
 </tbody>
 </table>
-<h4 id="internal-nio-plane">Internal NIO plane</h4>
-<table>
-<thead>
-<tr>
-<th>Metric</th>
-<th>Type</th>
-<th>Labels</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>shannonstore.nio.connection.pool.idle</code></td>
-<td>gauge</td>
-<td><code>peer=host:port</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.nio.connection.pool.acquire.timeout.total</code></td>
-<td>counter</td>
-<td><code>peer</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.nio.fetch.timeout.total</code></td>
-<td>counter</td>
-<td><code>peer</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.network.compression.bytes.in.total</code></td>
-<td>counter</td>
-<td><code>algorithm</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.network.compression.bytes.out.total</code></td>
-<td>counter</td>
-<td><code>algorithm</code></td>
-</tr>
-</tbody>
-</table>
-<h4 id="storage">Storage</h4>
-<table>
-<thead>
-<tr>
-<th>Metric</th>
-<th>Type</th>
-<th>Labels</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>shannonstore.disk.bytes.total</code></td>
-<td>gauge</td>
-<td><code>node</code>, <code>disk=/mnt/disk-1\|…</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.disk.bytes.used</code></td>
-<td>gauge</td>
-<td><code>node</code>, <code>disk</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.disk.available</code></td>
-<td>gauge (0/1)</td>
-<td><code>node</code>, <code>disk</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.disk.chunks.count</code></td>
-<td>gauge</td>
-<td><code>node</code>, <code>disk</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.disk.repair.repairs.total</code></td>
-<td>counter</td>
-<td><code>node</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.disk.repair.bytes.rebuilt.total</code></td>
-<td>counter</td>
-<td><code>node</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.bitrot.scrubber.scanned.total</code></td>
-<td>counter</td>
-<td><code>node</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.bitrot.scrubber.corrupt.total</code></td>
-<td>counter</td>
-<td><code>node</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.bitrot.scrubber.repaired.total</code></td>
-<td>counter</td>
-<td><code>node</code></td>
-</tr>
-</tbody>
-</table>
-<h4 id="metadata-replication">Metadata + replication</h4>
-<table>
-<thead>
-<tr>
-<th>Metric</th>
-<th>Type</th>
-<th>Labels</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>shannonstore.index.rocksdb.size.bytes</code></td>
-<td>gauge</td>
-<td><code>node</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.index.rocksdb.gets.total</code></td>
-<td>counter</td>
-<td><code>node</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.index.rocksdb.puts.total</code></td>
-<td>counter</td>
-<td><code>node</code></td>
-</tr>
-<tr>
-<td><code>shannonstore.metadata.replication.lag.ms</code></td>
-<td>gauge</td>
-<td><code>mode=PULL|SYNC|ASYNC_PUSH</code></td>
-</tr>
-</tbody>
-</table>
+<p>This is the only S3-request-path metric — there is no separate error counter, bytes-in/out counter, per-verb duration histogram, or multipart-in-flight gauge; error and byte-count breakdowns are only available through the internal metrics store's <code>s3_api</code> snapshot section (see "What's collected"), not as their own Prometheus series.</p>
 <h4 id="object-event-notifications">Object event notifications</h4>
 <p>Per-node counters for the <a href="../event-notifications/">event-notification dispatcher</a>.
 Because each node runs its own dispatcher, sum across nodes for a cluster total.</p>
@@ -1975,18 +1780,24 @@ overflowing:</p>
 <h4 id="process-jvm">Process / JVM</h4>
 <p>Standard Micrometer JVM bindings: <code>jvm.memory.used</code>, <code>jvm.gc.pause</code>, <code>process.cpu.usage</code>, <code>system.load.average.1m</code>, etc. — every Grafana dashboard built for a Java service works unchanged.</p>
 <h3 id="suggested-alerts">Suggested alerts</h3>
-<p>Three production alerts catch the vast majority of operationally important conditions:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># High request error rate — anything over 1% sustained for 5 minutes is investigation-worthy.</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">shannonstore_s3_api_errors</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">method</span><span class="o">)</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="o">/</span><span class="w"> </span><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">shannonstore_s3_api_requests_count</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">method</span><span class="o">)</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.01</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1"># Disk repair backlog — repair is normal but a growing backlog signals a node is dying.</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="kr">increase</span><span class="o">(</span><span class="nv">shannonstore_disk_repair_repairs_total</span><span class="p">[</span><span class="s">1h</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1000</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># Connection pool exhaustion — acquire timeouts mean a peer is slow or dead.</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="kr">rate</span><span class="o">(</span><span class="nv">shannonstore_nio_connection_pool_acquire_timeout_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+<p>Given how small the current Prometheus surface is, the one alert that's directly
+actionable from <code>/metrics</code> today is request-volume/latency drift on <code>s3_api_requests</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Sustained drop in request throughput for a given S3 method — could mean the</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="c1"># method is erroring out upstream of the timer, or clients have stopped calling it.</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kr">rate</span><span class="o">(</span><span class="nv">s3_api_requests_seconds_count</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># p99 latency creeping up by method.</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="kr">histogram_quantile</span><span class="o">(</span><span class="mf">0.99</span><span class="p">,</span><span class="w"> </span><span class="k">sum</span><span class="o">(</span><span class="kr">rate</span><span class="o">(</span><span class="nv">s3_api_requests_seconds_bucket</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">))</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">le</span><span class="p">,</span><span class="w"> </span><span class="nv">method</span><span class="o">))</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="c1"># Object-event notification backlog — a sustained drop rate means a target is</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># down and the dispatch queue is overflowing (see below).</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="kr">rate</span><span class="o">(</span><span class="nv">shannonstore_notification_dropped_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
 </code></pre></div>
+<p>Error rates, disk-repair backlog, and connection-pool exhaustion are all visible in the
+Admin UI (sourced from the internal metrics store) but are <strong>not</strong> currently exported as
+their own named Prometheus series — there is no <code>s3.api.errors</code>, <code>disk.repair.*</code>, or
+<code>nio.connection.pool.*</code> meter in source, despite those names appearing plausible for a
+store of this shape.</p>
 <h2 id="internal-metrics-store">Internal metrics store</h2>
 <p>For operators who don't run Prometheus, the API node also collects metrics into its own RocksDB-backed store (<code>MetricsManager</code>). The Admin UI's charts read directly from this store, so a fresh install gets useful dashboards immediately with no external system to deploy.</p>
 <table>
@@ -2023,52 +1834,51 @@ overflowing:</p>
 <p>The store is on-disk and <strong>KMS-encrypted at rest</strong> through the same envelope-encryption pipeline that protects IAM and object metadata. A copy of the metrics RocksDB extracted out-of-band is unreadable without the cluster's master key.</p>
 <p>Retention sweeps run on a background timer; an operator can also force a sweep through the Admin REST when changing retention from a high value to a low one (a no-op default behaviour would otherwise leave the old samples on disk until the next scheduled sweep).</p>
 <h2 id="whats-collected">What's collected</h2>
-<p>Every interval, each node samples:</p>
+<p>Every interval, the leader pulls a snapshot from every node (API and Data alike) over
+the internal NIO protocol (<code>TYPE_METRICS_REQ</code>/<code>TYPE_METRICS_RES</code>, KMS-encrypted in
+transit) via <code>MetricsRegistry.getMetricsSnapshot()</code>. What that snapshot actually
+contains today:</p>
 <table>
 <thead>
 <tr>
 <th>Group</th>
-<th>Examples</th>
+<th>Fields</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>System</td>
-<td>CPU usage %, load average, free + total memory, page faults</td>
+<td>process CPU usage, JVM heap used/max, live thread count</td>
 </tr>
 <tr>
 <td>Disk</td>
-<td>per-disk capacity, used bytes, IO ops/sec, errors</td>
-</tr>
-<tr>
-<td>Network</td>
-<td>bytes in / out, dropped packets, retransmits</td>
-</tr>
-<tr>
-<td>JVM</td>
-<td>heap used, GC pause time, thread counts, open file descriptors</td>
+<td>per configured storage-dir: canonical path, total/used/available bytes, usage %</td>
 </tr>
 <tr>
 <td>S3 ops</td>
-<td>counts and durations by method since last sample</td>
+<td>per-method request count, mean latency, max latency (from the <code>s3.api.requests</code> timer)</td>
 </tr>
 <tr>
-<td>Cluster</td>
-<td>leader id, membership, replication lag</td>
+<td>Raw Prometheus scrape</td>
+<td>the node's full <code>/metrics</code> text exposition, embedded verbatim under <code>prometheus_data</code></td>
 </tr>
 </tbody>
 </table>
-<p>The same surface backs the Admin UI's overview, per-node detail, and per-bucket throughput panes. Aggregations are pre-computed at sample time so the UI query is cheap (point lookups against a single RocksDB column family).</p>
+<p>Network (bytes in/out, drops, retransmits) and cluster-level fields (leader id,
+membership, replication lag) are <strong>not</strong> part of this snapshot — there is no code path
+that samples them. The same surface backs the Admin UI's overview and per-node detail
+panes; aggregation is done by <code>MetricsCollectorService</code> on the leader (see below), not
+pre-computed per-sample.</p>
 <h2 id="cluster-wide-aggregation">Cluster-wide aggregation</h2>
-<p>A <code>MetricsCollectorService</code> running on the leader pulls the per-node samples and produces cluster-aggregate rows (total throughput, cluster-wide capacity, weighted average latencies). These aggregates are what the Admin UI's overview shows and what alert rules typically threshold against; they ship in the same RocksDB store under a distinct prefix.</p>
-<p>If the leader changes, the new leader picks up the aggregation work on the next collection tick — no data is lost across the handoff because each follower's local store has the raw samples and the aggregation is recomputed from them.</p>
+<p>A <code>MetricsCollectorService</code> runs only on the leader (<code>collectAll()</code> is a no-op on followers) and, on every collection tick, pulls a <code>TYPE_METRICS_REQ</code> snapshot from every registered API and Data node and stores each one as its own row — <code>RocksDBMetricsStore</code>'s key is <code>[timestamp][nodeId][metricName]</code> with <code>metricName</code> always the literal string <code>"all"</code> (one blob per node per tick). There is no separate pre-computed "cluster-aggregate" row stored under a distinct prefix; any cluster-wide totals the Admin UI shows are computed by summing/averaging the per-node snapshots at query time, not read back from a pre-aggregated record.</p>
+<p>If the leader changes, the new leader simply starts pulling on its own next collection tick — no data is lost across the handoff because each node's local <code>MetricsManager</code> store already has its own raw samples going back through the retention window.</p>
 <h2 id="operational-guidance">Operational guidance</h2>
 <ul>
 <li><strong>Always scrape Prometheus</strong> if you have any external observability stack — the internal store is convenient but Prometheus + Grafana is what production runs against.</li>
 <li><strong>Don't rely on the internal store as the only source of truth</strong>. It's a self-contained convenience; an operator who needs cross-cluster correlation, long-term retention, or 9s SLO calculations runs Prometheus + a time-series database (VictoriaMetrics, M3, Mimir) behind it.</li>
-<li><strong>Watch <code>disk.available == 0</code> aggressively</strong>. A flap of the disk-health probe is normal; sustained unavailability for more than the repair grace window kicks in reconstruction, and operators want to know before the cluster does.</li>
-<li><strong>Alert on <code>shannonstore.nio.connection.pool.acquire.timeout.total</code></strong>, not just on <code>shannonstore.s3.api.errors</code>. The connection-pool timeout precedes the S3 error by enough seconds to be worth catching early.</li>
-<li><strong>Tune <code>metrics.retention.days</code> based on RocksDB footprint</strong>. 30 days × 60-second samples × ~200 metrics per sample is a few hundred MB per node — comfortable. 365 days is order-of-magnitude larger; only use it if you genuinely need year-old samples.</li>
+<li><strong>Watch per-disk <code>usagePercent</code> in the internal metrics store aggressively</strong> (Admin UI per-node detail pane). Sustained near-full disks are what eventually trigger <a href="../disk-repair/">Disk Repair</a>'s grace-period reconstruction, and operators want to know before the cluster does.</li>
+<li><strong>Don't expect a pre-built alert catalog out of the box</strong> — with only <code>s3.api.requests</code> and the notification counters exported to Prometheus today, most alerting has to be built against the internal metrics store's snapshot fields or against your own instrumentation layered on top.</li>
+<li><strong>Tune <code>metrics.retention.days</code> based on RocksDB footprint</strong>. The snapshot payload per node per tick is small (system + disk + per-method S3 stats), so 30 days at a 60-second interval is comfortable; 365 days is an order of magnitude larger — only use it if you genuinely need year-old samples.</li>
 </ul>
 <h2 id="see-also">See also</h2>
 <ul>
@@ -2076,7 +1886,7 @@ overflowing:</p>
 <li><a href="../../operations/operations/">Cluster Operations</a> — runbooks built around the alerts above.</li>
 <li><a href="../maintenance/">Maintenance Mode</a> — the toggle that briefly stalls metric counters on the dataplane.</li>
 <li><a href="../kms/">Encryption &amp; Key Management</a> — what protects the internal metrics store at rest.</li>
-<li><a href="../disk-repair/">Disk Repair Service</a> — the source of the repair counters.</li>
+<li><a href="../disk-repair/">Disk Repair Service</a> — repair progress is surfaced via <code>GET /admin/maintenance/repair/status</code>, not a Prometheus metric.</li>
 </ul>
 
 

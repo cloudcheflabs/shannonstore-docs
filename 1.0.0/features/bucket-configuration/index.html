@@ -1898,8 +1898,13 @@ The configuration is parsed into a typed <code>LifecyclePolicy</code> and persis
 <li>
 <p><strong><code>Transition.Days</code> / <code>Transition.Seconds</code> / <code>Transition.Date</code> + <code>Transition.StorageClass</code></strong> —
   move objects out to the registered storage class's tier destination. Validation
-  is at PUT time: an unknown <code>StorageClass</code> returns <code>400 Bad Request</code> so a
-  silently-ignored policy can never reach production. See
+  is at PUT time: an unknown <code>StorageClass</code> throws (<code>StorageService.putBucketLifecycleXml</code>),
+  so a silently-ignored policy can never reach production — but the HTTP status that
+  reaches the client depends on which wire path was used. Only the
+  <code>PUT /admin/buckets/&lt;bucket&gt;/lifecycle</code> admin alias catches the validation error and
+  returns <code>400 Bad Request</code>; the S3-native <code>PUT /&lt;bucket&gt;?lifecycle</code> path and the
+  <code>PUT /admin/browser/bucket-config/&lt;bucket&gt;/lifecycle</code> path both fall through to the
+  generic handler and return <code>500 Internal Server Error</code> instead. See
   <a href="../storage-classes-tiering/">Storage Classes &amp; Tiering</a> for the full flow
   including <code>GET → 403 InvalidObjectState</code>, <code>?restore</code>, and async DELETE cleanup.</p>
 </li>
@@ -2026,7 +2031,9 @@ site replication (active-active across clusters).</p>
 </code></pre></div>
 <p>How it works:</p>
 <ul>
-<li><strong>Versioning is required</strong> on the source bucket (each PUT is a new immutable version).</li>
+<li><strong>Versioning is not enforced</strong> — <code>ReplicationService</code> does not check whether the source
+  bucket has versioning enabled before replicating; it simply lists current objects and
+  replicates whichever ones have <code>replicationStatus != COMPLETED</code>, versioned or not.</li>
 <li>A <strong>leader-only</strong> <code>ReplicationService</code> re-attempts any object whose
   <code>replicationStatus</code> is not <code>COMPLETED</code>; on success it marks the version <code>COMPLETED</code>.</li>
 <li>Each object is read <strong>decrypted</strong> at the source and <strong>re-PUT</strong> at the destination,

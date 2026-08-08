@@ -1874,34 +1874,34 @@
 <li><code>checksum</code> on the chunk row is CRC32C of the persisted shard bytes (not the object plaintext). <a href="../data-integrity/">Data Integrity</a> covers how it's verified on every read.</li>
 </ul>
 <h2 id="diagnostics">Diagnostics</h2>
-<p>Prometheus exposes:</p>
+<p>The metadata layer's health is visible in the Admin UI, sourced from each API node's internal metrics store. There are <strong>no</strong> dedicated Prometheus series for the RocksDB index or replication lag — the only custom <code>/metrics</code> families today are the S3 request timer and the event-notification counters (see <a href="../monitoring/">Monitoring</a>). The quantities worth watching:</p>
 <table>
 <thead>
 <tr>
-<th>Metric</th>
+<th>Signal</th>
 <th>Meaning</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>shannonstore.index.rocksdb.size.bytes</code></td>
-<td>per-disk RocksDB footprint</td>
+<td>RocksDB index footprint</td>
+<td>per-disk on-disk size of the index store</td>
 </tr>
 <tr>
-<td><code>shannonstore.index.rocksdb.gets.total</code> / <code>puts.total</code></td>
-<td>hot-path counters</td>
+<td>Index read / write volume</td>
+<td>hot-path <code>Get</code> / <code>Put</code> counters</td>
 </tr>
 <tr>
-<td><code>shannonstore.metadata.replication.lag.ms</code></td>
-<td>difference between writer's <code>seq</code> and the slowest owner's <code>seq</code></td>
+<td>Metadata replication lag</td>
+<td>difference between the writer's <code>seq</code> and the slowest owner's <code>seq</code></td>
 </tr>
 <tr>
-<td><code>shannonstore.metadata.changelog.rollover.total</code></td>
-<td>full-snapshot fall-back trigger count</td>
+<td>Changelog rollover count</td>
+<td>how often a follower fell back to a full snapshot because the bounded changelog rolled past its position</td>
 </tr>
 </tbody>
 </table>
-<p>A growing <code>replication.lag.ms</code> in PULL mode is the most common symptom an operator should investigate first — usually a peer's RocksDB compaction is unhealthily slow.</p>
+<p>A growing replication lag in PULL mode is the most common symptom an operator should investigate first — usually a peer's RocksDB compaction is unhealthily slow.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="../distributed-architecture/">Distributed Architecture</a> — the cluster bootstrap and leader-election context.</li>

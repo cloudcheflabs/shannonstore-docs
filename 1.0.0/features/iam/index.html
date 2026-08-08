@@ -1713,12 +1713,12 @@
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>              │  updateListener  ──► sync to peer API nodes  │
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>              └───────────────────────────────────────────┘
 </code></pre></div>
-<p>The full state is serialized as a single blob on every mutation, KMS-encrypted at rest in RocksDB at <code>data/iam-rocksdb/</code>, and broadcast to peers through the existing IAM sync channel so multi-API-node clusters converge without leader/follower divergence.</p>
+<p>The full state is serialized as a single blob on every mutation, KMS-encrypted at rest in RocksDB at <code>data/s3-metadata/iam/</code> (the default for <code>shannonstore.api.iam.rocksdb.dir</code>), and broadcast to peers through the existing IAM sync channel so multi-API-node clusters converge without leader/follower divergence.</p>
 <h2 id="entities">Entities</h2>
 <h3 id="user">User</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kd">class</span> <span class="nc">User</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="n">userId</span><span class="p">;</span><span class="w">                       </span><span class="c1">// unique id, doubles as the login name</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="n">password</span><span class="p">;</span><span class="w">                     </span><span class="c1">// PBKDF2-hashed</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">String</span><span class="w"> </span><span class="n">password</span><span class="p">;</span><span class="w">                     </span><span class="c1">// stored/compared as plaintext, see below</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="kt">boolean</span><span class="w"> </span><span class="n">requirePasswordChange</span><span class="p">;</span><span class="w">        </span><span class="c1">// default-credential gate</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="w"> </span><span class="n">groups</span><span class="p">;</span><span class="w">                  </span><span class="c1">// group names this user belongs to</span>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="n">List</span><span class="o">&lt;</span><span class="n">AccessKeyRecord</span><span class="o">&gt;</span><span class="w"> </span><span class="n">credentials</span><span class="p">;</span><span class="w">     </span><span class="c1">// permanent + STS-minted keys</span>
@@ -1726,7 +1726,7 @@
 </code></pre></div>
 <ul>
 <li><code>userId</code> is the natural identifier — group membership and access keys reference it.</li>
-<li><code>password</code> is stored as a salted hash; raw passwords never appear at rest or in logs.</li>
+<li><code>password</code> is <strong>not</strong> hashed — <code>AuthManager.login()</code>/<code>changePassword()</code>/<code>adminResetPassword()</code> store and compare it as a raw <code>String</code> (<code>u.getPassword().equals(p)</code>). There is no PBKDF2/bcrypt/salt on the login password (this is unrelated to the PBKDF2 stretching used for the KMS master key — see <a href="../kms/">Encryption &amp; Key Management</a>). Its only protection is that the whole <code>AuthManager</code> IAM blob is KMS-encrypted at rest in RocksDB; anyone with the cluster master key, or anyone who can read the decrypted state in a running process, sees the raw password.</li>
 <li><code>requirePasswordChange = true</code> blocks the user from issuing new tokens until they call the change-password endpoint with the real current password. The default <code>admin/admin</code> user is bootstrapped with this flag set, gating every privileged operation until it's cleared.</li>
 </ul>
 <h3 id="group">Group</h3>
@@ -1804,7 +1804,7 @@
 <p>Wildcard matching is <strong>case-sensitive</strong> — <code>s3:getobject</code> is not <code>s3:GetObject</code>. Match the SDK-emitted action verbs verbatim.</p>
 <p>A bounded <code>PATTERN_CACHE</code> keeps compiled regexes around (default 10 000 entries, override via <code>shannonstore.api.iam.policy.pattern.cache.size</code>). On overflow the cache clears entirely rather than evicting LRU — cheaper, and the recompile happens at the rate of unique-pattern introduction, not per request.</p>
 <h2 id="action-verbs">Action verbs</h2>
-<p>S3 actions follow standard AWS naming, derived from the HTTP verb × subresource combination at dispatch time. The verbs in active use today:</p>
+<p>S3 actions follow standard AWS naming, derived from the HTTP verb × subresource combination at dispatch time. This is not the complete catalog — Object Lock and lifecycle verbs are covered separately in <a href="../worm/#iam-action-verbs">Object Lock (WORM)</a> (<code>s3:GetBucketObjectLockConfiguration</code>, <code>s3:GetObjectRetention</code>, <code>s3:GetObjectLegalHold</code>, <code>s3:GetLifecycleConfiguration</code>, <code>s3:PutBucketObjectLockConfiguration</code>, <code>s3:PutObjectRetention</code>, <code>s3:PutObjectLegalHold</code>, <code>s3:PutLifecycleConfiguration</code>, <code>s3:BypassGovernanceRetention</code>). The remaining core verbs in active use:</p>
 <table>
 <thead>
 <tr>
@@ -1879,7 +1879,7 @@
 </tr>
 </tbody>
 </table>
-<p>Build policies that reference exactly these verbs — actions Authors invent will silently fail the wildcard match and surface as <code>403 AccessDenied</code>.</p>
+<p>Build policies that reference real dispatched verbs (the ones above, plus the Object Lock/lifecycle verbs linked above) — actions you invent will silently fail the wildcard match and surface as <code>403 AccessDenied</code>.</p>
 <h2 id="resource-arns">Resource ARNs</h2>
 <p>ARNs follow AWS S3 layout:</p>
 <ul>
@@ -1904,7 +1904,7 @@
 </code></pre></div>
 <p>Every privileged Admin REST and S3 path is blocked until the <code>admin</code> user changes the default password. See <a href="../admin-password-recovery/">Admin Password Recovery</a> if the new password is lost.</p>
 <h2 id="at-rest-encryption-cluster-sync">At-rest encryption + cluster sync</h2>
-<p><code>AuthManager.saveToLocalDb()</code> writes a single blob to RocksDB at <code>data/iam-rocksdb/iam_state</code>. The blob is encrypted by the same <code>KmsProvider</code> that protects object data — losing the data-encryption key permanently locks the IAM state too.</p>
+<p><code>AuthManager.saveToLocalDb()</code> writes a single blob under the key <code>iam_state</code> to the RocksDB directory configured by <code>shannonstore.api.iam.rocksdb.dir</code> (default <code>./data/s3-metadata/iam</code>). The blob is encrypted by the same <code>KmsProvider</code> that protects object data — losing the data-encryption key permanently locks the IAM state too.</p>
 <p>On a successful write, the <code>updateListener</code> callback receives the encrypted snapshot and broadcasts it to peer API nodes through the standard IAM sync channel. Followers receive the bytes, decrypt locally, swap their in-memory maps under a write lock, and persist back to their own RocksDB. Loops are avoided because the listener guards on the local node's leadership state.</p>
 <p>A legacy plaintext-blob path is kept for one upgrade window: if KMS-decrypt fails on load, the loader falls back to plaintext, re-encrypts, and writes back. The <code>Legacy plaintext IAM detected on disk — re-saving as KMS-encrypted</code> log line tells you the upgrade has just happened.</p>
 <h2 id="management-surfaces">Management surfaces</h2>

@@ -1693,7 +1693,7 @@
 </tr>
 <tr>
 <td><code>shannonstore.api.part.buffer.rocksdb.path</code></td>
-<td><code>./data/part-buffer</code></td>
+<td><code>./data/s3-metadata/part-buffer</code></td>
 <td>Spill location.</td>
 </tr>
 <tr>
@@ -1809,12 +1809,12 @@
 </tr>
 <tr>
 <td>Fetch pool</td>
-<td><code>fetch.thread.pool.size</code> (default <code>2 × cpus</code>)</td>
+<td><code>fetch.thread.pool.size</code> (default <code>max(16, 4 × cpus)</code>)</td>
 <td>Per-shard NIO reads on the internal plane</td>
 </tr>
 <tr>
 <td>Chunk pool</td>
-<td><code>chunk.thread.pool.size</code> (default <code>2 × cpus</code>)</td>
+<td><code>chunk.thread.pool.size</code> (default <code>max(16, 4 × cpus)</code>)</td>
 <td>EC encode/decode, KMS unwrap, compression</td>
 </tr>
 </tbody>
@@ -1829,7 +1829,7 @@
 </thead>
 <tbody>
 <tr>
-<td><code>shannonstore.nio.connection.pool.acquire.timeout.total</code> rising</td>
+<td>Fetch-pool acquire timeouts appearing in the API-node logs</td>
 <td>fetch pool too small (or pool size per host too small)</td>
 </tr>
 <tr>

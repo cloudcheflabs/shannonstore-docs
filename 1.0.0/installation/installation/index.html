@@ -1655,7 +1655,7 @@
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
 <li><strong>Java 17</strong> — ShannonStore is written in Java and ships as a tarball; Java 17 (or newer) must be on <code>PATH</code>.</li>
-<li><strong>A 32+ character master key</strong> — used to derive the cluster's root encryption key. Set as the environment variable <code>SHANNONSTORE_MASTER_KEY</code> before starting any node.</li>
+<li><strong>A strong master key (32+ characters recommended)</strong> — used to derive the cluster's root encryption key. Set as the environment variable <code>SHANNONSTORE_MASTER_KEY</code> before starting any node. The only thing the process actually enforces at startup is that the variable is set and non-blank (<code>ClusterKmsProvider</code> fails closed with a <code>SecurityException</code> otherwise) — there is no minimum-length check in code, so the 32-character guidance is an operational recommendation, not an enforced requirement.</li>
 <li><strong>macOS or Linux</strong> — the supplied start scripts are bash and assume a POSIX shell.</li>
 </ul>
 <h2 id="download-the-release-archive">Download the Release Archive</h2>
@@ -1706,7 +1706,7 @@
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>bin/start-example-servers.sh
 </code></pre></div>
 <blockquote>
-<p>The master key must be at least 32 characters. The same value must be supplied to <strong>every</strong> ShannonStore process (API or Data) in a real deployment — losing it means losing access to all encrypted data.</p>
+<p>A 32+ character master key is recommended (not enforced by the process — only presence is checked). The same value must be supplied to <strong>every</strong> ShannonStore process (API or Data) in a real deployment — losing it means losing access to all encrypted data.</p>
 </blockquote>
 <p>After a few seconds the cluster is ready. The API Server listens on:</p>
 <table>

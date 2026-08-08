@@ -1018,10 +1018,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#master-key-key-encryption-key-kek" class="md-nav__link">
+  <a href="#master-key-shannonstore_master_key" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Master key (Key Encryption Key, KEK)
+        Master key (SHANNONSTORE_MASTER_KEY)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-encryption-keys-kek" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Encryption Keys (KEK)
       
     </span>
   </a>
@@ -1668,55 +1679,103 @@
 
 
 <h1 id="encryption-key-management">Encryption &amp; Key Management</h1>
-<p>ShannonStore encrypts every byte of object data and every byte of cluster metadata at rest. The implementation uses <strong>envelope encryption</strong> with AES-256-GCM throughout: a hierarchy of keys where the master key never directly touches data, the data-encryption keys never touch disk in plaintext, and only the bottom of the hierarchy fans out across the cluster.</p>
+<p>ShannonStore encrypts every byte of object data and every byte of cluster metadata at rest. The implementation uses <strong>envelope encryption</strong> with AES-256-GCM throughout, but it is a <strong>three-tier</strong> hierarchy, not a simple "master key wraps the DEK directly" model: a master <em>password</em> protects a local keystore, the keystore holds one or more randomly generated, independently versioned Key Encryption Keys (KEKs), and it's those KEKs — not the master password itself — that wrap each object's Data Encryption Key (DEK).</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   ┌──────────────────────────────────────────┐
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   │  Master Key (KEK)  ← env var, never on disk
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   │   AES-256-GCM                            │
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   │  SHANNONSTORE_MASTER_KEY  ← env var, never on disk
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   │   (a passphrase, not used as an AES key directly)
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   └──────────────┬───────────────────────────┘
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                  │  wraps
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                  │  PBKDF2WithHmacSHA256 (200,000 iters, random 32-byte salt)
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                  ▼
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>   ┌──────────────────────────────────────────┐
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   │  Data Encryption Keys (DEK) — per object │
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   │   AES-256-GCM, 96-bit IV per shard       │
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   │   wrapped DEK persisted with object meta │
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   └──────────────┬───────────────────────────┘
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                  │  encrypts
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                  ▼
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>   ┌──────────────────────────────────────────┐
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>   │  Object shards on disk (EC + compressed) │
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>   └──────────────────────────────────────────┘
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>   ┌──────────────────────────────────────────┐
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>   │  Metadata stores (IAM, BucketManager,    │
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>   │  KMS RocksDB) — encrypted with the same  │
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>   │  KEK on every write                       │
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>   └──────────────────────────────────────────┘
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>   │  Derived wrapping key (AES-256-GCM)      │
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>   └──────────────┬───────────────────────────┘
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>                  │  encrypts/decrypts
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>                  ▼
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>   ┌──────────────────────────────────────────┐
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>   │  Keystore blob in KMS RocksDB:           │
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>   │  keyId → KeyLifecycle { versions:        │
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>   │    version# → KeyVersion(key, state) }   │
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>   │  each KeyVersion is a random AES-256 KEK,│
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>   │  state ∈ ACTIVE / RETIRED / REVOKED       │
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>   └──────────────┬───────────────────────────┘
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>                  │  ACTIVE KEK wraps
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>                  ▼
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>   ┌──────────────────────────────────────────┐
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>   │  Data Encryption Keys (DEK) — per object │
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>   │   AES-256-GCM, 96-bit IV per shard       │
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>   │   wrapped DEK + KEK version# persisted   │
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>   │   with object metadata                   │
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>   └──────────────┬───────────────────────────┘
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>                  │  encrypts
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>                  ▼
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>   ┌──────────────────────────────────────────┐
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>   │  Object shards on disk (EC + compressed) │
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>   └──────────────────────────────────────────┘
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>   ┌──────────────────────────────────────────┐
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>   │  Metadata stores (IAM, BucketManager,    │
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>   │  KMS RocksDB) — encrypted with the       │
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>   │  default-keyId KEK on every write         │
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>   └──────────────────────────────────────────┘
 </code></pre></div>
 <h2 id="layers">Layers</h2>
-<h3 id="master-key-key-encryption-key-kek">Master key (Key Encryption Key, KEK)</h3>
-<p>A 32-byte AES-256 key passed in through the environment:</p>
+<h3 id="master-key-shannonstore_master_key">Master key (<code>SHANNONSTORE_MASTER_KEY</code>)</h3>
+<p>A passphrase passed in through the environment:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SHANNONSTORE_MASTER_KEY</span><span class="o">=</span><span class="s2">&quot;…32 ASCII chars or longer…&quot;</span>
 </code></pre></div>
-<p>The KEK never leaves process memory after start. It is <strong>not</strong> written to RocksDB, not logged, not surfaced through any admin endpoint. Losing the value permanently locks every encrypted blob the cluster has on disk — object payloads, IAM state, the wrapped DEKs — all of them require this key to decrypt.</p>
-<p>The master key is required at startup. The API node refuses to launch without it, so a misconfigured deployment fails closed rather than running with no encryption.</p>
+<p>It never leaves process memory after start, is <strong>not</strong> written to RocksDB, not logged, not surfaced through any admin endpoint. It is <em>not</em> used as an AES key directly — <code>ClusterKmsProvider</code> runs it through <code>PBKDF2WithHmacSHA256</code> (200,000 iterations by default, a random 32-byte salt persisted alongside the keystore blob) to derive the AES-256-GCM key that wraps/unwraps the keystore blob in KMS RocksDB. Losing the master key permanently locks the keystore, and therefore every KEK inside it, and therefore every encrypted blob the cluster has on disk.</p>
+<p>The master key is required at startup. The API node refuses to launch without it (<code>ClusterKmsProvider</code> throws a <code>SecurityException</code> from its constructor if the env var is unset or blank), so a misconfigured deployment fails closed rather than running with no encryption.</p>
+<h3 id="key-encryption-keys-kek">Key Encryption Keys (KEK)</h3>
+<p>The keystore itself holds one or more <strong>randomly generated</strong> 256-bit AES KEKs, keyed by <code>keyId</code> (e.g. <code>default</code>, <code>default-sse-s3-key</code> — auto-created the first time a node becomes leader with an empty keystore). Each <code>keyId</code> is a <code>KeyLifecycle</code> with its own map of <code>version → KeyVersion</code>, and each <code>KeyVersion</code> carries a state: <code>ACTIVE</code>, <code>RETIRED</code>, or <code>REVOKED</code>. The master password never wraps a DEK directly — it only protects the keystore blob that these KEKs live in.</p>
 <h3 id="data-encryption-keys-dek">Data Encryption Keys (DEK)</h3>
-<p>For each object (or part, for multipart), ShannonStore mints a fresh 256-bit DEK at write time. The DEK encrypts the shard payloads; the KEK encrypts the DEK. Only the wrapped DEK is persisted — alongside the object's metadata in the API node's RocksDB.</p>
+<p>For each object (or part, for multipart), ShannonStore mints a fresh 256-bit DEK at write time. The DEK encrypts the shard payloads; the <em>current ACTIVE KEK</em> for the relevant <code>keyId</code> wraps the DEK, and the KEK's version number is written into the envelope alongside the wrapped DEK. Only the wrapped DEK (+ version) is persisted — alongside the object's metadata in the API node's RocksDB.</p>
 <p>A read pipeline:</p>
 <ol>
-<li>Load the object's metadata, including the wrapped DEK and per-shard IVs.</li>
-<li>Unwrap the DEK with the in-memory KEK.</li>
+<li>Load the object's metadata, including the wrapped DEK, the KEK version it was wrapped under, and per-shard IVs.</li>
+<li>Look up that exact <code>keyId</code>/version in the keystore and unwrap the DEK with it — there is no trial-and-error across multiple keys; the version is read directly from the first bytes of the envelope. A version whose state is <code>REVOKED</code> fails the unwrap with a <code>SecurityException</code>.</li>
 <li>Decrypt each shard as it arrives from its data node.</li>
 <li>Discard the unwrapped DEK after the last byte streams out.</li>
 </ol>
-<p>The DEK never reaches the data node — every disk holds ciphertext only. A compromised data-node disk yields no readable bytes without the API node and KEK.</p>
+<p>The DEK never reaches the data node — every disk holds ciphertext only. A compromised data-node disk yields no readable bytes without the API node and the keystore.</p>
 <h3 id="key-rotation">Key rotation</h3>
-<p>Rotation does not re-encrypt existing objects (that would require rewriting petabytes). Instead the KEK is treated as the <em>current</em> wrapping key:</p>
+<p>Rotation does <strong>not</strong> involve the master-key environment variable or a restart — it's a live, per-<code>keyId</code> operation on the leader:</p>
 <ul>
-<li>New objects (and any object whose DEK is re-issued through a rewrite path) wrap their DEK with the new KEK.</li>
-<li>Existing objects keep their old wrapped DEK; the unwrap path holds <em>all</em> known KEKs in memory and tries each in turn until the AES-GCM authentication tag verifies.</li>
-<li>The set of known KEKs is the cluster's <code>KmsProvider</code> state — synced through the same replication channel as IAM. Lose the old KEK, lose access to objects written under it.</li>
+<li><code>rotateKey(keyId)</code> generates a brand-new random AES-256 KEK, marks the previous ACTIVE version <code>RETIRED</code> (not deleted — still needed to unwrap objects written under it), and installs the new key as <code>ACTIVE</code>. This runs on the leader and syncs to followers through the same replication channel as IAM.</li>
+<li>New objects (and any object whose DEK is re-issued through a rewrite path) wrap their DEK with the new ACTIVE KEK version. Existing objects keep their old wrapped DEK and are unwrapped using the exact version number embedded in their envelope — not by trying every known key.</li>
+<li>Admin REST surface (all require an admin JWT):</li>
 </ul>
-<p>Operationally: rotate the KEK environment variable, restart API nodes one at a time, and let the cluster pick up the new key. The previous KEK must remain configured (as a comma-separated value) until every object encrypted under it has been re-wrapped or expired.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/admin/kms/list</code></td>
+<td>List all <code>keyId</code>s and their version states</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/kms/status/{keyId}</code></td>
+<td>Lifecycle detail for one <code>keyId</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/kms/create</code> <code>{"keyId": "..."}</code></td>
+<td>Create a new <code>keyId</code> (first version <code>ACTIVE</code>)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/kms/rotate/{keyId}</code></td>
+<td>Retire the current version, activate a new random one</td>
+</tr>
+</tbody>
+</table>
+<p>There is no comma-separated multi-key master-password mechanism — <code>SHANNONSTORE_MASTER_KEY</code> is validated as a single non-blank string, and rotating it is a separate, out-of-band re-keying of the keystore's own wrapping key rather than the normal <code>keyId</code> rotation path described above.</p>
 <h2 id="whats-encrypted">What's encrypted</h2>
 <p>The same KMS pipeline protects every persistent surface the cluster owns:</p>
 <table>
@@ -1733,19 +1792,19 @@
 </tr>
 <tr>
 <td>Object metadata in API node RocksDB</td>
-<td>each entry serialized then encrypted with KEK before <code>db.put()</code></td>
+<td>each entry serialized then encrypted with the <code>default</code> KEK before <code>db.put()</code></td>
 </tr>
 <tr>
-<td>IAM state (<code>data/iam-rocksdb/iam_state</code>)</td>
-<td>KEK-encrypted on every <code>saveToLocalDb</code> — see <a href="../iam/">IAM</a></td>
+<td>IAM state (<code>data/s3-metadata/iam/iam_state</code>)</td>
+<td>encrypted with the <code>default</code> KEK on every <code>saveToLocalDb</code> — see <a href="../iam/">IAM</a></td>
 </tr>
 <tr>
 <td>BucketManager state (versioning configs, ACLs, …)</td>
-<td>same path as IAM, same KEK</td>
+<td>same path as IAM, same <code>default</code> KEK</td>
 </tr>
 <tr>
-<td>KMS-local RocksDB (wrapped DEK index)</td>
-<td>KEK-encrypted; protects against a stolen data-node disk</td>
+<td>KMS-local RocksDB (the keystore blob itself)</td>
+<td>encrypted with the PBKDF2-derived key from <code>SHANNONSTORE_MASTER_KEY</code>; protects the KEKs against a stolen disk</td>
 </tr>
 <tr>
 <td>Cluster sync snapshots between API nodes</td>
@@ -1766,9 +1825,9 @@
 <h2 id="operational-guidance">Operational guidance</h2>
 <ul>
 <li><strong>Set <code>SHANNONSTORE_MASTER_KEY</code> from a secret manager</strong> (HashiCorp Vault, AWS Secrets Manager, etc.), not from a static file checked into config. The cluster never persists it, but the process-launcher environment is the most common leak point.</li>
-<li><strong>Back up the master key out-of-band</strong>. The IAM/object blobs encrypted under it are useless without it. A cluster reinstall recovers nothing if the KEK is also gone.</li>
-<li><strong>Rotate annually or after personnel changes</strong>. The dual-key window during rotation costs nothing operationally; it just means new objects start under the new KEK while old ones remain readable.</li>
-<li><strong>Audit on KMS RocksDB tampering</strong>. The wrapped DEK index is the only path between the KEK and the object data. If a row is altered out of band, the AES-GCM tag verification fails on the next read — <code>SignatureFailure</code> in the API logs.</li>
+<li><strong>Back up the master key out-of-band</strong>. The keystore blob (and every KEK inside it) is useless without it. A cluster reinstall recovers nothing if the master key is also gone.</li>
+<li><strong>Rotate KEKs via <code>POST /admin/kms/rotate/{keyId}</code> after personnel changes or on a routine cadence</strong> — it's a live, no-restart operation on the leader. The retired-but-not-deleted previous version costs nothing operationally; it just means new objects start under the new KEK version while old ones remain readable under theirs.</li>
+<li><strong>Audit on KMS RocksDB tampering</strong>. The keystore is the only path between the master key and the object data. If a row is altered out of band, the AES-GCM tag verification fails on the next read.</li>
 </ul>
 <h2 id="see-also">See also</h2>
 <ul>
