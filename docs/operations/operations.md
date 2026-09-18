@@ -73,7 +73,13 @@ The admin UI exposes operational actions under the **Nodes** page. They are all 
 
 ### Maintenance Mode
 
-Toggling **Maintenance Mode** rejects new S3 writes cluster-wide while allowing reads, in-flight requests to drain, and internal RPCs to continue. Use it before invasive operations like scheduled disk replacement or evacuating a node — but **not** for adding/removing API or data nodes, which the cluster handles automatically without a maintenance window.
+Toggling **Maintenance Mode** refuses **every** S3 request cluster-wide — reads as well as writes, authenticated or anonymous — with `503` and a `Retry-After`. Requests already in flight run to completion, internal RPCs continue, and background work (disk repair, scrubber, rebalance, lifecycle) keeps running: closing the cluster to clients is what gives that work a quiet window.
+
+Data-changing admin routes are refused too, so the object browser cannot delete objects behind your back. Admin reads, settings edits and the maintenance switch itself stay open.
+
+The setting is stored, not held in memory, so an API node restarted mid-window comes back still refusing traffic.
+
+Use it before invasive operations like scheduled disk replacement or evacuating a node — but **not** for adding or removing API/data nodes, which the cluster handles on its own without a window.
 
 See [Maintenance Mode](../features/maintenance.md).
 

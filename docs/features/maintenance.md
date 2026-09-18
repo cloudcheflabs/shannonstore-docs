@@ -1,59 +1,103 @@
 # Maintenance Mode
 
-Maintenance mode is a single cluster-wide toggle that tells every API node "shed S3 client load now". When active, the data plane on port `:8080` responds to every S3 request with `503 Service Unavailable` and `Retry-After: 30`; well-behaved SDKs back off and the operator gets a stable, in-flight-only window to perform disruptive work. The admin plane on `:8888` is **not** affected — operator tooling, monitoring, and cross-product credential sweepers keep working.
+Maintenance mode is a cluster-wide switch that stops ShannonStore serving client traffic, so an operator can replace a disk, rebalance, or restore metadata without writes landing in the middle of the work.
+
+While it is on, the S3 surface on `:8080` answers every request with `503 Service Unavailable` and a `Retry-After` header, and the admin console's **data-changing** routes answer the same. Reads, settings, and the maintenance switch itself stay open — the operator has to be able to watch progress and turn the window off again.
+
+Background work — disk repair, the bitrot scrubber, rebalance, lifecycle expiry — **keeps running**. That is the point of the window, not something it suspends.
 
 ```text
-   Client     ┌──────────────────────────────────┐     Admin
-   ──────────►│  API node (maintenance = true)   │◄──────────
-   :8080      │                                  │     :8888
-              │   if (maintenanceMode):           │
-              │     return 503 + Retry-After:30  │
-              │   else:                          │
-              │     dispatch normally            │
-              └──────────────────────────────────┘
+   S3 client   ┌───────────────────────────────────────┐   Admin console
+   ───────────►│  API node  (maintenance = true)       │◄──────────────
+   :8080       │                                       │   :8888
+               │   S3 request          → 503 Retry-After
+               │   admin data write    → 503 Retry-After
+               │   admin read/settings → served        │
+               │   background workers  → still running │
+               └───────────────────────────────────────┘
 ```
 
-`S3RequestHandler` checks maintenance mode early, but not before every other gate: the cluster-ready check (self/cluster not yet initialized → `503` with no `Retry-After`) and the CORS-preflight / `Authorization`-header-presence gate (a request with no header and no matching anonymous bucket policy still gets `401 Unauthorized`) both run first. Maintenance mode is checked immediately after that — before SigV4/SigV2 signature verification, access-key validation, or dispatch — so a request that *does* carry some form of authorization is turned away with `503` before its signature is ever checked. The mode is a single in-memory `AtomicBoolean` flipped via the admin REST and broadcast to every peer API node, so a `true` value on the leader is visible everywhere within the IAM/bucket sync round-trip.
+## Where the switch is checked
 
-## When to use
+On the S3 path it is the **first** gate after the cluster-ready check — before CORS preflight, before the `Authorization` header check, before anonymous bucket-policy evaluation, and before any signature verification.
+
+That ordering matters. It used to sit below the auth gate, which meant an anonymous read of a public bucket was served by the anonymous path before the check was ever reached: a repair would be racing reads it believed had stopped. Answering `503` to a caller holding no credentials leaks nothing — a service being unavailable is observable either way.
+
+So while maintenance is on, **every** S3 request gets `503`, authenticated or not.
+
+On the admin path the check runs after authentication and applies only to routes that change stored data:
+
+| Blocked | Open |
+| --- | --- |
+| `POST` / `DELETE /admin/browser/buckets` | every `GET` |
+| `DELETE /admin/browser/objects/…` | `/admin/maintenance/*` |
+| `PUT /admin/browser/bucket-config/…` | `/admin/auth/*` |
+| `POST /admin/browser/upload` | IAM, KMS, storage-class, lifecycle and other settings |
+
+Settings edits stay open deliberately: changing a lifecycle or storage-class policy during a maintenance window is a normal thing to be doing, and blocking it would stop the very work the window was opened for.
+
+## Where the setting lives
+
+In the cluster config store — RocksDB, alongside the other cluster-global settings such as the site-replication config — and it travels to peer API nodes in the config snapshot, the same channel that carries IAM and bucket state.
+
+ZooKeeper would have been the other candidate and is the wrong one: ZooKeeper holds **node state** (membership, leadership, readiness) while **settings** live in RocksDB and replicate through the snapshot. That is the split across every Cloud Chef Labs product.
+
+Three consequences follow, and all three are why it is stored rather than held in memory:
+
+- **It survives an API node restart.** A node restarted during a window reloads the setting from its own store on boot and comes back still refusing traffic.
+- **It survives a full cluster restart.** Every node reloads independently.
+- **A node that joins mid-window picks it up** from the peer snapshot rather than serving traffic because it happened to boot.
+
+Each node also keeps the value in memory as a read cache, because every S3 request consults it and a per-request store read would put the setting in the hot path. The store is the source of truth; the cache is what the request path reads.
+
+## When to use it
 
 | Use it for | Don't use it for |
 | --- | --- |
-| Replacing a failed disk on a data node | Adding a new data node (HRW rebalances automatically) |
-| Draining in-flight uploads before evacuating a node | Adding a new API node (membership is hot) |
-| Cluster-wide KMS rotation steps that require a quiescent dataplane | Single-node restarts (peers absorb the load) |
-| Backup-restore that overwrites IAM/bucket state | Routine config tuning that doesn't change addressing |
-| Investigating data corruption without races against new writes | Anything that completes in under a minute (the SDK back-off would mask it) |
+| Replacing a failed disk on a data node | Adding a data node (HRW rebalances on its own) |
+| Draining in-flight uploads before evacuating a node | Adding an API node (membership is hot) |
+| KMS rotation steps that need a quiet data plane | Single-node restarts (peers absorb the load) |
+| Restoring metadata over live IAM / bucket state | Routine config tuning that does not change addressing |
+| Investigating corruption without racing new writes | Anything finishing inside a minute — SDK back-off hides it anyway |
 
-The right mental model: maintenance mode is *defense* — pause the cluster precisely when you don't want a write landing midway through your action. It is **not** a step in any routine scaling or upgrade procedure.
+The mental model is *defence*: close the cluster exactly when a write landing midway through your action would be a problem. It is not a step in routine scaling or upgrades.
 
-## Activation
+## Turning it on and off
 
-`POST /admin/maintenance/mode` against any API node:
+From the Admin UI, **Cluster Nodes → Enter Maintenance**. A confirmation appears first — it stops S3 for the whole cluster — and a banner stays on screen while the window is open. The banner is amber while the setting is still reaching every node and red once every node reports it, so an operator does not start work during the propagation gap.
+
+Or over REST, against any API node:
 
 ```bash
 TOKEN=$(curl -sf -X POST http://localhost:8888/admin/auth/login \
     -H 'Content-Type: application/json' \
     -d '{"userId":"admin","password":"…"}' \
-    | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+    | python3 -c "import sys,json;print(json.load(sys.stdin)['accessToken'])")
 
-# Enable
+# on
 curl -sf -X POST http://localhost:8888/admin/maintenance/mode \
-    -H "Authorization: Bearer $TOKEN" \
-    -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
     -d '{"enabled":true}'
 
-# Disable
+# off
 curl -sf -X POST http://localhost:8888/admin/maintenance/mode \
-    -H "Authorization: Bearer $TOKEN" \
+    -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
     -d '{"enabled":false}'
 ```
 
-The same toggle is exposed in the Admin UI's cluster overview. Both paths go through `storageService.broadcastMaintenanceMode(enabled)`, which sets the local flag and pushes a `MaintenanceModeChanged` message over the internal NIO channel to every peer API node. Followers flip their own `AtomicBoolean` on receipt — no leader/follower divergence window.
+Both paths call `broadcastMaintenanceMode()`, which writes the setting to the local store and then pushes `TYPE_MAINTENANCE_MODE_REQ` over the internal NIO channel to every peer. Peers write it to their own store on receipt. The broadcast is a latency optimisation — it makes the change visible immediately rather than at the next snapshot sync — and the store is what makes it stick.
+
+!!! note "Wait for every node before starting work"
+    The switch is cluster-wide but applied per node. There is a brief window where one node has it and another does not. Confirm every node agrees before pulling a disk:
+
+    ```bash
+    curl -sf "http://localhost:8888/admin/maintenance/status?targetHost=<node>&targetPort=8888" \
+        -H "Authorization: Bearer $TOKEN"
+    ```
+
+    The Admin UI does this for you — that is what the amber banner means.
 
 ## What clients see
-
-While maintenance is active:
 
 ```
 HTTP/1.1 503 Service Unavailable
@@ -61,92 +105,97 @@ Retry-After: 30
 Content-Length: 0
 ```
 
-AWS SDKs interpret `503 + Retry-After` as a back-off signal and reschedule with the duration the server suggested. With default exponential-backoff settings the retry budget is multi-minute, so a 5-minute maintenance window is invisible to the application other than a flat-line in throughput.
+AWS SDKs read `503` plus `Retry-After` as a back-off signal and reschedule after the interval the server asked for. With default exponential back-off the retry budget runs to several minutes, so a short window shows up in an application as a flat spot in throughput rather than as errors.
 
-The handler returns 503 *before* any auth validation runs. This is intentional: signature validation against a partially-quiescent IAM state during sync would be racy, and there's nothing useful to do for a request the cluster has already decided to defer.
+`Retry-After` is configurable:
 
-## What the dataplane is doing during the window
+```properties
+# How long a client is told to wait before retrying while the cluster is in
+# maintenance mode (seconds). Set it to roughly how long the window usually
+# lasts: too low and clients hammer a cluster that is deliberately closed,
+# too high and they stay away well after it reopens.
+shannonstore.api.maintenance.retry.after.seconds=30
+```
 
-- New PUT / GET / DELETE / multipart requests bounce with 503 immediately.
-- In-flight writes that started *before* the toggle continue to completion — the toggle is checked once per request at dispatch, not per chunk. Operators should briefly wait for the dataplane to quiesce before taking the disruptive action; the typical drain is well under a minute for an idle multi-gigabyte tail.
-- The Bitrot Scrubber pauses (it checks `isMaintenanceMode()` between batches).
-- The Disk Repair Service pauses for the same reason.
-- Background metadata reconciliation pauses.
-- The admin REST and Admin UI remain fully responsive.
+The same value is used for the S3 surface and the admin routes, so a client sees one behaviour whichever door it knocked on.
 
-Nothing on the admin port respects the flag — that's the whole point. The operator needs a working IAM, a working cluster status panel, and a working access-key minter while staring at a quiet dataplane.
+## What happens during the window
 
-## What the dataplane is **not** doing
+- New PUT / GET / DELETE / multipart requests are refused immediately.
+- Requests that were **already in flight** when the switch flipped run to completion — the check happens once per request at dispatch, not per chunk. Wait for the data plane to quiesce before taking the disruptive action; for an idle cluster that is well under a minute.
+- **Background workers keep running.** Disk repair, the bitrot scrubber, rebalance, lifecycle expiry, metadata reconciliation and replication all continue. None of them consults the maintenance switch, by design: they are usually the work the window exists to protect.
+- Admin reads, settings changes, IAM, KMS and `/metrics` continue.
 
-Maintenance mode does not:
+### What it does not do
 
-- **Stop accepting peer membership changes**. A data node joining or leaving during maintenance is handled normally; HRW reshuffles the affected shards.
-- **Force connection drains**. Existing keep-alive TCP connections stay open. The 503 is the answer to the next request on each connection; new connections still get the same answer.
-- **Touch the admin / port 8888 listener**. Verified on every release.
-- **Persist across restarts**. The `AtomicBoolean` is in-memory only — if every API node in the cluster is restarted while in maintenance, the cluster comes back live. Use this carefully: a planned shutdown that intends to come back in maintenance must re-issue the POST immediately after start.
+- **It does not drain connections.** Existing keep-alive TCP connections stay open; the `503` is simply the answer to the next request on each.
+- **It does not stop membership changes.** A data node joining or leaving during the window is handled normally and HRW reshuffles the affected shards.
+- **It does not pause background workers** — see above. To stop a worker, stop that worker: the scrubber, lifecycle scanner, reconciler and replication each have their own enable toggle under `/admin/maintenance/…/enable`.
+- **It does not block settings changes** through the admin console.
 
-## Cluster-wide vs node-local
+## Evacuating a single API node
 
-There is intentionally only one form: cluster-wide. A per-node "drain me out" doesn't exist, because the API tier rebalances around an unhealthy or absent node automatically without any operator signaling.
+There is only one form of the switch: cluster-wide. There is no per-node drain, because the API tier routes around an absent node on its own.
 
-If an operator wants to evacuate a single API node, the right sequence is:
+To take one API node out:
 
-1. **Activate maintenance mode** (cluster-wide) so the data plane briefly pauses.
-2. **Stop the target API node** — peers absorb its keys through the standard membership-change path.
-3. **Deactivate maintenance mode**. Clients resume against the smaller cluster.
-4. **Replace / repair / upgrade** the evacuated node out of band.
-5. **Restart the node**; HRW migrates ownership of the keys it should now hold.
+1. **Turn maintenance on** and wait for every node to report it.
+2. **Stop the target node** — peers pick up its keys through the normal membership path.
+3. **Turn maintenance off.** Clients resume against the smaller cluster.
+4. **Repair or upgrade** the node out of band.
+5. **Start it again**; HRW migrates ownership of the keys it should now hold.
 
-The brief maintenance window in step 1 is purely cosmetic — it makes the transition from N to N-1 nodes a *deliberate* dataplane event rather than a flap of 503s from the single absent node's leftover keys.
+The window in step 1 makes the N → N−1 transition one deliberate pause rather than a scatter of failures from the departing node's leftover keys.
 
-## Coordination with other services
+## Checking the state
 
-| Service | Behaviour while maintenance is on |
-| --- | --- |
-| S3 dispatch (`S3RequestHandler`) | every request → 503 |
-| Bitrot Scrubber | pauses between batches |
-| Disk Repair Service | pauses |
-| Metadata reconciliation sweep | pauses |
-| Backup / Restore | continues — explicit operator action |
-| Admin REST + Admin UI | continues |
-| IAM / bucket-state cluster sync | continues |
-| Prometheus `/metrics` endpoint | continues |
-
-Pausing the background workers is a soft pause — they finish the current batch, then sit out until the flag clears. The pause is not enforced through hard cancellation, so a long-running EC reconstruction in flight when the toggle flips will complete.
-
-## Diagnostics
-
-The toggle's current state is included in the cluster-status JSON returned by `GET /admin/api/cluster/status`:
+```bash
+curl -sf http://localhost:8888/admin/maintenance/status \
+    -H "Authorization: Bearer $TOKEN"
+```
 
 ```json
 {
-  "leaderId":          "…",
-  "apiNodes":          [ … ],
-  "dataNodes":         [ … ],
-  "maintenanceMode":   true,
-  "serverReady":       true,
-  "clusterReady":      true,
-  "timestamp":         1779999999999
+  "maintenanceMode": true,
+  "…": "background task statuses"
 }
 ```
 
-The Admin UI's overview header shows the same value. Log lines on every API node record activation and deactivation:
+Add `?targetHost=<host>&targetPort=<port>` to ask one specific node rather than whichever one answered — that is how you confirm the setting reached the whole cluster.
+
+Every node logs the transition:
 
 ```
-INFO  StorageService - Maintenance mode set to TRUE by admin
-INFO  StorageService - Maintenance mode set to FALSE by admin
+INFO  BucketManager  - Cluster maintenance mode set to: true
+INFO  StorageService - Maintenance mode set to: true
 ```
 
-If a 503 is observed in production and the operator did not flip the toggle, two other paths produce the same status code — both also surface in logs:
+Two lines because two things happened: the setting was written to the store, then the read cache was updated. A node that restores the setting on boot logs it differently:
 
-- `serverReady == false` (cluster has not finished bootstrapping yet) — same 503, no `Retry-After`.
-- Prometheus collection failure path returns 503 from `/metrics` only.
+```
+INFO  StorageService - Maintenance mode restored from persisted config: true
+```
 
-The dataplane's 503 + `Retry-After` is unambiguous: it means maintenance mode.
+Seeing that line after a restart is the confirmation that the window held.
+
+### A 503 you did not ask for
+
+Two other paths answer `503` on the data plane:
+
+- **Not ready yet** — `serverReady` or the cluster-ready flag is false while a node bootstraps or a leader transition completes. Distinguishable by its shorter `Retry-After`.
+- **A reverse proxy with no live upstream.** nginx answers `502` rather than `503`, but it is worth knowing about when diagnosing a cluster under load.
+
+If the response carries the configured maintenance `Retry-After`, it is maintenance mode. Check `/admin/maintenance/status` to be sure.
+
+## Verifying it
+
+`tests/test-maintenance-mode-e2e.sh` in the product repository exercises the whole cycle on a compose cluster: a signed S3 round-trip before the window, refusal during it — including the admin routes — **an API node restarted mid-window still refusing**, a signed round-trip again afterwards, and the object written before the window reading back byte-for-byte.
+
+The restart is the part that matters. A test without it passes just as happily against an implementation that keeps the switch only in memory.
 
 ## See also
 
-- [Cluster Operations](../operations/operations.md) — the operational runbook that uses maintenance mode in disruptive procedures.
-- [Disk Repair Service](disk-repair.md) — one of the workers that pauses while the flag is on.
-- [Data Integrity](data-integrity.md) — the Bitrot Scrubber lifecycle that respects the same flag.
-- [Authentication & Authorization](auth-authz.md) — the admin token flow that's still required to flip the toggle.
+- [Cluster Operations](../operations/operations.md) — the runbook that uses maintenance mode in disruptive procedures.
+- [Disk Repair Service](disk-repair.md) — a worker that keeps running during a window.
+- [Data Integrity](data-integrity.md) — the bitrot scrubber, which has its own enable toggle.
+- [Authentication & Authorization](auth-authz.md) — the admin token flow needed to flip the switch.

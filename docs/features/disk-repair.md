@@ -77,7 +77,9 @@ A naive rebuild of a failed multi-terabyte disk would saturate every other disk 
 
 `repair.max.concurrent` is the primary lever: lower it to protect client throughput (accepting a longer window of partial under-replication), raise it to shorten the rebuild window at the cost of more dataplane contention.
 
-Repairs **pause** when maintenance mode is active — the operator likely flipped maintenance precisely to perform the kind of work that would interfere with repair.
+Repairs **keep running** while [maintenance mode](maintenance.md) is active, and that is deliberate: maintenance closes the cluster to clients so that work like this can proceed without writes landing in the middle of it. Pausing repair during the window would invert the intent.
+
+To stop repair specifically, stop repair — it has its own control at `POST /admin/maintenance/repair/trigger` and the scheduled cycle is governed by its own interval setting, independent of maintenance mode.
 
 ## Grace period
 
