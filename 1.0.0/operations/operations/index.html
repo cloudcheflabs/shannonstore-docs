@@ -1823,7 +1823,10 @@
 <h2 id="maintenance-operations">Maintenance Operations</h2>
 <p>The admin UI exposes operational actions under the <strong>Nodes</strong> page. They are all admin-authenticated and proxy to the targeted node.</p>
 <h3 id="maintenance-mode">Maintenance Mode</h3>
-<p>Toggling <strong>Maintenance Mode</strong> rejects new S3 writes cluster-wide while allowing reads, in-flight requests to drain, and internal RPCs to continue. Use it before invasive operations like scheduled disk replacement or evacuating a node — but <strong>not</strong> for adding/removing API or data nodes, which the cluster handles automatically without a maintenance window.</p>
+<p>Toggling <strong>Maintenance Mode</strong> refuses <strong>every</strong> S3 request cluster-wide — reads as well as writes, authenticated or anonymous — with <code>503</code> and a <code>Retry-After</code>. Requests already in flight run to completion, internal RPCs continue, and background work (disk repair, scrubber, rebalance, lifecycle) keeps running: closing the cluster to clients is what gives that work a quiet window.</p>
+<p>Data-changing admin routes are refused too, so the object browser cannot delete objects behind your back. Admin reads, settings edits and the maintenance switch itself stay open.</p>
+<p>The setting is stored, not held in memory, so an API node restarted mid-window comes back still refusing traffic.</p>
+<p>Use it before invasive operations like scheduled disk replacement or evacuating a node — but <strong>not</strong> for adding or removing API/data nodes, which the cluster handles on its own without a window.</p>
 <p>See <a href="../../features/maintenance/">Maintenance Mode</a>.</p>
 <h3 id="reconciliation-sweep">Reconciliation Sweep</h3>
 <p>After a node is added or removed, ownership shifts and some keys' previous owners are no longer responsible for them. A periodic sweep (off by default; toggle from the admin UI) drops those stale local copies after verifying the current owner has the same-or-newer copy. Equivalent to Cassandra's <code>nodetool cleanup</code>.</p>

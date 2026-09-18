@@ -1314,10 +1314,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#when-to-use" class="md-nav__link">
+  <a href="#where-the-switch-is-checked" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When to use
+        Where the switch is checked
       
     </span>
   </a>
@@ -1325,10 +1325,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#activation" class="md-nav__link">
+  <a href="#where-the-setting-lives" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Activation
+        Where the setting lives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to use it
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#turning-it-on-and-off" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Turning it on and off
       
     </span>
   </a>
@@ -1347,10 +1369,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-the-dataplane-is-doing-during-the-window" class="md-nav__link">
+  <a href="#what-happens-during-the-window" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What the dataplane is doing during the window
+        What happens during the window
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="What happens during the window">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-it-does-not-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it does not do
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evacuating-a-single-api-node" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evacuating a single API node
       
     </span>
   </a>
@@ -1358,43 +1408,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-the-dataplane-is-not-doing" class="md-nav__link">
+  <a href="#checking-the-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What the dataplane is not doing
+        Checking the state
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Checking the state">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-503-you-did-not-ask-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A 503 you did not ask for
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#cluster-wide-vs-node-local" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Cluster-wide vs node-local
-      
-    </span>
-  </a>
+        
+      </ul>
+    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#coordination-with-other-services" class="md-nav__link">
+  <a href="#verifying-it" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Coordination with other services
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#diagnostics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Diagnostics
+        Verifying it
       
     </span>
   </a>
@@ -1645,18 +1690,61 @@
 
 
 <h1 id="maintenance-mode">Maintenance Mode</h1>
-<p>Maintenance mode is a single cluster-wide toggle that tells every API node "shed S3 client load now". When active, the data plane on port <code>:8080</code> responds to every S3 request with <code>503 Service Unavailable</code> and <code>Retry-After: 30</code>; well-behaved SDKs back off and the operator gets a stable, in-flight-only window to perform disruptive work. The admin plane on <code>:8888</code> is <strong>not</strong> affected — operator tooling, monitoring, and cross-product credential sweepers keep working.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   Client     ┌──────────────────────────────────┐     Admin
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   ──────────►│  API node (maintenance = true)   │◄──────────
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   :8080      │                                  │     :8888
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>              │   if (maintenanceMode):           │
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>              │     return 503 + Retry-After:30  │
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>              │   else:                          │
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>              │     dispatch normally            │
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>              └──────────────────────────────────┘
+<p>Maintenance mode is a cluster-wide switch that stops ShannonStore serving client traffic, so an operator can replace a disk, rebalance, or restore metadata without writes landing in the middle of the work.</p>
+<p>While it is on, the S3 surface on <code>:8080</code> answers every request with <code>503 Service Unavailable</code> and a <code>Retry-After</code> header, and the admin console's <strong>data-changing</strong> routes answer the same. Reads, settings, and the maintenance switch itself stay open — the operator has to be able to watch progress and turn the window off again.</p>
+<p>Background work — disk repair, the bitrot scrubber, rebalance, lifecycle expiry — <strong>keeps running</strong>. That is the point of the window, not something it suspends.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   S3 client   ┌───────────────────────────────────────┐   Admin console
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   ───────────►│  API node  (maintenance = true)       │◄──────────────
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   :8080       │                                       │   :8888
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>               │   S3 request          → 503 Retry-After
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>               │   admin data write    → 503 Retry-After
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>               │   admin read/settings → served        │
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>               │   background workers  → still running │
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>               └───────────────────────────────────────┘
 </code></pre></div>
-<p><code>S3RequestHandler</code> checks maintenance mode early, but not before every other gate: the cluster-ready check (self/cluster not yet initialized → <code>503</code> with no <code>Retry-After</code>) and the CORS-preflight / <code>Authorization</code>-header-presence gate (a request with no header and no matching anonymous bucket policy still gets <code>401 Unauthorized</code>) both run first. Maintenance mode is checked immediately after that — before SigV4/SigV2 signature verification, access-key validation, or dispatch — so a request that <em>does</em> carry some form of authorization is turned away with <code>503</code> before its signature is ever checked. The mode is a single in-memory <code>AtomicBoolean</code> flipped via the admin REST and broadcast to every peer API node, so a <code>true</code> value on the leader is visible everywhere within the IAM/bucket sync round-trip.</p>
-<h2 id="when-to-use">When to use</h2>
+<h2 id="where-the-switch-is-checked">Where the switch is checked</h2>
+<p>On the S3 path it is the <strong>first</strong> gate after the cluster-ready check — before CORS preflight, before the <code>Authorization</code> header check, before anonymous bucket-policy evaluation, and before any signature verification.</p>
+<p>That ordering matters. It used to sit below the auth gate, which meant an anonymous read of a public bucket was served by the anonymous path before the check was ever reached: a repair would be racing reads it believed had stopped. Answering <code>503</code> to a caller holding no credentials leaks nothing — a service being unavailable is observable either way.</p>
+<p>So while maintenance is on, <strong>every</strong> S3 request gets <code>503</code>, authenticated or not.</p>
+<p>On the admin path the check runs after authentication and applies only to routes that change stored data:</p>
+<table>
+<thead>
+<tr>
+<th>Blocked</th>
+<th>Open</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST</code> / <code>DELETE /admin/browser/buckets</code></td>
+<td>every <code>GET</code></td>
+</tr>
+<tr>
+<td><code>DELETE /admin/browser/objects/…</code></td>
+<td><code>/admin/maintenance/*</code></td>
+</tr>
+<tr>
+<td><code>PUT /admin/browser/bucket-config/…</code></td>
+<td><code>/admin/auth/*</code></td>
+</tr>
+<tr>
+<td><code>POST /admin/browser/upload</code></td>
+<td>IAM, KMS, storage-class, lifecycle and other settings</td>
+</tr>
+</tbody>
+</table>
+<p>Settings edits stay open deliberately: changing a lifecycle or storage-class policy during a maintenance window is a normal thing to be doing, and blocking it would stop the very work the window was opened for.</p>
+<h2 id="where-the-setting-lives">Where the setting lives</h2>
+<p>In the cluster config store — RocksDB, alongside the other cluster-global settings such as the site-replication config — and it travels to peer API nodes in the config snapshot, the same channel that carries IAM and bucket state.</p>
+<p>ZooKeeper would have been the other candidate and is the wrong one: ZooKeeper holds <strong>node state</strong> (membership, leadership, readiness) while <strong>settings</strong> live in RocksDB and replicate through the snapshot. That is the split across every Cloud Chef Labs product.</p>
+<p>Three consequences follow, and all three are why it is stored rather than held in memory:</p>
+<ul>
+<li><strong>It survives an API node restart.</strong> A node restarted during a window reloads the setting from its own store on boot and comes back still refusing traffic.</li>
+<li><strong>It survives a full cluster restart.</strong> Every node reloads independently.</li>
+<li><strong>A node that joins mid-window picks it up</strong> from the peer snapshot rather than serving traffic because it happened to boot.</li>
+</ul>
+<p>Each node also keeps the value in memory as a read cache, because every S3 request consults it and a per-request store read would put the setting in the hot path. The store is the source of truth; the cache is what the request path reads.</p>
+<h2 id="when-to-use-it">When to use it</h2>
 <table>
 <thead>
 <tr>
@@ -1667,155 +1755,127 @@
 <tbody>
 <tr>
 <td>Replacing a failed disk on a data node</td>
-<td>Adding a new data node (HRW rebalances automatically)</td>
+<td>Adding a data node (HRW rebalances on its own)</td>
 </tr>
 <tr>
 <td>Draining in-flight uploads before evacuating a node</td>
-<td>Adding a new API node (membership is hot)</td>
+<td>Adding an API node (membership is hot)</td>
 </tr>
 <tr>
-<td>Cluster-wide KMS rotation steps that require a quiescent dataplane</td>
+<td>KMS rotation steps that need a quiet data plane</td>
 <td>Single-node restarts (peers absorb the load)</td>
 </tr>
 <tr>
-<td>Backup-restore that overwrites IAM/bucket state</td>
-<td>Routine config tuning that doesn't change addressing</td>
+<td>Restoring metadata over live IAM / bucket state</td>
+<td>Routine config tuning that does not change addressing</td>
 </tr>
 <tr>
-<td>Investigating data corruption without races against new writes</td>
-<td>Anything that completes in under a minute (the SDK back-off would mask it)</td>
+<td>Investigating corruption without racing new writes</td>
+<td>Anything finishing inside a minute — SDK back-off hides it anyway</td>
 </tr>
 </tbody>
 </table>
-<p>The right mental model: maintenance mode is <em>defense</em> — pause the cluster precisely when you don't want a write landing midway through your action. It is <strong>not</strong> a step in any routine scaling or upgrade procedure.</p>
-<h2 id="activation">Activation</h2>
-<p><code>POST /admin/maintenance/mode</code> against any API node:</p>
+<p>The mental model is <em>defence</em>: close the cluster exactly when a write landing midway through your action would be a problem. It is not a step in routine scaling or upgrades.</p>
+<h2 id="turning-it-on-and-off">Turning it on and off</h2>
+<p>From the Admin UI, <strong>Cluster Nodes → Enter Maintenance</strong>. A confirmation appears first — it stops S3 for the whole cluster — and a banner stays on screen while the window is open. The banner is amber while the setting is still reaching every node and red once every node reports it, so an operator does not start work during the propagation gap.</p>
+<p>Or over REST, against any API node:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">TOKEN</span><span class="o">=</span><span class="k">$(</span>curl<span class="w"> </span>-sf<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8888/admin/auth/login<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>-H<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;userId&quot;:&quot;admin&quot;,&quot;password&quot;:&quot;…&quot;}&#39;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="p">|</span><span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import sys,json;print(json.load(sys.stdin)[&#39;token&#39;])&quot;</span><span class="k">)</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="p">|</span><span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import sys,json;print(json.load(sys.stdin)[&#39;accessToken&#39;])&quot;</span><span class="k">)</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># Enable</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># on</span>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>curl<span class="w"> </span>-sf<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8888/admin/maintenance/mode<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span>-H<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;enabled&quot;:true}&#39;</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="c1"># Disable</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>curl<span class="w"> </span>-sf<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8888/admin/maintenance/mode<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;enabled&quot;:false}&#39;</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;enabled&quot;:true}&#39;</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># off</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>curl<span class="w"> </span>-sf<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8888/admin/maintenance/mode<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{&quot;enabled&quot;:false}&#39;</span>
 </code></pre></div>
-<p>The same toggle is exposed in the Admin UI's cluster overview. Both paths go through <code>storageService.broadcastMaintenanceMode(enabled)</code>, which sets the local flag and pushes a <code>MaintenanceModeChanged</code> message over the internal NIO channel to every peer API node. Followers flip their own <code>AtomicBoolean</code> on receipt — no leader/follower divergence window.</p>
+<p>Both paths call <code>broadcastMaintenanceMode()</code>, which writes the setting to the local store and then pushes <code>TYPE_MAINTENANCE_MODE_REQ</code> over the internal NIO channel to every peer. Peers write it to their own store on receipt. The broadcast is a latency optimisation — it makes the change visible immediately rather than at the next snapshot sync — and the store is what makes it stick.</p>
+<div class="admonition note">
+<p class="admonition-title">Wait for every node before starting work</p>
+<p>The switch is cluster-wide but applied per node. There is a brief window where one node has it and another does not. Confirm every node agrees before pulling a disk:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-sf<span class="w"> </span><span class="s2">&quot;http://localhost:8888/admin/maintenance/status?targetHost=&lt;node&gt;&amp;targetPort=8888&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span>
+</code></pre></div>
+<p>The Admin UI does this for you — that is what the amber banner means.</p>
+</div>
 <h2 id="what-clients-see">What clients see</h2>
-<p>While maintenance is active:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>HTTP/1.1 503 Service Unavailable
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>Retry-After: 30
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>Content-Length: 0
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>HTTP/1.1 503 Service Unavailable
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>Retry-After: 30
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>Content-Length: 0
 </code></pre></div>
-<p>AWS SDKs interpret <code>503 + Retry-After</code> as a back-off signal and reschedule with the duration the server suggested. With default exponential-backoff settings the retry budget is multi-minute, so a 5-minute maintenance window is invisible to the application other than a flat-line in throughput.</p>
-<p>The handler returns 503 <em>before</em> any auth validation runs. This is intentional: signature validation against a partially-quiescent IAM state during sync would be racy, and there's nothing useful to do for a request the cluster has already decided to defer.</p>
-<h2 id="what-the-dataplane-is-doing-during-the-window">What the dataplane is doing during the window</h2>
+<p>AWS SDKs read <code>503</code> plus <code>Retry-After</code> as a back-off signal and reschedule after the interval the server asked for. With default exponential back-off the retry budget runs to several minutes, so a short window shows up in an application as a flat spot in throughput rather than as errors.</p>
+<p><code>Retry-After</code> is configurable:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># How long a client is told to wait before retrying while the cluster is in</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># maintenance mode (seconds). Set it to roughly how long the window usually</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># lasts: too low and clients hammer a cluster that is deliberately closed,</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># too high and they stay away well after it reopens.</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="na">shannonstore.api.maintenance.retry.after.seconds</span><span class="o">=</span><span class="s">30</span>
+</code></pre></div>
+<p>The same value is used for the S3 surface and the admin routes, so a client sees one behaviour whichever door it knocked on.</p>
+<h2 id="what-happens-during-the-window">What happens during the window</h2>
 <ul>
-<li>New PUT / GET / DELETE / multipart requests bounce with 503 immediately.</li>
-<li>In-flight writes that started <em>before</em> the toggle continue to completion — the toggle is checked once per request at dispatch, not per chunk. Operators should briefly wait for the dataplane to quiesce before taking the disruptive action; the typical drain is well under a minute for an idle multi-gigabyte tail.</li>
-<li>The Bitrot Scrubber pauses (it checks <code>isMaintenanceMode()</code> between batches).</li>
-<li>The Disk Repair Service pauses for the same reason.</li>
-<li>Background metadata reconciliation pauses.</li>
-<li>The admin REST and Admin UI remain fully responsive.</li>
+<li>New PUT / GET / DELETE / multipart requests are refused immediately.</li>
+<li>Requests that were <strong>already in flight</strong> when the switch flipped run to completion — the check happens once per request at dispatch, not per chunk. Wait for the data plane to quiesce before taking the disruptive action; for an idle cluster that is well under a minute.</li>
+<li><strong>Background workers keep running.</strong> Disk repair, the bitrot scrubber, rebalance, lifecycle expiry, metadata reconciliation and replication all continue. None of them consults the maintenance switch, by design: they are usually the work the window exists to protect.</li>
+<li>Admin reads, settings changes, IAM, KMS and <code>/metrics</code> continue.</li>
 </ul>
-<p>Nothing on the admin port respects the flag — that's the whole point. The operator needs a working IAM, a working cluster status panel, and a working access-key minter while staring at a quiet dataplane.</p>
-<h2 id="what-the-dataplane-is-not-doing">What the dataplane is <strong>not</strong> doing</h2>
-<p>Maintenance mode does not:</p>
+<h3 id="what-it-does-not-do">What it does not do</h3>
 <ul>
-<li><strong>Stop accepting peer membership changes</strong>. A data node joining or leaving during maintenance is handled normally; HRW reshuffles the affected shards.</li>
-<li><strong>Force connection drains</strong>. Existing keep-alive TCP connections stay open. The 503 is the answer to the next request on each connection; new connections still get the same answer.</li>
-<li><strong>Touch the admin / port 8888 listener</strong>. Verified on every release.</li>
-<li><strong>Persist across restarts</strong>. The <code>AtomicBoolean</code> is in-memory only — if every API node in the cluster is restarted while in maintenance, the cluster comes back live. Use this carefully: a planned shutdown that intends to come back in maintenance must re-issue the POST immediately after start.</li>
+<li><strong>It does not drain connections.</strong> Existing keep-alive TCP connections stay open; the <code>503</code> is simply the answer to the next request on each.</li>
+<li><strong>It does not stop membership changes.</strong> A data node joining or leaving during the window is handled normally and HRW reshuffles the affected shards.</li>
+<li><strong>It does not pause background workers</strong> — see above. To stop a worker, stop that worker: the scrubber, lifecycle scanner, reconciler and replication each have their own enable toggle under <code>/admin/maintenance/…/enable</code>.</li>
+<li><strong>It does not block settings changes</strong> through the admin console.</li>
 </ul>
-<h2 id="cluster-wide-vs-node-local">Cluster-wide vs node-local</h2>
-<p>There is intentionally only one form: cluster-wide. A per-node "drain me out" doesn't exist, because the API tier rebalances around an unhealthy or absent node automatically without any operator signaling.</p>
-<p>If an operator wants to evacuate a single API node, the right sequence is:</p>
+<h2 id="evacuating-a-single-api-node">Evacuating a single API node</h2>
+<p>There is only one form of the switch: cluster-wide. There is no per-node drain, because the API tier routes around an absent node on its own.</p>
+<p>To take one API node out:</p>
 <ol>
-<li><strong>Activate maintenance mode</strong> (cluster-wide) so the data plane briefly pauses.</li>
-<li><strong>Stop the target API node</strong> — peers absorb its keys through the standard membership-change path.</li>
-<li><strong>Deactivate maintenance mode</strong>. Clients resume against the smaller cluster.</li>
-<li><strong>Replace / repair / upgrade</strong> the evacuated node out of band.</li>
-<li><strong>Restart the node</strong>; HRW migrates ownership of the keys it should now hold.</li>
+<li><strong>Turn maintenance on</strong> and wait for every node to report it.</li>
+<li><strong>Stop the target node</strong> — peers pick up its keys through the normal membership path.</li>
+<li><strong>Turn maintenance off.</strong> Clients resume against the smaller cluster.</li>
+<li><strong>Repair or upgrade</strong> the node out of band.</li>
+<li><strong>Start it again</strong>; HRW migrates ownership of the keys it should now hold.</li>
 </ol>
-<p>The brief maintenance window in step 1 is purely cosmetic — it makes the transition from N to N-1 nodes a <em>deliberate</em> dataplane event rather than a flap of 503s from the single absent node's leftover keys.</p>
-<h2 id="coordination-with-other-services">Coordination with other services</h2>
-<table>
-<thead>
-<tr>
-<th>Service</th>
-<th>Behaviour while maintenance is on</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>S3 dispatch (<code>S3RequestHandler</code>)</td>
-<td>every request → 503</td>
-</tr>
-<tr>
-<td>Bitrot Scrubber</td>
-<td>pauses between batches</td>
-</tr>
-<tr>
-<td>Disk Repair Service</td>
-<td>pauses</td>
-</tr>
-<tr>
-<td>Metadata reconciliation sweep</td>
-<td>pauses</td>
-</tr>
-<tr>
-<td>Backup / Restore</td>
-<td>continues — explicit operator action</td>
-</tr>
-<tr>
-<td>Admin REST + Admin UI</td>
-<td>continues</td>
-</tr>
-<tr>
-<td>IAM / bucket-state cluster sync</td>
-<td>continues</td>
-</tr>
-<tr>
-<td>Prometheus <code>/metrics</code> endpoint</td>
-<td>continues</td>
-</tr>
-</tbody>
-</table>
-<p>Pausing the background workers is a soft pause — they finish the current batch, then sit out until the flag clears. The pause is not enforced through hard cancellation, so a long-running EC reconstruction in flight when the toggle flips will complete.</p>
-<h2 id="diagnostics">Diagnostics</h2>
-<p>The toggle's current state is included in the cluster-status JSON returned by <code>GET /admin/api/cluster/status</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;leaderId&quot;</span><span class="p">:</span><span class="w">          </span><span class="s2">&quot;…&quot;</span><span class="p">,</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">&quot;apiNodes&quot;</span><span class="p">:</span><span class="w">          </span><span class="p">[</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">],</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">&quot;dataNodes&quot;</span><span class="p">:</span><span class="w">         </span><span class="p">[</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">],</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="nt">&quot;maintenanceMode&quot;</span><span class="p">:</span><span class="w">   </span><span class="kc">true</span><span class="p">,</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">&quot;serverReady&quot;</span><span class="p">:</span><span class="w">       </span><span class="kc">true</span><span class="p">,</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="nt">&quot;clusterReady&quot;</span><span class="p">:</span><span class="w">      </span><span class="kc">true</span><span class="p">,</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w">         </span><span class="mi">1779999999999</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">}</span>
+<p>The window in step 1 makes the N → N−1 transition one deliberate pause rather than a scatter of failures from the departing node's leftover keys.</p>
+<h2 id="checking-the-state">Checking the state</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>curl<span class="w"> </span>-sf<span class="w"> </span>http://localhost:8888/admin/maintenance/status<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">&quot;</span>
 </code></pre></div>
-<p>The Admin UI's overview header shows the same value. Log lines on every API node record activation and deactivation:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>INFO  StorageService - Maintenance mode set to TRUE by admin
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>INFO  StorageService - Maintenance mode set to FALSE by admin
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">&quot;maintenanceMode&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">&quot;…&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;background task statuses&quot;</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">}</span>
 </code></pre></div>
-<p>If a 503 is observed in production and the operator did not flip the toggle, two other paths produce the same status code — both also surface in logs:</p>
+<p>Add <code>?targetHost=&lt;host&gt;&amp;targetPort=&lt;port&gt;</code> to ask one specific node rather than whichever one answered — that is how you confirm the setting reached the whole cluster.</p>
+<p>Every node logs the transition:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>INFO  BucketManager  - Cluster maintenance mode set to: true
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>INFO  StorageService - Maintenance mode set to: true
+</code></pre></div>
+<p>Two lines because two things happened: the setting was written to the store, then the read cache was updated. A node that restores the setting on boot logs it differently:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>INFO  StorageService - Maintenance mode restored from persisted config: true
+</code></pre></div>
+<p>Seeing that line after a restart is the confirmation that the window held.</p>
+<h3 id="a-503-you-did-not-ask-for">A 503 you did not ask for</h3>
+<p>Two other paths answer <code>503</code> on the data plane:</p>
 <ul>
-<li><code>serverReady == false</code> (cluster has not finished bootstrapping yet) — same 503, no <code>Retry-After</code>.</li>
-<li>Prometheus collection failure path returns 503 from <code>/metrics</code> only.</li>
+<li><strong>Not ready yet</strong> — <code>serverReady</code> or the cluster-ready flag is false while a node bootstraps or a leader transition completes. Distinguishable by its shorter <code>Retry-After</code>.</li>
+<li><strong>A reverse proxy with no live upstream.</strong> nginx answers <code>502</code> rather than <code>503</code>, but it is worth knowing about when diagnosing a cluster under load.</li>
 </ul>
-<p>The dataplane's 503 + <code>Retry-After</code> is unambiguous: it means maintenance mode.</p>
+<p>If the response carries the configured maintenance <code>Retry-After</code>, it is maintenance mode. Check <code>/admin/maintenance/status</code> to be sure.</p>
+<h2 id="verifying-it">Verifying it</h2>
+<p><code>tests/test-maintenance-mode-e2e.sh</code> in the product repository exercises the whole cycle on a compose cluster: a signed S3 round-trip before the window, refusal during it — including the admin routes — <strong>an API node restarted mid-window still refusing</strong>, a signed round-trip again afterwards, and the object written before the window reading back byte-for-byte.</p>
+<p>The restart is the part that matters. A test without it passes just as happily against an implementation that keeps the switch only in memory.</p>
 <h2 id="see-also">See also</h2>
 <ul>
-<li><a href="../../operations/operations/">Cluster Operations</a> — the operational runbook that uses maintenance mode in disruptive procedures.</li>
-<li><a href="../disk-repair/">Disk Repair Service</a> — one of the workers that pauses while the flag is on.</li>
-<li><a href="../data-integrity/">Data Integrity</a> — the Bitrot Scrubber lifecycle that respects the same flag.</li>
-<li><a href="../auth-authz/">Authentication &amp; Authorization</a> — the admin token flow that's still required to flip the toggle.</li>
+<li><a href="../../operations/operations/">Cluster Operations</a> — the runbook that uses maintenance mode in disruptive procedures.</li>
+<li><a href="../disk-repair/">Disk Repair Service</a> — a worker that keeps running during a window.</li>
+<li><a href="../data-integrity/">Data Integrity</a> — the bitrot scrubber, which has its own enable toggle.</li>
+<li><a href="../auth-authz/">Authentication &amp; Authorization</a> — the admin token flow needed to flip the switch.</li>
 </ul>
 
 
