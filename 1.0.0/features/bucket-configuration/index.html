@@ -854,6 +854,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#configurations-that-are-stored-but-not-acted-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configurations that are stored but not acted on
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#cluster-consistency-leader-routed-writes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1726,8 +1737,8 @@
 <h1 id="bucket-configuration-policy-cors-lifecycle-tagging">Bucket Configuration (Policy, CORS, Lifecycle, Tagging)</h1>
 <p>ShannonStore implements the S3 bucket-configuration subresources as <strong>first-class,
 persisted, cluster-consistent</strong> features — not the silent compatibility stubs they
-once were. Four configuration surfaces are supported, each with the canonical S3
-wire format (so <code>aws s3api</code>, boto3, and the MinIO client work unchanged):</p>
+once were. Each uses the canonical S3 wire format, so <code>aws s3api</code>, boto3, and the
+MinIO client work unchanged:</p>
 <table>
 <thead>
 <tr>
@@ -1751,6 +1762,16 @@ wire format (so <code>aws s3api</code>, boto3, and the MinIO client work unchang
 <td><code>?lifecycle</code></td>
 <td><strong>Object Lifecycle (ILM)</strong> — typed <code>LifecyclePolicy</code>, expiration + abort-incomplete-MPU</td>
 <td>typed model, per bucket</td>
+</tr>
+<tr>
+<td><code>?notification</code></td>
+<td><strong>Event notifications</strong> — maps S3's per-bucket XML onto the cluster rule set</td>
+<td>rules, cluster-wide</td>
+</tr>
+<tr>
+<td><code>?encryption</code> / <code>?publicAccessBlock</code> / <code>?ownershipControls</code> / <code>?website</code> / <code>?logging</code></td>
+<td>stored and replicated as sent</td>
+<td>raw XML, per bucket</td>
 </tr>
 <tr>
 <td><code>?replication</code></td>
@@ -2054,6 +2075,21 @@ site replication (active-active across clusters).</p>
 <a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="na">shannonstore.api.replication.scan.interval.ms</span><span class="o">=</span><span class="s">60000 # re-attempt cadence</span>
 </code></pre></div>
 <hr />
+<h2 id="configurations-that-are-stored-but-not-acted-on">Configurations that are stored but not acted on</h2>
+<p><code>?encryption</code>, <code>?publicAccessBlock</code>, <code>?ownershipControls</code> and <code>?website</code> are
+persisted, replicated and handed back exactly as the client sent them. Nothing in
+ShannonStore currently acts on their contents.</p>
+<p>They are stored as the original XML rather than parsed into a model on purpose. A
+parser that dropped the fields it did not understand would return something
+different from what was stored, and a client reading its own configuration back
+and finding it changed has no way to tell a storage bug from a policy decision.
+Keeping the document intact means a round-trip is always faithful.</p>
+<p><code>?logging</code> behaves slightly differently on read: when nothing is configured it
+answers <code>200</code> with an empty <code>BucketLoggingStatus</code> rather than a <code>404</code>, because
+logging-off is a valid state and SDKs treat a 404 here as an error.</p>
+<p><code>?policyStatus</code> is not stored at all — <code>&lt;IsPublic&gt;</code> is derived from the bucket
+policy on each call. A stored answer and the policy can disagree, and the policy
+is what actually decides.</p>
 <h2 id="cluster-consistency-leader-routed-writes">Cluster consistency (leader-routed writes)</h2>
 <p>Bucket configuration is <strong>leader-owned state</strong>, just like IAM and bucket ACLs. A
 write that lands on any API node is applied authoritatively on the leader and

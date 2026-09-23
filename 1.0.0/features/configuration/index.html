@@ -2062,6 +2062,26 @@
 <td>Objects ≤ this content-length take the single-shot in-memory path; larger ones take the streaming/multi-segment path.</td>
 </tr>
 <tr>
+<td><code>shannonstore.api.s3.select.max.object.bytes</code></td>
+<td><code>134217728</code> (128 MiB)</td>
+<td>Largest object <a href="../s3-compatible-api/#s3-select">SelectObjectContent</a> will scan. A Select reads the whole object into memory to evaluate over it; a larger object is refused with <code>ObjectTooLarge</code> rather than attempted.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.select.max.record.bytes</code></td>
+<td><code>1048576</code> (1 MiB)</td>
+<td>Longest single record (one CSV line, one JSON value) a Select will accept. Keeps a file with no line breaks &mdash; a truncated upload, a generated one-line file &mdash; from turning one request into an allocation the size of the object.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.select.max.fields</code></td>
+<td><code>4096</code></td>
+<td>Most fields one record may have before it is treated as malformed. Bounds CSV splitting: a line of nothing but delimiters would otherwise produce one list entry per byte.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.maintenance.retry.after.seconds</code></td>
+<td><code>30</code></td>
+<td><code>Retry-After</code> sent with the <code>503</code> a request gets while the cluster is in <a href="../maintenance/">maintenance mode</a>. Set it to roughly how long a window usually lasts: too low and clients hammer a cluster that is deliberately closed, too high and they stay away well after it reopens.</td>
+</tr>
+<tr>
 <td><code>shannonstore.api.s3.multipart.segment.size</code></td>
 <td><code>16777216</code> (16 MiB)</td>
 <td>Segment size for the multi-segment upload path on large objects. Smaller values reduce range amplification on later Range GETs.</td>

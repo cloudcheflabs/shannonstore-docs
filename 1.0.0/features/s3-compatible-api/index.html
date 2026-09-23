@@ -753,6 +753,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#acls-and-what-is-refused-rather-than-ignored" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ACLs, and what is refused rather than ignored
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -839,6 +850,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Content-MD5 enforcement">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#additional-checksums" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional checksums
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conditional-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conditional requests
+      
+    </span>
+  </a>
+  
 </li>
       
         <li class="md-nav__item">
@@ -871,6 +910,78 @@
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#s3-select" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S3 Select
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="S3 Select">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formats
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-accepted-sql" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The accepted SQL
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-it-is-this-small" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why it is this small
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Response
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1800,6 +1911,31 @@
 <td><code>POST /&lt;bucket&gt;?delete</code></td>
 <td>Bulk delete payload in XML body — returns per-key <code>Deleted</code> and <code>Error</code> rows.</td>
 </tr>
+<tr>
+<td><strong>PostObject (browser form upload)</strong></td>
+<td><code>POST /&lt;bucket&gt;</code> with <code>multipart/form-data</code></td>
+<td>The one S3 write a browser can make without an SDK. <code>${filename}</code> in the <code>key</code> field is expanded, and <code>success_action_status</code> chooses 200/201/204. The request is authorized the same way every other write is — the form's policy and signature fields are not evaluated, so an unsigned browser post is rejected earlier as unauthenticated.</td>
+</tr>
+<tr>
+<td><strong>RestoreObject</strong></td>
+<td><code>POST /&lt;bucket&gt;/&lt;key&gt;?restore</code></td>
+<td>Brings a tiered object back to hot storage for a requested number of days. See <a href="../storage-classes-tiering/">Storage Classes &amp; Tiering</a>.</td>
+</tr>
+<tr>
+<td><strong>GetObjectAttributes</strong></td>
+<td><code>GET /&lt;bucket&gt;/&lt;key&gt;?attributes</code></td>
+<td><code>ETag</code>, <code>ObjectSize</code> and <code>StorageClass</code>, honouring <code>x-amz-object-attributes</code>. Fields this server does not compute are omitted rather than invented — a fabricated checksum would give a comparing client a false match.</td>
+</tr>
+<tr>
+<td><strong>GetObjectAcl</strong></td>
+<td><code>GET /&lt;bucket&gt;/&lt;key&gt;?acl</code></td>
+<td>Synthesises an owner <code>FULL_CONTROL</code> grant; see the ACL note below.</td>
+</tr>
+<tr>
+<td><strong>SelectObjectContent</strong></td>
+<td><code>POST /&lt;bucket&gt;/&lt;key&gt;?select&amp;select-type=2</code></td>
+<td>SQL over a single object, CSV or JSON. See <a href="#s3-select">S3 Select</a>.</td>
+</tr>
 </tbody>
 </table>
 <h3 id="multipart-upload">Multipart upload</h3>
@@ -1961,12 +2097,87 @@ detailed behaviour, evaluation rules, and examples:</p>
 <td>—</td>
 <td>See <a href="../worm/">Object Lock (WORM)</a>.</td>
 </tr>
+<tr>
+<td><code>?notification</code></td>
+<td>persist rules for this bucket</td>
+<td>return this bucket's rules</td>
+<td>—</td>
+<td>Maps S3's per-bucket XML onto the cluster-wide rule set described in <a href="../event-notifications/">Event Notifications</a>. A destination naming no configured target is <strong>refused</strong>, not stored — such a rule silently drops every event it matches. Rules scoped <code>bucket="*"</code> are not returned here: they are not this bucket's configuration, and echoing them would invite a client to PUT them back narrowed to one bucket.</td>
+</tr>
+<tr>
+<td><code>?encryption</code></td>
+<td>persist XML</td>
+<td>return XML / 404 <code>ServerSideEncryptionConfigurationNotFoundError</code></td>
+<td>remove</td>
+<td>Stored and replicated as sent.</td>
+</tr>
+<tr>
+<td><code>?publicAccessBlock</code></td>
+<td>persist XML</td>
+<td>return XML / 404 <code>NoSuchPublicAccessBlockConfiguration</code></td>
+<td>remove</td>
+<td>Stored and replicated as sent.</td>
+</tr>
+<tr>
+<td><code>?ownershipControls</code></td>
+<td>persist XML</td>
+<td>return XML / 404 <code>OwnershipControlsNotFoundError</code></td>
+<td>remove</td>
+<td>Stored and replicated as sent.</td>
+</tr>
+<tr>
+<td><code>?website</code></td>
+<td>persist XML</td>
+<td>return XML / 404 <code>NoSuchWebsiteConfiguration</code></td>
+<td>remove</td>
+<td>Stored; this server does not serve static websites.</td>
+</tr>
+<tr>
+<td><code>?logging</code></td>
+<td>persist XML</td>
+<td>return XML, or an empty <code>BucketLoggingStatus</code> when unset</td>
+<td>—</td>
+<td>200-with-empty rather than 404, because logging-off is a valid state and SDKs read a 404 here as an error.</td>
+</tr>
+<tr>
+<td><code>?policyStatus</code></td>
+<td>—</td>
+<td><code>&lt;IsPublic&gt;</code> derived from the bucket policy</td>
+<td>—</td>
+<td>Computed from the policy on each call rather than stored: a stored answer and the policy can disagree, and the policy is what decides.</td>
+</tr>
 </tbody>
 </table>
+<p>The three "stored and replicated as sent" documents are kept as the XML the client
+supplied rather than parsed into a model. Nothing acts on them today, and a parser
+that dropped fields it did not understand would hand back something different from
+what was stored — worse than not parsing, because a client reading its own
+configuration back cannot tell a storage bug from a policy decision.</p>
 <p>Writes are leader-routed (<code>BUCKET_CONFIG_MUTATE</code>) so a <code>PUT</code> on one node is
 immediately visible to a <code>GET</code> served by another node behind the proxy.</p>
-<p>Still accepted as silent no-ops (default behaviour only): bucket/object <code>?acl</code> —
-only the default owner ACL is modelled.</p>
+<h3 id="acls-and-what-is-refused-rather-than-ignored">ACLs, and what is refused rather than ignored</h3>
+<p>Access control here is IAM plus the bucket policy. ACLs are a second, legacy
+mechanism and are <strong>not enforced</strong>.</p>
+<p>A <code>PUT ?acl</code> used to answer <code>200</code> while storing nothing. That is the failure mode
+worth naming: a caller that <em>revoked</em> access was told it worked, and nothing
+afterwards would reveal otherwise. So ACL requests that would change nothing are
+still accepted — the canned <code>private</code>, an owner-only <code>FULL_CONTROL</code> grant — and
+anything that would grant or remove access for someone else is refused with
+<code>501 NotImplemented</code>, naming bucket policy as the mechanism that works.
+<code>GET ?acl</code> still synthesises the owner <code>FULL_CONTROL</code> grant, which is consistent
+with that model: the owner owns everything and there are no other grants.</p>
+<p>The same principle applies to two more headers:</p>
+<ul>
+<li><strong>SSE-C</strong> (<code>x-amz-server-side-encryption-customer-*</code>) is refused with <code>501</code>.
+  Ignoring it would leave the caller believing the object is encrypted under a key
+  only they hold — and reads succeed either way, so the mistake would never
+  surface. Use <code>x-amz-server-side-encryption</code> with the built-in <a href="../kms/">KMS</a>.</li>
+<li><strong>Unimplemented sub-resources</strong> — <code>?accelerate</code>, <code>?requestPayment</code>,
+  <code>?analytics</code>, <code>?inventory</code>, <code>?metrics</code>, <code>?intelligent-tiering</code>, <code>?torrent</code> —
+  are refused with <code>501</code> before dispatch. They previously fell past every branch
+  into the plain bucket handler, so <code>GET /bucket?accelerate</code> returned an <em>object
+  listing</em> with a <code>200</code>. A wrong answer that parses is worse than an error.</li>
+</ul>
 <h2 id="authentication">Authentication</h2>
 <p>Every S3 request must carry a valid AWS-style Authorization header. ShannonStore validates two formats:</p>
 <h3 id="aws-signature-v4-recommended-default-in-every-modern-sdk">AWS Signature V4 (recommended — default in every modern SDK)</h3>
@@ -2000,6 +2211,80 @@ signature. Anonymous-policy evaluation is only attempted for requests that are
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>DELETE /lake                      →  (&quot;s3:DeleteBucket&quot;, &quot;arn:aws:s3:::lake&quot;)
 </code></pre></div>
 <p>The pair is evaluated against the caller's effective IAM policies (user-attached + group-inherited). The evaluator is strict AWS semantics: explicit <code>Deny</code> wins over <code>Allow</code>, missing <code>Allow</code> denies by default. See <a href="../iam/">IAM</a> and <a href="../auth-authz/">Authentication &amp; Authorization</a> for the full evaluator behaviour.</p>
+<p><strong>Every sub-resource operation carries its own action.</strong> A request that resolves
+to no known operation maps to <code>s3:*</code>, which no ordinary policy grants — failing
+closed, because an operation nobody mapped is an operation nobody decided the
+permissions for.</p>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PUT /b?policy</code></td>
+<td><code>s3:PutBucketPolicy</code></td>
+</tr>
+<tr>
+<td><code>DELETE /b?policy</code></td>
+<td><code>s3:DeleteBucketPolicy</code></td>
+</tr>
+<tr>
+<td><code>GET /b?policy</code></td>
+<td><code>s3:GetBucketPolicy</code></td>
+</tr>
+<tr>
+<td><code>PUT</code> / <code>DELETE /b?cors</code></td>
+<td><code>s3:PutBucketCORS</code></td>
+</tr>
+<tr>
+<td><code>PUT</code> / <code>DELETE /b?replication</code></td>
+<td><code>s3:PutReplicationConfiguration</code></td>
+</tr>
+<tr>
+<td><code>PUT</code> / <code>DELETE /b?lifecycle</code></td>
+<td><code>s3:PutLifecycleConfiguration</code></td>
+</tr>
+<tr>
+<td><code>PUT</code> / <code>DELETE /b?tagging</code></td>
+<td><code>s3:PutBucketTagging</code></td>
+</tr>
+<tr>
+<td><code>PUT</code> / <code>DELETE /b?notification</code></td>
+<td><code>s3:PutBucketNotification</code></td>
+</tr>
+<tr>
+<td><code>PUT</code> / <code>DELETE /b?encryption</code></td>
+<td><code>s3:PutEncryptionConfiguration</code></td>
+</tr>
+<tr>
+<td><code>GET /b?policyStatus</code></td>
+<td><code>s3:GetBucketPolicyStatus</code></td>
+</tr>
+<tr>
+<td><code>GET /b/k?attributes</code></td>
+<td><code>s3:GetObjectAttributes</code></td>
+</tr>
+<tr>
+<td><code>POST /b/k?restore</code></td>
+<td><code>s3:RestoreObject</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">This was wrong before, and the wrong direction was privilege escalation</p>
+<p>Only a handful of sub-resources were mapped; everything else fell through to
+the bucket-level default. <code>PUT /b?policy</code> was therefore guarded by
+<code>s3:CreateBucket</code> and <code>DELETE /b?cors</code> by <code>s3:DeleteBucket</code> — so a caller
+holding <code>s3:DeleteBucket</code> could rewrite or remove a bucket's access-control
+policy, and a caller holding exactly <code>s3:PutBucketPolicy</code> could not set one.</p>
+<p>Sub-resources are also matched by parsed query <strong>key</strong> now, not by
+<code>uri.contains("?policy")</code> — which is also true of <code>?policyStatus</code>, so a
+substring probe could route one operation into another's handler and another
+operation's permission check.</p>
+</div>
 <h2 id="etag-semantics">ETag semantics</h2>
 <p>ShannonStore preserves the exact ETag rules that AWS S3 SDKs depend on for client-side verification:</p>
 <table>
@@ -2034,13 +2319,89 @@ signature. Anonymous-policy evaluation is only attempted for requests that are
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Content-MD5: &lt;base64(md5(body))&gt;
 </code></pre></div>
 <p>the server recomputes MD5 of the received bytes and rejects mismatches with <code>400 BadDigest</code>. This applies to both PutObject and UploadPart. The check requires materializing the body to a buffer — clients that need streaming throughput should omit Content-MD5 and rely on TCP / TLS integrity plus ETag verification post-write.</p>
+<h3 id="additional-checksums">Additional checksums</h3>
+<p>The AWS additional-checksum headers are verified the same way and echoed back on
+the response:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>x-amz-checksum-crc32
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>x-amz-checksum-crc32c
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>x-amz-checksum-sha1
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>x-amz-checksum-sha256
+</code></pre></div>
+<p>Newer AWS SDKs compute one of these by default and send it on every upload,
+usually with no <code>Content-MD5</code> at all. Their presence therefore forces the same
+buffered path Content-MD5 does: a checksum header is a promise the server is
+expected to check, and checking it requires the whole body. Ignoring one would be
+worse than not supporting checksums — a corrupted body would be stored, reported
+as a success, and the client would believe it had verified the write.</p>
+<h2 id="conditional-requests">Conditional requests</h2>
+<p><code>GET</code> and <code>HEAD</code> both honour RFC 7232 pre-conditions:</p>
+<table>
+<thead>
+<tr>
+<th>Header</th>
+<th>Satisfied</th>
+<th>Not satisfied</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>If-Match</code></td>
+<td>request proceeds</td>
+<td><code>412 PreconditionFailed</code></td>
+</tr>
+<tr>
+<td><code>If-None-Match</code></td>
+<td>request proceeds</td>
+<td><code>304 Not Modified</code> (with <code>ETag</code> and <code>Last-Modified</code>)</td>
+</tr>
+<tr>
+<td><code>If-Unmodified-Since</code></td>
+<td>request proceeds</td>
+<td><code>412 PreconditionFailed</code></td>
+</tr>
+<tr>
+<td><code>If-Modified-Since</code></td>
+<td>request proceeds</td>
+<td><code>304 Not Modified</code></td>
+</tr>
+</tbody>
+</table>
+<p>Evaluation follows the RFC's order — <code>If-Match</code>, then <code>If-Unmodified-Since</code>, then
+<code>If-None-Match</code>, then <code>If-Modified-Since</code> — and a date condition is ignored when
+its stronger ETag counterpart is present on the same request, so a client sending
+both does not get a <code>412</code> it did not ask for.</p>
+<p><code>Last-Modified</code> is compared at second resolution, matching what goes on the wire;
+comparing finer would report a sub-second difference as "modified".</p>
+<div class="admonition note">
+<p class="admonition-title">This used to differ between GET and HEAD</p>
+<p>HEAD honoured these headers and GET ignored them entirely, so a conditional
+GET issued for caching re-sent the whole body every time, and <code>If-Match</code> gave
+a reader no protection on the one verb that returns data. Both now share one
+implementation.</p>
+</div>
 <h2 id="range-requests">Range requests</h2>
 <p><code>GET /&lt;bucket&gt;/&lt;key&gt;</code> honors RFC 7233 <code>Range</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Range: bytes=0-1023
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>Range: bytes=1024-
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>Range: bytes=-512        (last 512 bytes — suffix form)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Range: bytes=0-1023
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>Range: bytes=1024-
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>Range: bytes=-512        (last 512 bytes — suffix form)
 </code></pre></div>
-<p>A 206 Partial Content response carries the requested slice and a <code>Content-Range</code> header. Multi-range requests (<code>Range: bytes=0-99,200-299</code>) are not implemented — pick the single-range form.</p>
+<p>A 206 Partial Content response carries the requested slice and a <code>Content-Range</code> header.</p>
+<p><strong>Multi-range</strong> (<code>Range: bytes=0-99,200-299</code>) is answered as <code>multipart/byteranges</code>,
+one part per range with its own <code>Content-Range</code>. Because each part is buffered,
+a multi-range request whose parts add up to more than
+<code>shannonstore.api.s3.small.object.threshold</code> is served as the whole object
+instead — a client asking for most of an object in slices is better served the
+object than by having the server hold it all in memory, and RFC 7233 permits
+ignoring the ranges.</p>
+<p>Two edge cases behave as the RFC requires rather than as errors:</p>
+<ul>
+<li>A range entirely past the end of the object gets <code>416</code> with
+  <code>Content-Range: bytes */&lt;length&gt;</code>, so the client learns the real length without
+  a second request.</li>
+<li>A <strong>malformed</strong> <code>Range</code> is ignored and the whole object returned. It used to be
+  a <code>500</code>: the header was split on <code>-</code>, so <code>bytes=0-99,200-299</code> fed <code>"99,200"</code> to
+  the number parser.</li>
+</ul>
 <p>Range requests are the path Iceberg/Parquet readers take to fetch column-chunk footers and only the columns they need, so partition-scan performance depends on them working correctly. The implementation caches recently-decoded EC parts in a bounded LRU so two consecutive range reads against the same object don't re-decode the same shard set.</p>
 <h2 id="versioning">Versioning</h2>
 <p>Per-bucket versioning is toggled via <code>PUT /&lt;bucket&gt;?versioning</code> with the standard <code>&lt;VersioningConfiguration&gt;&lt;Status&gt;Enabled&lt;/Status&gt;&lt;/VersioningConfiguration&gt;</code> body. When enabled:</p>
@@ -2053,13 +2414,13 @@ signature. Anonymous-policy evaluation is only attempted for requests that are
 <p>Versioning state is persisted in <code>BucketManager</code> and broadcast to peer API nodes through the IAM/bucket snapshot replication channel, so the per-bucket flag is consistent cluster-wide.</p>
 <h2 id="error-response-shape">Error response shape</h2>
 <p>Errors follow the canonical S3 XML:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="cp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">&lt;Error&gt;</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">&lt;Code&gt;</span>NoSuchKey<span class="nt">&lt;/Code&gt;</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">&lt;Message&gt;</span>The<span class="w"> </span>specified<span class="w"> </span>key<span class="w"> </span>does<span class="w"> </span>not<span class="w"> </span>exist.<span class="nt">&lt;/Message&gt;</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">&lt;Resource&gt;</span>/lake/missing.parquet<span class="nt">&lt;/Resource&gt;</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="nt">&lt;RequestId&gt;</span>…<span class="nt">&lt;/RequestId&gt;</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="nt">&lt;/Error&gt;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="cp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nt">&lt;Error&gt;</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">&lt;Code&gt;</span>NoSuchKey<span class="nt">&lt;/Code&gt;</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">  </span><span class="nt">&lt;Message&gt;</span>The<span class="w"> </span>specified<span class="w"> </span>key<span class="w"> </span>does<span class="w"> </span>not<span class="w"> </span>exist.<span class="nt">&lt;/Message&gt;</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="nt">&lt;Resource&gt;</span>/lake/missing.parquet<span class="nt">&lt;/Resource&gt;</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">  </span><span class="nt">&lt;RequestId&gt;</span>…<span class="nt">&lt;/RequestId&gt;</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="nt">&lt;/Error&gt;</span>
 </code></pre></div>
 <p>Most-encountered codes:</p>
 <table>
@@ -2119,6 +2480,105 @@ signature. Anonymous-policy evaluation is only attempted for requests that are
 </tbody>
 </table>
 <p>The body is intentionally identical to AWS S3 for the codes above — SDK error parsers don't need a ShannonStore-specific path. Two AWS-standard codes are <strong>not</strong> currently emitted: <code>CreateBucket</code> never returns <code>409 BucketAlreadyOwnedByYou</code> (see the CreateBucket row above — it always succeeds), and <a href="../maintenance/">Maintenance Mode</a>'s <code>503</code> response carries no XML <code>&lt;Error&gt;</code> body or code at all (just <code>Retry-After: 30</code>), not <code>SlowDown</code>.</p>
+<h2 id="s3-select">S3 Select</h2>
+<p><code>POST /&lt;bucket&gt;/&lt;key&gt;?select&amp;select-type=2</code> runs SQL over a single object and
+returns an AWS event stream.</p>
+<h3 id="formats">Formats</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Supported</th>
+<th>Refused</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Input</strong></td>
+<td>CSV, JSON (<code>Type=LINES</code> and <code>Type=DOCUMENT</code>)</td>
+<td><strong>Parquet</strong> and any <code>CompressionType</code> other than <code>NONE</code> — <code>501 NotImplemented</code></td>
+</tr>
+<tr>
+<td><strong>Output</strong></td>
+<td>CSV, JSON</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>XML is not a Select format — it is not one in AWS either, on input or output.</p>
+<p>A <code>DOCUMENT</code> object is parsed as one JSON value; an array yields a record per
+element. Reading it the way <code>LINES</code> is read would hand the parser fragments of a
+value.</p>
+<h3 id="the-accepted-sql">The accepted SQL</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w">  </span><span class="o">|</span><span class="w">  </span><span class="k">COUNT</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w">  </span><span class="o">|</span><span class="w">  </span><span class="n">col</span><span class="w"> </span><span class="p">[,</span><span class="w"> </span><span class="n">col</span><span class="w"> </span><span class="p">...]</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">FROM</span><span class="w"> </span><span class="n">S3Object</span><span class="w"> </span><span class="p">[</span><span class="k">alias</span><span class="p">]</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="p">[</span><span class="k">WHERE</span><span class="w"> </span><span class="o">&lt;</span><span class="n">condition</span><span class="o">&gt;</span><span class="p">]</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">[</span><span class="k">LIMIT</span><span class="w"> </span><span class="n">n</span><span class="p">]</span>
+</code></pre></div>
+<p>A condition is comparisons (<code>=</code>, <code>!=</code>, <code>&lt;&gt;</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>) and <code>LIKE</code>,
+combined with <code>AND</code> / <code>OR</code> / <code>NOT</code> and parentheses. Columns are addressed by name
+(CSV header or JSON field) or by position (<code>s._1</code>). There are <strong>no functions, no
+arithmetic, no casts, no subqueries and no joins.</strong></p>
+<p>Anything outside that grammar is rejected with <code>400 InvalidExpression</code> <strong>before a
+single byte of the object is read</strong>.</p>
+<h3 id="why-it-is-this-small">Why it is this small</h3>
+<p>S3 Select is a server parsing caller-supplied text and evaluating it over
+caller-supplied data. That is the shape of a long line of CVEs in this exact
+feature elsewhere, so the scope is a deliberate choice rather than an unfinished
+one:</p>
+<ul>
+<li>The grammar is hand-written and rejects by default. A general SQL engine would
+  import all of that surface to support a language whose useful form here is one
+  source, no joins, no subqueries.</li>
+<li><code>LIKE</code> compiles to a linear matcher, not a regular expression. A pattern built
+  from caller input and handed to a regex engine is its own denial-of-service
+  class.</li>
+<li><strong>Parquet input is refused.</strong> A binary parser over caller-supplied bytes is the
+  risk itself, and the engines that read Parquet here — Spark, Trino, Iceberg —
+  do not use Select at all: they read footers and column chunks with
+  <a href="#range-requests">ranged GETs</a>, which this server serves.</li>
+<li>Every scan is bounded. See the settings below.</li>
+</ul>
+<h3 id="limits">Limits</h3>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Bounds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.s3.select.max.object.bytes</code></td>
+<td><code>134217728</code> (128 MiB)</td>
+<td>Largest object a Select will scan. A Select reads the whole object into memory; a larger object is refused with <code>ObjectTooLarge</code> rather than attempted.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.select.max.record.bytes</code></td>
+<td><code>1048576</code> (1 MiB)</td>
+<td>Longest single record. Keeps a file with no line breaks — a truncated upload, a generated one-line file — from turning one request into an allocation the size of the object.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.select.max.fields</code></td>
+<td><code>4096</code></td>
+<td>Most fields on one record. A line of nothing but delimiters would otherwise produce one list entry per byte.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="response">Response</h3>
+<p>An AWS event stream: <code>Records</code> messages carrying the result, then <code>Stats</code>, then
+<code>End</code>. Because the stream commits the HTTP status as <code>200</code> before the scan runs,
+a failure discovered mid-scan is delivered as an in-band error event — a stream
+that simply stops is indistinguishable from a dropped connection.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>aws<span class="w"> </span>s3api<span class="w"> </span><span class="k">select</span>-object-content<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>--bucket<span class="w"> </span>lake<span class="w"> </span>--key<span class="w"> </span>sales.csv<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>--expression<span class="w"> </span><span class="s2">&quot;SELECT name FROM S3Object s WHERE s.qty &gt; 100&quot;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span>--expression-type<span class="w"> </span>SQL<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">  </span>--input-serialization<span class="w"> </span><span class="s1">&#39;{&quot;CSV&quot;:{&quot;FileHeaderInfo&quot;:&quot;USE&quot;}}&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">  </span>--output-serialization<span class="w"> </span><span class="s1">&#39;{&quot;CSV&quot;:{}}&#39;</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">  </span>/dev/stdout
+</code></pre></div>
 <h2 id="two-port-topology">Two-port topology</h2>
 <p>Object storage and admin/management traffic are bound to separate sockets so the dataplane and the controlplane never compete:</p>
 <table>

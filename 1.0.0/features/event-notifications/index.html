@@ -921,6 +921,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#configure-via-the-s3-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configure via the S3 API
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#tuning-shannonstoreproperties" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1860,19 +1871,48 @@ the underlying client — use it for security:</p>
 <p>The producer publishes with <code>acks=all</code> and fails fast (bounded <code>max.block.ms</code> /
 delivery timeout) so a broker outage surfaces as a counted failure the dispatcher can
 retry, rather than blocking a worker.</p>
+<h2 id="configure-via-the-s3-api">Configure via the S3 API</h2>
+<p><code>PUT</code> / <code>GET /&lt;bucket&gt;?notification</code> speak S3's own
+<code>NotificationConfiguration</code> XML, so <code>aws s3api put-bucket-notification-configuration</code>
+and the SDK equivalents work against a bucket directly:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>aws<span class="w"> </span>s3api<span class="w"> </span>put-bucket-notification-configuration<span class="w"> </span>--bucket<span class="w"> </span>lake<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span>--notification-configuration<span class="w"> </span><span class="s1">&#39;{</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="s1">    &quot;TopicConfigurations&quot;: [{</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="s1">      &quot;Id&quot;: &quot;lake-writes&quot;,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="s1">      &quot;TopicArn&quot;: &quot;arn:shannonstore:notification:::my-webhook&quot;,</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="s1">      &quot;Events&quot;: [&quot;s3:ObjectCreated:*&quot;],</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="s1">      &quot;Filter&quot;: {&quot;Key&quot;: {&quot;FilterRules&quot;: [{&quot;Name&quot;: &quot;prefix&quot;, &quot;Value&quot;: &quot;raw/&quot;}]}}</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="s1">    }]}&#39;</span>
+</code></pre></div>
+<p>Two things differ from AWS, and both follow from targets being operator-owned:</p>
+<ul>
+<li><strong>The destination must already exist.</strong> The ARN's last segment names a target
+  configured through the admin console or REST API above. A destination naming no
+  known target is <strong>refused with <code>400</code>, not stored</strong> — a rule pointing at a target
+  that does not exist silently drops every event it matches, which is the worst
+  possible outcome for a notification feature.</li>
+<li><strong>A <code>PUT</code> replaces only this bucket's rules.</strong> Other buckets' rules, the
+  cluster-wide rules (<code>bucket: "*"</code>), and the target list are untouched. For the
+  same reason, a <code>GET</code> returns only rules scoped to this bucket: a cluster-wide
+  rule is not this bucket's configuration, and echoing it would invite a client to
+  <code>PUT</code> it back narrowed to one bucket.</li>
+</ul>
+<p>A Kafka target is rendered as a <code>QueueConfiguration</code> and a webhook as a
+<code>TopicConfiguration</code>, since a webhook has no S3 analogue and <code>Topic</code> is the
+element every SDK parses.</p>
 <h2 id="tuning-shannonstoreproperties">Tuning (shannonstore.properties)</h2>
 <p>The per-node dispatcher is tuned in <code>shannonstore.properties</code> §5b (the targets/rules
 themselves live in the replicated bucket config, not here):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Bounded dispatch queue per node; when full, events are dropped (counted) not blocked.</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="na">shannonstore.api.notification.queue.size</span><span class="o">=</span><span class="s">10000</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># Worker threads draining the queue and delivering to targets.</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="na">shannonstore.api.notification.worker.threads</span><span class="o">=</span><span class="s">4</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Max delivery retries per event before it is counted as failed (0 = no retry).</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="na">shannonstore.api.notification.max.retries</span><span class="o">=</span><span class="s">3</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Base backoff (ms) between retries — exponential, capped at 5s.</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="na">shannonstore.api.notification.retry.backoff.ms</span><span class="o">=</span><span class="s">200</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1"># How often (s) each node re-reads the replicated config so changes take effect.</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="na">shannonstore.api.notification.config.poll.seconds</span><span class="o">=</span><span class="s">5</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Bounded dispatch queue per node; when full, events are dropped (counted) not blocked.</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="na">shannonstore.api.notification.queue.size</span><span class="o">=</span><span class="s">10000</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c1"># Worker threads draining the queue and delivering to targets.</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="na">shannonstore.api.notification.worker.threads</span><span class="o">=</span><span class="s">4</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Max delivery retries per event before it is counted as failed (0 = no retry).</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="na">shannonstore.api.notification.max.retries</span><span class="o">=</span><span class="s">3</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Base backoff (ms) between retries — exponential, capped at 5s.</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="na">shannonstore.api.notification.retry.backoff.ms</span><span class="o">=</span><span class="s">200</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="c1"># How often (s) each node re-reads the replicated config so changes take effect.</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="na">shannonstore.api.notification.config.poll.seconds</span><span class="o">=</span><span class="s">5</span>
 </code></pre></div>
 <h2 id="metrics">Metrics</h2>
 <p>The dispatcher exposes Prometheus counters + a queue-depth gauge on each node's
