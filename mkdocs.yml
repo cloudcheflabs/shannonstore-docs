@@ -54,6 +54,7 @@ nav:
       - "Data Compression": features/data-compression.md
       - "Identity & Access Management": features/iam.md
       - "Authentication & Authorization": features/auth-authz.md
+      - "Single Sign-On (OIDC/SAML/LDAP)": features/sso.md
       - "Object Lock (WORM)": features/worm.md
       - "Admin Password Recovery": features/admin-password-recovery.md
       - "Disk Repair Service": features/disk-repair.md
