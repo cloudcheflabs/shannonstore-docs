@@ -123,6 +123,19 @@ The fallback exists exactly once per blob — corruption that fails *both* paths
 
 Although ShannonStore's master key lives in an environment variable rather than AWS KMS, the object-level encryption headers and ETag rules match the AWS `aws:kms` server-side encryption shape closely enough that S3 SDKs configured for AWS KMS work against ShannonStore without code change.
 
+### Keys the cluster does not hold
+
+Everything above is about keys the cluster holds. A caller can instead supply
+its own key on every request &mdash; **SSE-C** &mdash; in which case the cluster
+uses it for that one request and drops it, and nothing here applies: there is no
+KEK, no keystore row, and no rotation, because there is no key to rotate.
+
+The trade is that the cluster can no longer do anything with those objects on
+its own time. Replication and tiering skip them, because a background worker has
+no request to take a key from. The full contract, including which operations
+accept the headers and what each refusal means, is in
+[S3 API &rarr; Server-side encryption](s3-compatible-api.md#server-side-encryption).
+
 ## Operational guidance
 
 - **Set `SHANNONSTORE_MASTER_KEY` from a secret manager** (HashiCorp Vault, AWS Secrets Manager, etc.), not from a static file checked into config. The cluster never persists it, but the process-launcher environment is the most common leak point.
@@ -132,6 +145,7 @@ Although ShannonStore's master key lives in an environment variable rather than 
 
 ## See also
 
+- [S3 API](s3-compatible-api.md#server-side-encryption) — the SSE-S3, SSE-KMS and SSE-C request headers, and what each reports back.
 - [Erasure Coding](ec.md) — the shard-level format that the per-object DEK encrypts.
 - [Identity & Access Management](iam.md) — uses the same KEK to protect the IAM blob at rest.
 - [Authentication & Authorization](auth-authz.md) — the JWT signing key is independent of the KEK; rotating one does not require rotating the other.
