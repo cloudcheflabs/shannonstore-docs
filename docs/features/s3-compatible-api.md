@@ -24,11 +24,11 @@ The dispatch table in `S3RequestHandler` routes the following verb × subresourc
 
 | Operation | Trigger | Notes |
 | --- | --- | --- |
-| **PutObject** | `PUT /<bucket>/<key>` | Streaming upload via Netty NIO. Body is erasure-coded and KMS-encrypted before being persisted across data nodes. |
+| **PutObject** | `PUT /<bucket>/<key>` | Streaming upload via Netty NIO. Body is encrypted &mdash; with a cluster key, or with a caller-supplied one under [SSE-C](#sse-c) &mdash; and then erasure-coded before being persisted across data nodes. Returns `x-amz-version-id` on a versioned bucket. |
 | **GetObject** | `GET /<bucket>/<key>` | Streaming download. Honors `Range` requests for partial / resumable reads. Sets `Content-Length`, `ETag`, `Last-Modified`. |
 | **HeadObject** | `HEAD /<bucket>/<key>` | Returns the same metadata as GET without the body — used by SDKs for existence / size probes. |
 | **DeleteObject** | `DELETE /<bucket>/<key>` | Replies `204 No Content` (S3 idempotent semantics — deleting a missing key still succeeds). |
-| **CopyObject** | `PUT /<bucket>/<key>` with `x-amz-copy-source` | Server-side copy across buckets / keys. Does not stream through the client. |
+| **CopyObject** | `PUT /<bucket>/<key>` with `x-amz-copy-source` | Server-side copy across buckets / keys. Does not stream through the client. May carry a source key and a destination key at once, which is how an [SSE-C](#sse-c) object is re-keyed. |
 | **DeleteObjects (Multi-object delete)** | `POST /<bucket>?delete` | Bulk delete payload in XML body — returns per-key `Deleted` and `Error` rows. |
 | **PostObject (browser form upload)** | `POST /<bucket>` with `multipart/form-data` | The one S3 write a browser can make without an SDK. `${filename}` in the `key` field is expanded, and `success_action_status` chooses 200/201/204. The request is authorized the same way every other write is — the form's policy and signature fields are not evaluated, so an unsigned browser post is rejected earlier as unauthenticated. |
 | **RestoreObject** | `POST /<bucket>/<key>?restore` | Brings a tiered object back to hot storage for a requested number of days. See [Storage Classes &amp; Tiering](storage-classes-tiering.md). |
@@ -110,12 +110,8 @@ anything that would grant or remove access for someone else is refused with
 `GET ?acl` still synthesises the owner `FULL_CONTROL` grant, which is consistent
 with that model: the owner owns everything and there are no other grants.
 
-The same principle applies to two more headers:
+The same principle applies to unimplemented sub-resources:
 
-- **SSE-C** (`x-amz-server-side-encryption-customer-*`) is refused with `501`.
-  Ignoring it would leave the caller believing the object is encrypted under a key
-  only they hold — and reads succeed either way, so the mistake would never
-  surface. Use `x-amz-server-side-encryption` with the built-in [KMS](kms.md).
 - **Unimplemented sub-resources** — `?accelerate`, `?requestPayment`,
   `?analytics`, `?inventory`, `?metrics`, `?intelligent-tiering`, `?torrent` —
   are refused with `501` before dispatch. They previously fell past every branch
@@ -299,6 +295,72 @@ Two edge cases behave as the RFC requires rather than as errors:
 
 Range requests are the path Iceberg/Parquet readers take to fetch column-chunk footers and only the columns they need, so partition-scan performance depends on them working correctly. The implementation caches recently-decoded EC parts in a bounded LRU so two consecutive range reads against the same object don't re-decode the same shard set.
 
+## Server-side encryption
+
+Three mechanisms, differing in who holds the key.
+
+| | Who holds the key | Request headers | Needed to read |
+|---|---|---|---|
+| **Cluster default** | The cluster | none | nothing |
+| **SSE-S3** | The cluster | `x-amz-server-side-encryption: AES256` | nothing |
+| **SSE-KMS** | The cluster | `x-amz-server-side-encryption: aws:kms` + `…-aws-kms-key-id` | nothing |
+| **SSE-C** | **The caller** | `x-amz-server-side-encryption-customer-{algorithm,key,key-md5}` | the same key, on every request |
+
+`GET`, `HEAD` and `PUT` report back which of these an object actually got, so a
+client that asked for encryption can confirm it happened. An object encrypted
+only because the cluster encrypts everything reports nothing — that is not
+something the caller asked for, and S3 does not report it either.
+
+### SSE-C
+
+The key is used for one request and dropped; it is never stored. What is kept
+beside the object is a salted HMAC of it, which answers *is this the same key*
+and nothing else. It is salted so that two objects written with one key do not
+carry the same value, which would otherwise let anyone reading metadata group
+objects by key.
+
+Supported on `PUT`, `GET`, `HEAD`, `UploadPart`, `CopyObject`, `UploadPartCopy`
+and `SelectObjectContent`. A copy may carry two keys at once — the source key in
+`x-amz-copy-source-server-side-encryption-customer-*` and the destination key in
+the usual headers — which is how an object is re-keyed, or decrypted into a
+plain one.
+
+Three refusals, and the difference between them is actionable:
+
+| Situation | Status | What to do |
+|---|---|---|
+| SSE-C object, no key sent | `400 InvalidRequest` | resend with the key |
+| SSE-C object, wrong key | `403 AccessDenied` | retrying will not help |
+| Key sent for an object that is not SSE-C | `400 InvalidRequest` | drop the headers |
+
+The third is a refusal rather than a shrug on purpose. Ignoring the key would
+hand back plaintext to a caller who believes the bytes were protected by a key
+only they hold.
+
+`ListObjects`, `ListObjectVersions` and `DeleteObject` do **not** need the key:
+only the bytes are encrypted, and an operator who has lost a key must still be
+able to remove the object.
+
+### What SSE-C cannot do
+
+Anything that reads an object without a request behind it cannot open an SSE-C
+object, because there is no key to be had. These paths skip it and say so rather
+than failing halfway or writing bytes nobody can read:
+
+- **Replication** and **site replication** skip the object and record
+  `SSE_C_SKIPPED` against it. Configuring a replication rule on a bucket that
+  already holds SSE-C objects is still accepted — refusing would strand every
+  other object in the bucket — but logs a warning at that moment, so this is
+  not discovered later. See
+  `shannonstore.api.replication.ssec.scan.limit` in
+  [Configuration](configuration.md).
+- **Tiering** leaves the object in place.
+- The **admin console** answers `409` on a download rather than failing as a
+  server error.
+
+Bitrot scrubbing and EC repair are unaffected: they work on ciphertext shards
+and their checksums, and never need the plaintext.
+
 ## Versioning
 
 Per-bucket versioning is toggled via `PUT /<bucket>?versioning` with the standard `<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>` body. When enabled:
@@ -309,6 +371,18 @@ Per-bucket versioning is toggled via `PUT /<bucket>?versioning` with the standar
 - Disabling versioning (`Suspended`) stops generating new version IDs but does not retroactively collapse history.
 
 Versioning state is persisted in `BucketManager` and broadcast to peer API nodes through the IAM/bucket snapshot replication channel, so the per-bucket flag is consistent cluster-wide.
+
+`PUT` returns `x-amz-version-id` for the version it created, so a client can
+address what it just wrote instead of listing versions and guessing which one
+is its own.
+
+Every version keeps its own bytes, including under successive writes to the same
+key with no pause between them. That is worth stating explicitly because writes
+land in a part buffer and are committed to their final location asynchronously:
+the commit has to find the version it belongs to, not whichever version is
+newest by the time it runs. A version only becomes the current one if it is
+genuinely newer, so a late commit of an older version cannot roll the object
+back while the version listing still names a newer one as latest.
 
 ## Error response shape
 
