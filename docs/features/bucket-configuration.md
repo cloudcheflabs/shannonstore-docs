@@ -2,14 +2,16 @@
 
 ShannonStore implements the S3 bucket-configuration subresources as **first-class,
 persisted, cluster-consistent** features — not the silent compatibility stubs they
-once were. Four configuration surfaces are supported, each with the canonical S3
-wire format (so `aws s3api`, boto3, and the MinIO client work unchanged):
+once were. Each uses the canonical S3 wire format, so `aws s3api`, boto3, and the
+MinIO client work unchanged:
 
 | Subresource | Purpose | Storage |
 | --- | --- | --- |
 | `?policy` | Resource-based **bucket policy** (JSON) — augments IAM and enables anonymous public access | raw JSON, per bucket |
 | `?cors` | **CORS** rules (XML) — controls browser cross-origin access, incl. `OPTIONS` preflight | raw XML, per bucket |
 | `?lifecycle` | **Object Lifecycle (ILM)** — typed `LifecyclePolicy`, expiration + abort-incomplete-MPU | typed model, per bucket |
+| `?notification` | **Event notifications** — maps S3's per-bucket XML onto the cluster rule set | rules, cluster-wide |
+| `?encryption` / `?publicAccessBlock` / `?ownershipControls` / `?website` / `?logging` | stored and replicated as sent | raw XML, per bucket |
 | `?replication` | **Bucket replication** — async copy of matching objects to a destination bucket/cluster | raw XML, per bucket |
 | `?tagging` | **Tags** on a bucket and on individual objects | key/value map |
 
@@ -350,6 +352,26 @@ shannonstore.api.replication.scan.interval.ms=60000 # re-attempt cadence
 ```
 
 ---
+
+## Configurations that are stored but not acted on
+
+`?encryption`, `?publicAccessBlock`, `?ownershipControls` and `?website` are
+persisted, replicated and handed back exactly as the client sent them. Nothing in
+ShannonStore currently acts on their contents.
+
+They are stored as the original XML rather than parsed into a model on purpose. A
+parser that dropped the fields it did not understand would return something
+different from what was stored, and a client reading its own configuration back
+and finding it changed has no way to tell a storage bug from a policy decision.
+Keeping the document intact means a round-trip is always faithful.
+
+`?logging` behaves slightly differently on read: when nothing is configured it
+answers `200` with an empty `BucketLoggingStatus` rather than a `404`, because
+logging-off is a valid state and SDKs treat a 404 here as an error.
+
+`?policyStatus` is not stored at all — `<IsPublic>` is derived from the bucket
+policy on each call. A stored answer and the policy can disagree, and the policy
+is what actually decides.
 
 ## Cluster consistency (leader-routed writes)
 

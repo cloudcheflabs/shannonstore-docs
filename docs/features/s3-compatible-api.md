@@ -30,6 +30,11 @@ The dispatch table in `S3RequestHandler` routes the following verb × subresourc
 | **DeleteObject** | `DELETE /<bucket>/<key>` | Replies `204 No Content` (S3 idempotent semantics — deleting a missing key still succeeds). |
 | **CopyObject** | `PUT /<bucket>/<key>` with `x-amz-copy-source` | Server-side copy across buckets / keys. Does not stream through the client. |
 | **DeleteObjects (Multi-object delete)** | `POST /<bucket>?delete` | Bulk delete payload in XML body — returns per-key `Deleted` and `Error` rows. |
+| **PostObject (browser form upload)** | `POST /<bucket>` with `multipart/form-data` | The one S3 write a browser can make without an SDK. `${filename}` in the `key` field is expanded, and `success_action_status` chooses 200/201/204. The request is authorized the same way every other write is — the form's policy and signature fields are not evaluated, so an unsigned browser post is rejected earlier as unauthenticated. |
+| **RestoreObject** | `POST /<bucket>/<key>?restore` | Brings a tiered object back to hot storage for a requested number of days. See [Storage Classes &amp; Tiering](storage-classes-tiering.md). |
+| **GetObjectAttributes** | `GET /<bucket>/<key>?attributes` | `ETag`, `ObjectSize` and `StorageClass`, honouring `x-amz-object-attributes`. Fields this server does not compute are omitted rather than invented — a fabricated checksum would give a comparing client a false match. |
+| **GetObjectAcl** | `GET /<bucket>/<key>?acl` | Synthesises an owner `FULL_CONTROL` grant; see the ACL note below. |
+| **SelectObjectContent** | `POST /<bucket>/<key>?select&select-type=2` | SQL over a single object, CSV or JSON. See [S3 Select](#s3-select). |
 
 ### Multipart upload
 
@@ -74,12 +79,48 @@ detailed behaviour, evaluation rules, and examples:
 | `?replication` | persist XML | return XML / 404 `ReplicationConfigurationNotFoundError` | remove | Leader-only async copy to a destination bucket/cluster. |
 | `?tagging` (bucket **and** object) | persist `TagSet` | return `TagSet` | remove | Bucket tags in the leader snapshot; object tags on object metadata. |
 | Object Lock `?object-lock` / `?retention` / `?legal-hold` | persist | return | — | See [Object Lock (WORM)](worm.md). |
+| `?notification` | persist rules for this bucket | return this bucket's rules | — | Maps S3's per-bucket XML onto the cluster-wide rule set described in [Event Notifications](event-notifications.md). A destination naming no configured target is **refused**, not stored — such a rule silently drops every event it matches. Rules scoped `bucket="*"` are not returned here: they are not this bucket's configuration, and echoing them would invite a client to PUT them back narrowed to one bucket. |
+| `?encryption` | persist XML | return XML / 404 `ServerSideEncryptionConfigurationNotFoundError` | remove | Stored and replicated as sent. |
+| `?publicAccessBlock` | persist XML | return XML / 404 `NoSuchPublicAccessBlockConfiguration` | remove | Stored and replicated as sent. |
+| `?ownershipControls` | persist XML | return XML / 404 `OwnershipControlsNotFoundError` | remove | Stored and replicated as sent. |
+| `?website` | persist XML | return XML / 404 `NoSuchWebsiteConfiguration` | remove | Stored; this server does not serve static websites. |
+| `?logging` | persist XML | return XML, or an empty `BucketLoggingStatus` when unset | — | 200-with-empty rather than 404, because logging-off is a valid state and SDKs read a 404 here as an error. |
+| `?policyStatus` | — | `<IsPublic>` derived from the bucket policy | — | Computed from the policy on each call rather than stored: a stored answer and the policy can disagree, and the policy is what decides. |
+
+The three "stored and replicated as sent" documents are kept as the XML the client
+supplied rather than parsed into a model. Nothing acts on them today, and a parser
+that dropped fields it did not understand would hand back something different from
+what was stored — worse than not parsing, because a client reading its own
+configuration back cannot tell a storage bug from a policy decision.
 
 Writes are leader-routed (`BUCKET_CONFIG_MUTATE`) so a `PUT` on one node is
 immediately visible to a `GET` served by another node behind the proxy.
 
-Still accepted as silent no-ops (default behaviour only): bucket/object `?acl` —
-only the default owner ACL is modelled.
+### ACLs, and what is refused rather than ignored
+
+Access control here is IAM plus the bucket policy. ACLs are a second, legacy
+mechanism and are **not enforced**.
+
+A `PUT ?acl` used to answer `200` while storing nothing. That is the failure mode
+worth naming: a caller that *revoked* access was told it worked, and nothing
+afterwards would reveal otherwise. So ACL requests that would change nothing are
+still accepted — the canned `private`, an owner-only `FULL_CONTROL` grant — and
+anything that would grant or remove access for someone else is refused with
+`501 NotImplemented`, naming bucket policy as the mechanism that works.
+`GET ?acl` still synthesises the owner `FULL_CONTROL` grant, which is consistent
+with that model: the owner owns everything and there are no other grants.
+
+The same principle applies to two more headers:
+
+- **SSE-C** (`x-amz-server-side-encryption-customer-*`) is refused with `501`.
+  Ignoring it would leave the caller believing the object is encrypted under a key
+  only they hold — and reads succeed either way, so the mistake would never
+  surface. Use `x-amz-server-side-encryption` with the built-in [KMS](kms.md).
+- **Unimplemented sub-resources** — `?accelerate`, `?requestPayment`,
+  `?analytics`, `?inventory`, `?metrics`, `?intelligent-tiering`, `?torrent` —
+  are refused with `501` before dispatch. They previously fell past every branch
+  into the plain bucket handler, so `GET /bucket?accelerate` returned an *object
+  listing* with a `200`. A wrong answer that parses is worse than an error.
 
 ## Authentication
 
@@ -128,6 +169,38 @@ DELETE /lake                      →  ("s3:DeleteBucket", "arn:aws:s3:::lake")
 
 The pair is evaluated against the caller's effective IAM policies (user-attached + group-inherited). The evaluator is strict AWS semantics: explicit `Deny` wins over `Allow`, missing `Allow` denies by default. See [IAM](iam.md) and [Authentication & Authorization](auth-authz.md) for the full evaluator behaviour.
 
+**Every sub-resource operation carries its own action.** A request that resolves
+to no known operation maps to `s3:*`, which no ordinary policy grants — failing
+closed, because an operation nobody mapped is an operation nobody decided the
+permissions for.
+
+| Request | Action |
+| --- | --- |
+| `PUT /b?policy` | `s3:PutBucketPolicy` |
+| `DELETE /b?policy` | `s3:DeleteBucketPolicy` |
+| `GET /b?policy` | `s3:GetBucketPolicy` |
+| `PUT` / `DELETE /b?cors` | `s3:PutBucketCORS` |
+| `PUT` / `DELETE /b?replication` | `s3:PutReplicationConfiguration` |
+| `PUT` / `DELETE /b?lifecycle` | `s3:PutLifecycleConfiguration` |
+| `PUT` / `DELETE /b?tagging` | `s3:PutBucketTagging` |
+| `PUT` / `DELETE /b?notification` | `s3:PutBucketNotification` |
+| `PUT` / `DELETE /b?encryption` | `s3:PutEncryptionConfiguration` |
+| `GET /b?policyStatus` | `s3:GetBucketPolicyStatus` |
+| `GET /b/k?attributes` | `s3:GetObjectAttributes` |
+| `POST /b/k?restore` | `s3:RestoreObject` |
+
+!!! warning "This was wrong before, and the wrong direction was privilege escalation"
+    Only a handful of sub-resources were mapped; everything else fell through to
+    the bucket-level default. `PUT /b?policy` was therefore guarded by
+    `s3:CreateBucket` and `DELETE /b?cors` by `s3:DeleteBucket` — so a caller
+    holding `s3:DeleteBucket` could rewrite or remove a bucket's access-control
+    policy, and a caller holding exactly `s3:PutBucketPolicy` could not set one.
+
+    Sub-resources are also matched by parsed query **key** now, not by
+    `uri.contains("?policy")` — which is also true of `?policyStatus`, so a
+    substring probe could route one operation into another's handler and another
+    operation's permission check.
+
 ## ETag semantics
 
 ShannonStore preserves the exact ETag rules that AWS S3 SDKs depend on for client-side verification:
@@ -151,6 +224,50 @@ Content-MD5: <base64(md5(body))>
 
 the server recomputes MD5 of the received bytes and rejects mismatches with `400 BadDigest`. This applies to both PutObject and UploadPart. The check requires materializing the body to a buffer — clients that need streaming throughput should omit Content-MD5 and rely on TCP / TLS integrity plus ETag verification post-write.
 
+### Additional checksums
+
+The AWS additional-checksum headers are verified the same way and echoed back on
+the response:
+
+```
+x-amz-checksum-crc32
+x-amz-checksum-crc32c
+x-amz-checksum-sha1
+x-amz-checksum-sha256
+```
+
+Newer AWS SDKs compute one of these by default and send it on every upload,
+usually with no `Content-MD5` at all. Their presence therefore forces the same
+buffered path Content-MD5 does: a checksum header is a promise the server is
+expected to check, and checking it requires the whole body. Ignoring one would be
+worse than not supporting checksums — a corrupted body would be stored, reported
+as a success, and the client would believe it had verified the write.
+
+## Conditional requests
+
+`GET` and `HEAD` both honour RFC 7232 pre-conditions:
+
+| Header | Satisfied | Not satisfied |
+| --- | --- | --- |
+| `If-Match` | request proceeds | `412 PreconditionFailed` |
+| `If-None-Match` | request proceeds | `304 Not Modified` (with `ETag` and `Last-Modified`) |
+| `If-Unmodified-Since` | request proceeds | `412 PreconditionFailed` |
+| `If-Modified-Since` | request proceeds | `304 Not Modified` |
+
+Evaluation follows the RFC's order — `If-Match`, then `If-Unmodified-Since`, then
+`If-None-Match`, then `If-Modified-Since` — and a date condition is ignored when
+its stronger ETag counterpart is present on the same request, so a client sending
+both does not get a `412` it did not ask for.
+
+`Last-Modified` is compared at second resolution, matching what goes on the wire;
+comparing finer would report a sub-second difference as "modified".
+
+!!! note "This used to differ between GET and HEAD"
+    HEAD honoured these headers and GET ignored them entirely, so a conditional
+    GET issued for caching re-sent the whole body every time, and `If-Match` gave
+    a reader no protection on the one verb that returns data. Both now share one
+    implementation.
+
 ## Range requests
 
 `GET /<bucket>/<key>` honors RFC 7233 `Range`:
@@ -161,7 +278,24 @@ Range: bytes=1024-
 Range: bytes=-512        (last 512 bytes — suffix form)
 ```
 
-A 206 Partial Content response carries the requested slice and a `Content-Range` header. Multi-range requests (`Range: bytes=0-99,200-299`) are not implemented — pick the single-range form.
+A 206 Partial Content response carries the requested slice and a `Content-Range` header.
+
+**Multi-range** (`Range: bytes=0-99,200-299`) is answered as `multipart/byteranges`,
+one part per range with its own `Content-Range`. Because each part is buffered,
+a multi-range request whose parts add up to more than
+`shannonstore.api.s3.small.object.threshold` is served as the whole object
+instead — a client asking for most of an object in slices is better served the
+object than by having the server hold it all in memory, and RFC 7233 permits
+ignoring the ranges.
+
+Two edge cases behave as the RFC requires rather than as errors:
+
+- A range entirely past the end of the object gets `416` with
+  `Content-Range: bytes */<length>`, so the client learns the real length without
+  a second request.
+- A **malformed** `Range` is ignored and the whole object returned. It used to be
+  a `500`: the header was split on `-`, so `bytes=0-99,200-299` fed `"99,200"` to
+  the number parser.
 
 Range requests are the path Iceberg/Parquet readers take to fetch column-chunk footers and only the columns they need, so partition-scan performance depends on them working correctly. The implementation caches recently-decoded EC parts in a bounded LRU so two consecutive range reads against the same object don't re-decode the same shard set.
 
@@ -205,6 +339,85 @@ Most-encountered codes:
 | 404 | `NoSuchBucketPolicy` / `NoSuchCORSConfiguration` / `NoSuchLifecycleConfiguration` | Subresource never configured |
 
 The body is intentionally identical to AWS S3 for the codes above — SDK error parsers don't need a ShannonStore-specific path. Two AWS-standard codes are **not** currently emitted: `CreateBucket` never returns `409 BucketAlreadyOwnedByYou` (see the CreateBucket row above — it always succeeds), and [Maintenance Mode](maintenance.md)'s `503` response carries no XML `<Error>` body or code at all (just `Retry-After: 30`), not `SlowDown`.
+
+## S3 Select
+
+`POST /<bucket>/<key>?select&select-type=2` runs SQL over a single object and
+returns an AWS event stream.
+
+### Formats
+
+| | Supported | Refused |
+| --- | --- | --- |
+| **Input** | CSV, JSON (`Type=LINES` and `Type=DOCUMENT`) | **Parquet** and any `CompressionType` other than `NONE` — `501 NotImplemented` |
+| **Output** | CSV, JSON | — |
+
+XML is not a Select format — it is not one in AWS either, on input or output.
+
+A `DOCUMENT` object is parsed as one JSON value; an array yields a record per
+element. Reading it the way `LINES` is read would hand the parser fragments of a
+value.
+
+### The accepted SQL
+
+```sql
+SELECT *  |  COUNT(*)  |  col [, col ...]
+FROM S3Object [alias]
+[WHERE <condition>]
+[LIMIT n]
+```
+
+A condition is comparisons (`=`, `!=`, `<>`, `<`, `<=`, `>`, `>=`) and `LIKE`,
+combined with `AND` / `OR` / `NOT` and parentheses. Columns are addressed by name
+(CSV header or JSON field) or by position (`s._1`). There are **no functions, no
+arithmetic, no casts, no subqueries and no joins.**
+
+Anything outside that grammar is rejected with `400 InvalidExpression` **before a
+single byte of the object is read**.
+
+### Why it is this small
+
+S3 Select is a server parsing caller-supplied text and evaluating it over
+caller-supplied data. That is the shape of a long line of CVEs in this exact
+feature elsewhere, so the scope is a deliberate choice rather than an unfinished
+one:
+
+- The grammar is hand-written and rejects by default. A general SQL engine would
+  import all of that surface to support a language whose useful form here is one
+  source, no joins, no subqueries.
+- `LIKE` compiles to a linear matcher, not a regular expression. A pattern built
+  from caller input and handed to a regex engine is its own denial-of-service
+  class.
+- **Parquet input is refused.** A binary parser over caller-supplied bytes is the
+  risk itself, and the engines that read Parquet here — Spark, Trino, Iceberg —
+  do not use Select at all: they read footers and column chunks with
+  [ranged GETs](#range-requests), which this server serves.
+- Every scan is bounded. See the settings below.
+
+### Limits
+
+| Property | Default | Bounds |
+| --- | --- | --- |
+| `shannonstore.api.s3.select.max.object.bytes` | `134217728` (128 MiB) | Largest object a Select will scan. A Select reads the whole object into memory; a larger object is refused with `ObjectTooLarge` rather than attempted. |
+| `shannonstore.api.s3.select.max.record.bytes` | `1048576` (1 MiB) | Longest single record. Keeps a file with no line breaks — a truncated upload, a generated one-line file — from turning one request into an allocation the size of the object. |
+| `shannonstore.api.s3.select.max.fields` | `4096` | Most fields on one record. A line of nothing but delimiters would otherwise produce one list entry per byte. |
+
+### Response
+
+An AWS event stream: `Records` messages carrying the result, then `Stats`, then
+`End`. Because the stream commits the HTTP status as `200` before the scan runs,
+a failure discovered mid-scan is delivered as an in-band error event — a stream
+that simply stops is indistinguishable from a dropped connection.
+
+```bash
+aws s3api select-object-content \
+  --bucket lake --key sales.csv \
+  --expression "SELECT name FROM S3Object s WHERE s.qty > 100" \
+  --expression-type SQL \
+  --input-serialization '{"CSV":{"FileHeaderInfo":"USE"}}' \
+  --output-serialization '{"CSV":{}}' \
+  /dev/stdout
+```
 
 ## Two-port topology
 

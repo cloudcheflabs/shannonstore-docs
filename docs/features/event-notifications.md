@@ -199,6 +199,40 @@ The producer publishes with `acks=all` and fails fast (bounded `max.block.ms` /
 delivery timeout) so a broker outage surfaces as a counted failure the dispatcher can
 retry, rather than blocking a worker.
 
+## Configure via the S3 API
+
+`PUT` / `GET /<bucket>?notification` speak S3's own
+`NotificationConfiguration` XML, so `aws s3api put-bucket-notification-configuration`
+and the SDK equivalents work against a bucket directly:
+
+```bash
+aws s3api put-bucket-notification-configuration --bucket lake \
+  --notification-configuration '{
+    "TopicConfigurations": [{
+      "Id": "lake-writes",
+      "TopicArn": "arn:shannonstore:notification:::my-webhook",
+      "Events": ["s3:ObjectCreated:*"],
+      "Filter": {"Key": {"FilterRules": [{"Name": "prefix", "Value": "raw/"}]}}
+    }]}'
+```
+
+Two things differ from AWS, and both follow from targets being operator-owned:
+
+- **The destination must already exist.** The ARN's last segment names a target
+  configured through the admin console or REST API above. A destination naming no
+  known target is **refused with `400`, not stored** — a rule pointing at a target
+  that does not exist silently drops every event it matches, which is the worst
+  possible outcome for a notification feature.
+- **A `PUT` replaces only this bucket's rules.** Other buckets' rules, the
+  cluster-wide rules (`bucket: "*"`), and the target list are untouched. For the
+  same reason, a `GET` returns only rules scoped to this bucket: a cluster-wide
+  rule is not this bucket's configuration, and echoing it would invite a client to
+  `PUT` it back narrowed to one bucket.
+
+A Kafka target is rendered as a `QueueConfiguration` and a webhook as a
+`TopicConfiguration`, since a webhook has no S3 analogue and `Topic` is the
+element every SDK parses.
+
 ## Tuning (shannonstore.properties)
 
 The per-node dispatcher is tuned in `shannonstore.properties` §5b (the targets/rules
