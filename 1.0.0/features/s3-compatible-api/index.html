@@ -892,6 +892,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#server-side-encryption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server-side encryption
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Server-side encryption">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sse-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSE-C
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-sse-c-cannot-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What SSE-C cannot do
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#versioning" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1884,7 +1923,7 @@
 <tr>
 <td><strong>PutObject</strong></td>
 <td><code>PUT /&lt;bucket&gt;/&lt;key&gt;</code></td>
-<td>Streaming upload via Netty NIO. Body is erasure-coded and KMS-encrypted before being persisted across data nodes.</td>
+<td>Streaming upload via Netty NIO. Body is encrypted &mdash; with a cluster key, or with a caller-supplied one under <a href="#sse-c">SSE-C</a> &mdash; and then erasure-coded before being persisted across data nodes. Returns <code>x-amz-version-id</code> on a versioned bucket.</td>
 </tr>
 <tr>
 <td><strong>GetObject</strong></td>
@@ -1904,7 +1943,7 @@
 <tr>
 <td><strong>CopyObject</strong></td>
 <td><code>PUT /&lt;bucket&gt;/&lt;key&gt;</code> with <code>x-amz-copy-source</code></td>
-<td>Server-side copy across buckets / keys. Does not stream through the client.</td>
+<td>Server-side copy across buckets / keys. Does not stream through the client. May carry a source key and a destination key at once, which is how an <a href="#sse-c">SSE-C</a> object is re-keyed.</td>
 </tr>
 <tr>
 <td><strong>DeleteObjects (Multi-object delete)</strong></td>
@@ -2166,12 +2205,8 @@ anything that would grant or remove access for someone else is refused with
 <code>501 NotImplemented</code>, naming bucket policy as the mechanism that works.
 <code>GET ?acl</code> still synthesises the owner <code>FULL_CONTROL</code> grant, which is consistent
 with that model: the owner owns everything and there are no other grants.</p>
-<p>The same principle applies to two more headers:</p>
+<p>The same principle applies to unimplemented sub-resources:</p>
 <ul>
-<li><strong>SSE-C</strong> (<code>x-amz-server-side-encryption-customer-*</code>) is refused with <code>501</code>.
-  Ignoring it would leave the caller believing the object is encrypted under a key
-  only they hold — and reads succeed either way, so the mistake would never
-  surface. Use <code>x-amz-server-side-encryption</code> with the built-in <a href="../kms/">KMS</a>.</li>
 <li><strong>Unimplemented sub-resources</strong> — <code>?accelerate</code>, <code>?requestPayment</code>,
   <code>?analytics</code>, <code>?inventory</code>, <code>?metrics</code>, <code>?intelligent-tiering</code>, <code>?torrent</code> —
   are refused with <code>501</code> before dispatch. They previously fell past every branch
@@ -2403,6 +2438,110 @@ ignoring the ranges.</p>
   the number parser.</li>
 </ul>
 <p>Range requests are the path Iceberg/Parquet readers take to fetch column-chunk footers and only the columns they need, so partition-scan performance depends on them working correctly. The implementation caches recently-decoded EC parts in a bounded LRU so two consecutive range reads against the same object don't re-decode the same shard set.</p>
+<h2 id="server-side-encryption">Server-side encryption</h2>
+<p>Three mechanisms, differing in who holds the key.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Who holds the key</th>
+<th>Request headers</th>
+<th>Needed to read</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cluster default</strong></td>
+<td>The cluster</td>
+<td>none</td>
+<td>nothing</td>
+</tr>
+<tr>
+<td><strong>SSE-S3</strong></td>
+<td>The cluster</td>
+<td><code>x-amz-server-side-encryption: AES256</code></td>
+<td>nothing</td>
+</tr>
+<tr>
+<td><strong>SSE-KMS</strong></td>
+<td>The cluster</td>
+<td><code>x-amz-server-side-encryption: aws:kms</code> + <code>…-aws-kms-key-id</code></td>
+<td>nothing</td>
+</tr>
+<tr>
+<td><strong>SSE-C</strong></td>
+<td><strong>The caller</strong></td>
+<td><code>x-amz-server-side-encryption-customer-{algorithm,key,key-md5}</code></td>
+<td>the same key, on every request</td>
+</tr>
+</tbody>
+</table>
+<p><code>GET</code>, <code>HEAD</code> and <code>PUT</code> report back which of these an object actually got, so a
+client that asked for encryption can confirm it happened. An object encrypted
+only because the cluster encrypts everything reports nothing — that is not
+something the caller asked for, and S3 does not report it either.</p>
+<h3 id="sse-c">SSE-C</h3>
+<p>The key is used for one request and dropped; it is never stored. What is kept
+beside the object is a salted HMAC of it, which answers <em>is this the same key</em>
+and nothing else. It is salted so that two objects written with one key do not
+carry the same value, which would otherwise let anyone reading metadata group
+objects by key.</p>
+<p>Supported on <code>PUT</code>, <code>GET</code>, <code>HEAD</code>, <code>UploadPart</code>, <code>CopyObject</code>, <code>UploadPartCopy</code>
+and <code>SelectObjectContent</code>. A copy may carry two keys at once — the source key in
+<code>x-amz-copy-source-server-side-encryption-customer-*</code> and the destination key in
+the usual headers — which is how an object is re-keyed, or decrypted into a
+plain one.</p>
+<p>Three refusals, and the difference between them is actionable:</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Status</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SSE-C object, no key sent</td>
+<td><code>400 InvalidRequest</code></td>
+<td>resend with the key</td>
+</tr>
+<tr>
+<td>SSE-C object, wrong key</td>
+<td><code>403 AccessDenied</code></td>
+<td>retrying will not help</td>
+</tr>
+<tr>
+<td>Key sent for an object that is not SSE-C</td>
+<td><code>400 InvalidRequest</code></td>
+<td>drop the headers</td>
+</tr>
+</tbody>
+</table>
+<p>The third is a refusal rather than a shrug on purpose. Ignoring the key would
+hand back plaintext to a caller who believes the bytes were protected by a key
+only they hold.</p>
+<p><code>ListObjects</code>, <code>ListObjectVersions</code> and <code>DeleteObject</code> do <strong>not</strong> need the key:
+only the bytes are encrypted, and an operator who has lost a key must still be
+able to remove the object.</p>
+<h3 id="what-sse-c-cannot-do">What SSE-C cannot do</h3>
+<p>Anything that reads an object without a request behind it cannot open an SSE-C
+object, because there is no key to be had. These paths skip it and say so rather
+than failing halfway or writing bytes nobody can read:</p>
+<ul>
+<li><strong>Replication</strong> and <strong>site replication</strong> skip the object and record
+  <code>SSE_C_SKIPPED</code> against it. Configuring a replication rule on a bucket that
+  already holds SSE-C objects is still accepted — refusing would strand every
+  other object in the bucket — but logs a warning at that moment, so this is
+  not discovered later. See
+  <code>shannonstore.api.replication.ssec.scan.limit</code> in
+  <a href="../configuration/">Configuration</a>.</li>
+<li><strong>Tiering</strong> leaves the object in place.</li>
+<li>The <strong>admin console</strong> answers <code>409</code> on a download rather than failing as a
+  server error.</li>
+</ul>
+<p>Bitrot scrubbing and EC repair are unaffected: they work on ciphertext shards
+and their checksums, and never need the plaintext.</p>
 <h2 id="versioning">Versioning</h2>
 <p>Per-bucket versioning is toggled via <code>PUT /&lt;bucket&gt;?versioning</code> with the standard <code>&lt;VersioningConfiguration&gt;&lt;Status&gt;Enabled&lt;/Status&gt;&lt;/VersioningConfiguration&gt;</code> body. When enabled:</p>
 <ul>
@@ -2412,6 +2551,16 @@ ignoring the ranges.</p>
 <li>Disabling versioning (<code>Suspended</code>) stops generating new version IDs but does not retroactively collapse history.</li>
 </ul>
 <p>Versioning state is persisted in <code>BucketManager</code> and broadcast to peer API nodes through the IAM/bucket snapshot replication channel, so the per-bucket flag is consistent cluster-wide.</p>
+<p><code>PUT</code> returns <code>x-amz-version-id</code> for the version it created, so a client can
+address what it just wrote instead of listing versions and guessing which one
+is its own.</p>
+<p>Every version keeps its own bytes, including under successive writes to the same
+key with no pause between them. That is worth stating explicitly because writes
+land in a part buffer and are committed to their final location asynchronously:
+the commit has to find the version it belongs to, not whichever version is
+newest by the time it runs. A version only becomes the current one if it is
+genuinely newer, so a late commit of an older version cannot roll the object
+back while the version listing still names a newer one as latest.</p>
 <h2 id="error-response-shape">Error response shape</h2>
 <p>Errors follow the canonical S3 XML:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="cp">&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;</span>

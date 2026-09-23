@@ -1111,6 +1111,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#keys-the-cluster-does-not-hold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keys the cluster does not hold
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1822,6 +1833,16 @@
 <p>The fallback exists exactly once per blob — corruption that fails <em>both</em> paths is rethrown so a bad disk doesn't silently masquerade as a legacy plaintext blob.</p>
 <h3 id="aws-kms-shape-compatibility"><code>aws kms</code> shape compatibility</h3>
 <p>Although ShannonStore's master key lives in an environment variable rather than AWS KMS, the object-level encryption headers and ETag rules match the AWS <code>aws:kms</code> server-side encryption shape closely enough that S3 SDKs configured for AWS KMS work against ShannonStore without code change.</p>
+<h3 id="keys-the-cluster-does-not-hold">Keys the cluster does not hold</h3>
+<p>Everything above is about keys the cluster holds. A caller can instead supply
+its own key on every request &mdash; <strong>SSE-C</strong> &mdash; in which case the cluster
+uses it for that one request and drops it, and nothing here applies: there is no
+KEK, no keystore row, and no rotation, because there is no key to rotate.</p>
+<p>The trade is that the cluster can no longer do anything with those objects on
+its own time. Replication and tiering skip them, because a background worker has
+no request to take a key from. The full contract, including which operations
+accept the headers and what each refusal means, is in
+<a href="../s3-compatible-api/#server-side-encryption">S3 API &rarr; Server-side encryption</a>.</p>
 <h2 id="operational-guidance">Operational guidance</h2>
 <ul>
 <li><strong>Set <code>SHANNONSTORE_MASTER_KEY</code> from a secret manager</strong> (HashiCorp Vault, AWS Secrets Manager, etc.), not from a static file checked into config. The cluster never persists it, but the process-launcher environment is the most common leak point.</li>
@@ -1831,6 +1852,7 @@
 </ul>
 <h2 id="see-also">See also</h2>
 <ul>
+<li><a href="../s3-compatible-api/#server-side-encryption">S3 API</a> — the SSE-S3, SSE-KMS and SSE-C request headers, and what each reports back.</li>
 <li><a href="../ec/">Erasure Coding</a> — the shard-level format that the per-object DEK encrypts.</li>
 <li><a href="../iam/">Identity &amp; Access Management</a> — uses the same KEK to protect the IAM blob at rest.</li>
 <li><a href="../auth-authz/">Authentication &amp; Authorization</a> — the JWT signing key is independent of the KEK; rotating one does not require rotating the other.</li>

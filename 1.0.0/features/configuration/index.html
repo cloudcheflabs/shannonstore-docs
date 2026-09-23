@@ -2077,6 +2077,11 @@
 <td>Most fields one record may have before it is treated as malformed. Bounds CSV splitting: a line of nothing but delimiters would otherwise produce one list entry per byte.</td>
 </tr>
 <tr>
+<td><code>shannonstore.api.replication.ssec.scan.limit</code></td>
+<td><code>1000</code></td>
+<td>How many objects <code>PutBucketReplication</code> looks at before warning that the rule covers <a href="../s3-compatible-api/#sse-c">SSE-C</a> data, which replication cannot move. The warning only needs to distinguish <em>some</em> from <em>none</em>, so the scan stops here rather than walking a bucket of millions for a log line. Raise it to make that count exact on larger buckets; lower it if <code>PutBucketReplication</code> feels slow.</td>
+</tr>
+<tr>
 <td><code>shannonstore.api.maintenance.retry.after.seconds</code></td>
 <td><code>30</code></td>
 <td><code>Retry-After</code> sent with the <code>503</code> a request gets while the cluster is in <a href="../maintenance/">maintenance mode</a>. Set it to roughly how long a window usually lasts: too low and clients hammer a cluster that is deliberately closed, too high and they stay away well after it reopens.</td>
