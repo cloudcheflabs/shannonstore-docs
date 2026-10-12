@@ -4,8 +4,6 @@ ShannonStore is a high-performance, S3-compatible object storage system designed
 
 ## ShannonStore Architecture
 
-<img width="600" src="../../images/architecture/shannonstore-architecture.png" align="center"/>
-
 ### Control & Logic Layer (API Servers)
 
 API Servers are the "brain" of ShannonStore. They terminate the S3 protocol, enforce security, and orchestrate data movement across the storage tier.
