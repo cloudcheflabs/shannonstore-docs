@@ -2182,7 +2182,7 @@
 <tr>
 <td><code>shannonstore.api.zk.leader.path</code></td>
 <td><code>/s3/masters/leader</code></td>
-<td>ZooKeeper base path for the <code>LeaderLatch</code> in API leader election; also read by Data nodes to locate the leader.</td>
+<td>ZooKeeper base path for the Curator <code>LeaderSelector</code> in API leader election (only one node holds leadership at a time, by Curator contract); also read by Data nodes to locate the leader.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.zk.coordinator.leader.id.path</code></td>
@@ -2621,6 +2621,11 @@ config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
 <td><code>shannonstore.api.admin.handler.thread.pool.size</code></td>
 <td><code>16</code></td>
 <td>Threads running admin-triggered async tasks (repair/rebalance scans, backup/restore coordination).</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.admin.zk.probe.timeout.ms</code></td>
+<td><code>2000</code></td>
+<td>Connect + read timeout (ms) for each ZooKeeper server the admin <strong>Topology</strong> page asks for its status (<code>GET /admin/cluster/zookeeper</code>, the <code>srvr</code> four-letter command). Servers are asked in parallel, so a dead server costs one timeout; a server that does not answer in time is shown DOWN. See <a href="../../operations/operations/#zookeeper-in-the-topology-page">Cluster Operations → ZooKeeper in the Topology page</a>.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.admin.proxy.connect.timeout.ms</code></td>

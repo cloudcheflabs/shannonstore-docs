@@ -1308,6 +1308,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#zookeeper-ensemble" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ZooKeeper ensemble
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#internal-metrics-store" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1826,6 +1837,8 @@ Admin UI (sourced from the internal metrics store) but are <strong>not</strong> 
 their own named Prometheus series — there is no <code>s3.api.errors</code>, <code>disk.repair.*</code>, or
 <code>nio.connection.pool.*</code> meter in source, despite those names appearing plausible for a
 store of this shape.</p>
+<h2 id="zookeeper-ensemble">ZooKeeper ensemble</h2>
+<p>ZooKeeper health is not a <code>/metrics</code> series. The admin <strong>Topology</strong> page and <code>GET /admin/cluster/zookeeper</code> show every ZooKeeper server's role, version, latency, connections and zxid, the quorum, and each API Server's own ZooKeeper session — see <a href="../../operations/operations/#zookeeper-in-the-topology-page">Cluster Operations → ZooKeeper in the Topology page</a>. For alerting, poll that endpoint (<code>quorum.hasQuorum</code>, any server with <code>status: DOWN</code>) or scrape ZooKeeper's own metrics provider.</p>
 <h2 id="internal-metrics-store">Internal metrics store</h2>
 <p>For operators who don't run Prometheus, the API node also collects metrics into its own RocksDB-backed store (<code>MetricsManager</code>). The Admin UI's charts read directly from this store, so a fresh install gets useful dashboards immediately with no external system to deploy.</p>
 <table>
