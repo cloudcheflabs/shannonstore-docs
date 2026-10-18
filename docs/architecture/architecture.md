@@ -27,6 +27,7 @@ Data Nodes are the "warehouse" of the cluster. They persist binary fragments to 
 ZooKeeper provides cluster membership, leader election, and the readiness signal that gates client traffic.
 
 - **Service discovery** — every node registers itself and its readiness state.
+- **Visible ensemble** — the admin **Topology** page lists every ZooKeeper server with its role (leader / follower / standalone), the quorum, and each API Server's session, so a lost server or a lost quorum is seen before it stops the cluster.
 - **Sticky leader election** — exactly one API node is elected leader; on restart, the previous leader tends to win re-election so the cluster minimises state movement.
 - **Cluster opening guarantees**:
     - Traffic is accepted only after every API node is ready **and** at least one data node has registered with every registered data node ready. Until then, requests are rejected. There is no timeout — a cluster started without any data nodes simply stays closed.

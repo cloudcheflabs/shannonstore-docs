@@ -6,7 +6,7 @@ This page covers running a ShannonStore cluster in steady state: starting and st
 
 A ShannonStore deployment is composed of three process types:
 
-- **ZooKeeper** — provides cluster coordination and discovery. The release archive ships an embedded single-node ZooKeeper for evaluation; production deployments use a dedicated ensemble.
+- **ZooKeeper** — provides cluster coordination and discovery. The release archive ships a single-node ZooKeeper (`bin/start-zk.sh`) for evaluation; production deployments use a dedicated ensemble.
 - **API Server** — terminates the S3 protocol, holds and replicates metadata, and orchestrates erasure-coded reads and writes. Two or more API Servers run for high availability; one is elected leader for IAM and KMS ownership.
 - **Data Node** — stores object shards on local disks. Multiple disks per node are supported.
 
@@ -34,7 +34,14 @@ Configure the storage directories in `conf/shannonstore.properties` — multiple
 
 ### ZooKeeper
 
-The bundled embedded ZooKeeper is for evaluation only. In production, point all roles at a managed ensemble.
+```
+bin/start-zk.sh
+bin/stop-zk.sh
+```
+
+The bundled ZooKeeper runs the standard `QuorumPeerMain` with `conf/zk/zoo.cfg` (client port 2181, data under `data/zookeeper`, log in `logs/zk.log`). It is a single server, for evaluation only. In production, point every API Server and Data Node at a managed ensemble of three or five servers through `shannonstore.zk.connect` (`zk1:2181,zk2:2181,zk3:2181`).
+
+The admin **Topology** page reads each server's status with the `srvr` four-letter command. ZooKeeper 3.5+ answers `srvr` by default; if your ensemble sets `4lw.commands.whitelist`, keep `srvr` in it (the bundled `zoo.cfg` sets `srvr,ruok`). Without it the page still shows the server as UP but cannot show its role.
 
 ## Cluster Bootstrap and Restart
 
@@ -58,6 +65,60 @@ After bootstrap, every IAM or KMS change runs on the leader and is pushed to all
 ### Admin UI
 
 Browse the admin port at `/admin` to see the cluster snapshot — leader identity, registered nodes, per-node ownership distribution, per-disk capacity and usage, KMS state, and reconciliation sweep stats. Any API Server can serve the UI.
+
+The **Topology** page lists everything the cluster runs on:
+
+- **Fault domains** — distinct zones, racks and hosts among the data nodes (see [Topology-Aware Placement](../features/placement-cascade.md)).
+- **API Servers** — node id, address, ports, maintenance flag, logs.
+- **Data Nodes** — node id, address, fault-domain labels, per-disk capacity and usage.
+- **ZooKeeper** — every server of the ensemble, the quorum, and each API Server's own ZooKeeper session (below).
+
+### ZooKeeper in the Topology page
+
+The ZooKeeper section shows every server named in `shannonstore.zk.connect`, in that order:
+
+| Column | Meaning |
+|---|---|
+| Server | `host:port` from the connect string (a chroot suffix is ignored; a host without a port is 2181) |
+| Role | `leader`, `follower`, `observer`, or `standalone` for a single server; `unknown` when the server is down or does not answer `srvr` |
+| Version | the ZooKeeper server version |
+| Connections | client connections open on that server |
+| Latency min/avg/max | request latency the server measured, in ms |
+| Zxid / Znodes | the last transaction id the server applied, and its znode count |
+| Status | UP, or DOWN with the reason (connection refused, timeout, ...) |
+
+The header shows `UP / total` and the quorum: **Quorum OK** when a strict majority of the ensemble is up and one server is the leader (a standalone server is its own quorum), **No Quorum** otherwise. Without quorum ZooKeeper refuses writes, so leader election, node registration and the cluster-ready flag stop working until a majority is back.
+
+Below the table, **API node sessions** show each API Server's own ZooKeeper session: its connection state as Curator last reported it (`CONNECTED`, `RECONNECTED`, `SUSPENDED`, `LOST`, `READ_ONLY`), the server the session is attached to, the session id and the negotiated session timeout. A `SUSPENDED` session means that node lost its server and is trying another; `LOST` means the session expired and the node's ephemeral registrations were removed.
+
+How it works: the API Server that answers the page asks every ZooKeeper server in parallel with `srvr` on the client port, with a timeout of `shannonstore.api.admin.zk.probe.timeout.ms` (default 2000 ms), so one dead server costs one timeout. The page refreshes every 5 seconds. The same data is available from the admin REST API (admin login required):
+
+```bash
+# the ensemble, the quorum and the answering node's session
+curl -s -H "Authorization: Bearer $TOK" http://api-1:8888/admin/cluster/zookeeper | jq
+
+# answered by another API Server, to read that node's session
+curl -s -H "Authorization: Bearer $TOK" \
+  "http://api-1:8888/admin/cluster/zookeeper?targetHost=api-2&targetPort=8888" | jq .client
+```
+
+```json
+{
+  "connectString": "zk1:2181,zk2:2181,zk3:2181",
+  "servers": [
+    { "host": "zk1", "port": 2181, "status": "UP", "version": "3.9.1", "latencyMin": 0, "latencyAvg": 0.4,
+      "latencyMax": 7, "connections": 6, "outstanding": 0, "zxid": "0x10000004a", "mode": "follower", "nodeCount": 61 },
+    { "host": "zk2", "port": 2181, "status": "UP", "mode": "leader", "...": "..." },
+    { "host": "zk3", "port": 2181, "status": "DOWN", "mode": "unknown", "error": "ConnectException: Connection refused" }
+  ],
+  "quorum": { "up": 2, "total": 3, "required": 2, "hasQuorum": true, "leader": "zk2:2181" },
+  "client": { "nodeId": "ss-api-1", "state": "CONNECTED", "connected": true, "sessionId": "0x100000a3c0b0002",
+              "sessionTimeoutMs": 40000, "connectedServer": "zk1/172.18.0.3:2181" },
+  "checkedAt": 1760780000000
+}
+```
+
+Data Nodes use the same ensemble but have no HTTP surface, so their sessions are not listed; a Data Node that lost its session disappears from the **Data Nodes** table when its ephemeral registration expires.
 
 ### Health Endpoint
 

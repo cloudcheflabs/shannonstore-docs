@@ -136,7 +136,7 @@ API node only.
 | `shannonstore.api.s3.ec.parity.shards` | `2` | Erasure Coding parity-shard count *m*: redundant shards per object; tolerates up to *m* simultaneous failures (4+2 scheme by default). |
 | `shannonstore.api.s3.ec.weighted.placement` | `false` | When true, shard placement across Data nodes weighs candidates by available capacity/load instead of a flat round-robin. Not present in the shipped `shannonstore.properties`. |
 | `shannonstore.api.zk.discovery.path` | `/s3/discovery/api` | ZooKeeper znode path where API nodes register ephemeral discovery entries. |
-| `shannonstore.api.zk.leader.path` | `/s3/masters/leader` | ZooKeeper base path for the `LeaderLatch` in API leader election; also read by Data nodes to locate the leader. |
+| `shannonstore.api.zk.leader.path` | `/s3/masters/leader` | ZooKeeper base path for the Curator `LeaderSelector` in API leader election (only one node holds leadership at a time, by Curator contract); also read by Data nodes to locate the leader. |
 | `shannonstore.api.zk.coordinator.leader.id.path` | `/s3/coordinator-leader-id` | Persistent znode recording the incumbent leader's nodeId; source of truth for sticky-leader election across restarts. |
 | `shannonstore.api.cluster.leader.election.timeout.ms` | `30000` | Max time (ms) to wait for a leader to be elected before continuing startup. |
 | `shannonstore.api.cluster.leader.deference.window.ms` | `3000` | Sticky-leader deference window (ms): a non-incumbent node waits this long for the prior incumbent to reclaim the latch. 2000–5000 ms is a reasonable range. |
@@ -280,6 +280,7 @@ config (Admin UI → Event Notifications), **not** here.
 | --- | --- | --- |
 | `shannonstore.api.message.handler.thread.pool.size` | `48` | Threads processing inbound internal NIO messages (chunk/metadata/KMS RPCs from peers). In-code default `max(16, cores × 4)`. |
 | `shannonstore.api.admin.handler.thread.pool.size` | `16` | Threads running admin-triggered async tasks (repair/rebalance scans, backup/restore coordination). |
+| `shannonstore.api.admin.zk.probe.timeout.ms` | `2000` | Connect + read timeout (ms) for each ZooKeeper server the admin **Topology** page asks for its status (`GET /admin/cluster/zookeeper`, the `srvr` four-letter command). Servers are asked in parallel, so a dead server costs one timeout; a server that does not answer in time is shown DOWN. See [Cluster Operations → ZooKeeper in the Topology page](../operations/operations.md#zookeeper-in-the-topology-page). |
 | `shannonstore.api.admin.proxy.connect.timeout.ms` | `5000` | TCP connect timeout (ms) when an API node proxies an admin write to the leader. |
 | `shannonstore.api.admin.proxy.read.timeout.ms` | `30000` | Read/response timeout (ms) for proxied admin-to-leader forwarding. |
 | `shannonstore.api.admin.logs.proxy.read.timeout.ms` | `10000` | Read timeout (ms) for proxying the `/admin/logs/tail` stream to a peer (kept low because log tail is interactive). |
