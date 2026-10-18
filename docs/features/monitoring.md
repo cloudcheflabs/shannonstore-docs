@@ -100,6 +100,10 @@ their own named Prometheus series — there is no `s3.api.errors`, `disk.repair.
 `nio.connection.pool.*` meter in source, despite those names appearing plausible for a
 store of this shape.
 
+## ZooKeeper ensemble
+
+ZooKeeper health is not a `/metrics` series. The admin **Topology** page and `GET /admin/cluster/zookeeper` show every ZooKeeper server's role, version, latency, connections and zxid, the quorum, and each API Server's own ZooKeeper session — see [Cluster Operations → ZooKeeper in the Topology page](../operations/operations.md#zookeeper-in-the-topology-page). For alerting, poll that endpoint (`quorum.hasQuorum`, any server with `status: DOWN`) or scrape ZooKeeper's own metrics provider.
+
 ## Internal metrics store
 
 For operators who don't run Prometheus, the API node also collects metrics into its own RocksDB-backed store (`MetricsManager`). The Admin UI's charts read directly from this store, so a fresh install gets useful dashboards immediately with no external system to deploy.

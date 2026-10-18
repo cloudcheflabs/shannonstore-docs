@@ -28,7 +28,7 @@ curl -sS -H "Authorization: Bearer $TOK" \
   http://api:8888/admin/nodes/data | jq '.[] | {id, hostId, rackId, zoneId}'
 ```
 
-The admin UI **Nodes** page shows the same labels per node and a Topology Summary box (zones / racks / hosts / nodes / disks count + a *rack-distinct feasible* flag for the current EC profile).
+The admin UI **Topology** page shows the same labels per node (each label marked *auto* when it was derived from the registration host) and a **Topology / Fault Domains** summary: the number of distinct zones, racks and hosts and the number of data nodes, each marked *explicit* when an operator set the label or *fallback* when it was inherited from the level below (zone ← rack ← host ← registration address). The same page lists the ZooKeeper ensemble — see [Cluster Operations](../operations/operations.md#zookeeper-in-the-topology-page).
 
 ## Weighted HRW (heterogeneous disks)
 
