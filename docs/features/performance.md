@@ -46,6 +46,10 @@ The buffer is **cluster-aware**: a part uploaded to API node A and a completion 
 
 Parts are also **pre-assigned to EC shard slots** at buffer time. The slot assignment uses the same HRW that final-write placement would, so at completion the per-part shards are already in their final layout — no re-encoding, just promotion from "buffered" to "committed".
 
+**Overwriting a key while it is still buffered: the last PUT wins.** A single PUT goes through the same buffer, and in a bucket without versioning every PUT of a key has the version `null`. When a key is written again before the flusher has drained the first write, the flusher sees that the object's metadata now belongs to the later PUT and drops the earlier bytes instead of writing them into the later PUT's shard slots. (Before 1.0.0's fix, two PUTs of one key within the flush interval could leave the object unreadable, every shard failing its checksum.) `tests/test-overwrite-race-e2e.sh` writes keys twice back to back and checks each reads back as its second body on every API node.
+
+**A GET that cannot be served fails at once.** When fewer shards than the erasure code needs are readable — data nodes unreachable, or shards failing their CRC32C check — the read answers `500 InternalError` as soon as every fetch has returned, instead of waiting out `shannonstore.api.s3.fetch.timeout.seconds`.
+
 ## Quorum writes
 
 A PUT replies as soon as **k of k+m shards acknowledge**. The remaining parity shards continue writing in the background. The math: with k=4 m=2 the client sees acknowledgement at 4-of-6, durability is already achieved (the 4 data shards reconstruct the object even if every parity write fails), and the perceived write latency drops from `max(all 6 sites)` to `4th-fastest of 6 sites`.
