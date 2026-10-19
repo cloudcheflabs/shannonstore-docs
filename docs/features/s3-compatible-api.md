@@ -55,10 +55,10 @@ The part-buffer store is the source of truth for in-flight uploads — it surviv
 | Operation | Trigger | Notes |
 | --- | --- | --- |
 | **CreateBucket** | `PUT /<bucket>` | Owner becomes the caller. There is no existence/ownership check — a repeat `CreateBucket` call against a name that already exists (by the owner or anyone else) succeeds with `200` and resets the bucket's ACL rather than returning a conflict. |
-| **DeleteBucket** | `DELETE /<bucket>` | Unlike AWS S3, the bucket does **not** need to be empty: a non-WORM-protected bucket is deleted along with every object it contains (WORM/object-lock-protected objects still block the delete). |
+| **DeleteBucket** | `DELETE /<bucket>` | As in AWS S3, the bucket must be empty: a bucket that still holds an object answers `409 BucketNotEmpty` (empty it first, e.g. `aws s3 rb --force`), and a missing bucket answers `404 NoSuchBucket`. The delete goes through the leader, so every API node stops listing the bucket at once. WORM-protected objects block it with `409 BucketNotEmpty` naming the protected key. The admin console's delete follows the same rule. |
 | **ListBuckets** | `GET /` | Returns every bucket the IAM credential can `s3:ListAllMyBuckets`. |
 | **HeadBucket** | `HEAD /<bucket>` | Existence probe — used by `aws s3 ls` to discover buckets. |
-| **ListObjects v1** | `GET /<bucket>?prefix=…&marker=…&max-keys=…` | `delimiter=/` returns `CommonPrefixes` for directory-style listing. |
+| **ListObjects v1** | `GET /<bucket>?prefix=…&marker=…&max-keys=…` | `delimiter=/` returns `CommonPrefixes` for directory-style listing. A bucket that does not exist answers `404 NoSuchBucket` (v1 and v2), not an empty listing. |
 | **ListObjects v2** | `GET /<bucket>?list-type=2&continuation-token=…&start-after=…` | Continuation token round-trips the next key (server-issued opaque base64 ≡ key for predictability). |
 | **GetBucketLocation** | `GET /<bucket>?location` | Always returns an empty `<LocationConstraint></LocationConstraint>` (S3-legal shorthand for `us-east-1`) — no per-bucket or per-cluster region setting is consulted. |
 | **GetBucketAcl** | `GET /<bucket>?acl` | Does **not** read the ACL persisted in `BucketManager`; it synthesizes a static `FULL_CONTROL` grant owned by the *requesting caller's* access key on every call. |
