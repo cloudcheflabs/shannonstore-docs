@@ -2063,7 +2063,7 @@
 <tr>
 <td><strong>DeleteBucket</strong></td>
 <td><code>DELETE /&lt;bucket&gt;</code></td>
-<td>Unlike AWS S3, the bucket does <strong>not</strong> need to be empty: a non-WORM-protected bucket is deleted along with every object it contains (WORM/object-lock-protected objects still block the delete).</td>
+<td>As in AWS S3, the bucket must be empty: a bucket that still holds an object answers <code>409 BucketNotEmpty</code> (empty it first, e.g. <code>aws s3 rb --force</code>), and a missing bucket answers <code>404 NoSuchBucket</code>. The delete goes through the leader, so every API node stops listing the bucket at once. WORM-protected objects block it with <code>409 BucketNotEmpty</code> naming the protected key. The admin console's delete follows the same rule.</td>
 </tr>
 <tr>
 <td><strong>ListBuckets</strong></td>
@@ -2078,7 +2078,7 @@
 <tr>
 <td><strong>ListObjects v1</strong></td>
 <td><code>GET /&lt;bucket&gt;?prefix=…&amp;marker=…&amp;max-keys=…</code></td>
-<td><code>delimiter=/</code> returns <code>CommonPrefixes</code> for directory-style listing.</td>
+<td><code>delimiter=/</code> returns <code>CommonPrefixes</code> for directory-style listing. A bucket that does not exist answers <code>404 NoSuchBucket</code> (v1 and v2), not an empty listing.</td>
 </tr>
 <tr>
 <td><strong>ListObjects v2</strong></td>
