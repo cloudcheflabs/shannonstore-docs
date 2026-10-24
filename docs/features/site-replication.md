@@ -61,8 +61,10 @@ curl     http://siteA:8888/admin/replication/sites/status  -H "Authorization: Be
 curl -X POST http://siteA:8888/admin/replication/sites/trigger -H "Authorization: Bearer <admin-jwt>"  # run a cycle now
 ```
 
-The peer `endpoint` is the peer cluster's **S3 endpoint**, and the credentials are an
-S3 access key/secret valid on the peer. The worker uses them to create buckets, set
+The peer `endpoint` is the peer cluster's **S3 endpoint** (`http://` or `https://`), and the credentials are an
+S3 access key/secret valid on the peer. Every peer needs a unique `siteId`. Reading the configuration
+is administrator-only and returns each stored `secretKey` as `********`; sending `********` back unchanged
+keeps the stored secret. The worker uses them to create buckets, set
 versioning, and copy objects there.
 
 ```properties

@@ -140,6 +140,11 @@ Open **Event Notifications** in the Admin console:
 
 ## Configure via the admin REST API
 
+The configuration endpoints and the test endpoint are administrator-only. Webhook header values and
+Kafka producer properties whose names look like credentials (`password`, `secret`, `token`, `jaas`, ...)
+are returned as `********`; sending `********` back unchanged keeps the stored value, so a read-modify-write
+of the document never wipes a token.
+
 The whole configuration is one JSON document (`GET`/`PUT`):
 
 ```bash

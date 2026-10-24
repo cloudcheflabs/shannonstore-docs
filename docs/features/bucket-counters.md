@@ -1,56 +1,61 @@
 # Bucket Counters (Object Count & Size)
 
-Every bucket exposes two running counters — object count and total bytes — that update on every PUT, multipart-complete, and DELETE rather than being recomputed from a full metadata scan. The admin UI **Bucket Browser** uses them, and they are served alongside the bucket listing.
+Every bucket shows its object count and total bytes in the admin UI's **Object Store** page and in the
+bucket listing of the admin REST API. The numbers are exact, cover every API node, and survive restarts.
 
 ## How it works
 
-Each API node maintains its own in-memory `ConcurrentHashMap<bucket, count>` and `ConcurrentHashMap<bucket, sizeBytes>` inside `BucketManager`. The node updates its own counter whenever it serves a write — under nginx round-robin, half the PUTs land on node A and half on node B, so each node carries half the delta.
+Metadata is placed on the API nodes by rendezvous hashing (HRW): each `(bucket, key)` has an ordered
+list of owners, and the first one is its **primary**. Every live object has exactly one primary, so:
 
-When a client reads stats, the API node that received the request (not necessarily the leader — `GET /admin/browser/buckets` is not leader-forwarded) fans out `TYPE_GET_BUCKET_STATS` to every other API node, each returns its local pair, and the requesting node sums them — that sum is the **cluster total** with no RocksDB scan.
+1. Each API node counts, per bucket, the current (not deleted) objects it is the primary for, and sums
+   their sizes. One pass over its metadata index produces the numbers for every bucket at once.
+2. The node that answers `GET /admin/browser/buckets` asks every other API node for its share
+   (`TYPE_GET_BUCKET_STATS` over the internal NIO channel) and adds them up.
 
 ```text
    GET /admin/browser/buckets
       │
       ▼
-   ┌──────────────────────────────────────────────┐
-   │ for each API node: ask "your delta?" via RPC │
-   │   sum(count_i) → cluster object count        │
-   │   sum(size_i)  → cluster total bytes         │
-   └──────────────────────────────────────────────┘
+   ┌──────────────────────────────────────────────────────────┐
+   │ for each API node: "how many objects are you primary for?" │
+   │   sum(count_i) → bucket object count                       │
+   │   sum(size_i)  → bucket total bytes                        │
+   └──────────────────────────────────────────────────────────┘
 ```
 
-Overwrites are tracked correctly: the writing node compares the new object size to the previous metadata and applies `Δsize = new - prev, Δcount = 0`. Deletes apply `Δsize = -prev.size, Δcount = -1` on the node that served the DELETE.
+Because the numbers come from the metadata itself, a restarted node reports the same share it had
+before, and a node that served no traffic still counts the objects it owns.
+
+A node reuses its last scan for `shannonstore.api.bucket.stats.cache.ms` (default `5000`) so that a
+listing of many buckets costs one scan, not one per bucket. A write served by a node clears that node's
+cached scan, so its own writes show on the next listing.
 
 ## Wire
-
-The counters are surfaced as part of the bucket listing response:
 
 ```bash
 curl -sS -H "Authorization: Bearer $TOK" \
   http://api:8888/admin/browser/buckets | jq .
 [
-  { "name": "lakehouse", "objectCount": 12842, "totalSizeBytes": 5012398476 },
-  { "name": "scratch",   "objectCount": 0,     "totalSizeBytes": 0 }
+  { "name": "lakehouse", "objectCount": 12842, "totalSizeBytes": 5012398476, "versioning": false },
+  { "name": "scratch",   "objectCount": 0,     "totalSizeBytes": 0,          "versioning": true }
 ]
 ```
 
-Per-bucket details (storage class, EC profile) are on `/admin/buckets/{bucket}/storage-class` — see [Storage Classes & Tiering](storage-classes-tiering.md).
+A non-administrator sees only the buckets their IAM policies let them list (`s3:ListBucket`).
 
-## What the counters are NOT
+Per-bucket details (storage class, EC profile) are on `/admin/buckets/{bucket}/storage-class` — see
+[Storage Classes & Tiering](storage-classes-tiering.md).
 
-- **Not** per-prefix. The numbers are bucket-wide; a deep lakehouse with `iceberg/db/tbl/data/` subtrees does not get prefix-level stats from this counter. Per-prefix accounting is a future RFC.
-- **Not** snapshot-replicated. Each node's counter is local. A node restart resets that node's contribution; the cluster total then drops by the restarted node's previous delta until it re-observes traffic. This is acceptable for an operations gauge; it is not a billing source of truth.
-- **Not** authoritative across versioned DELETEs that write delete markers (the prior versions remain). Counters track *visible* objects.
+## What the counters are not
 
-## Bootstrap
+- **Not** per-prefix. The numbers are bucket-wide.
+- **Not** a count of versions. On a versioned bucket they count the current versions; noncurrent
+  versions and delete markers are not included.
+- **Not** instantaneous across nodes. Another node's share can be up to
+  `shannonstore.api.bucket.stats.cache.ms` old.
 
-There is no fullscan-seeding step. `ApiMessageHandler`'s `TYPE_GET_BUCKET_STATS` handler
-returns *only* the requested node's in-memory `BucketManager` counter and explicitly does
-**not** fall back to a RocksDB fullscan (metadata is replicated to every node, so a
-per-node fullscan would return the full object count and summing across nodes would
-multiply the total by the node count). A `BucketManager.resetBucketCounters(bucket, count,
-sizeBytes)` method exists that could seed a counter from an external count, but nothing in
-the codebase currently calls it. In practice this means a freshly imported bucket's
-counters start at whatever value they were initialized to (typically `0`) and only move as
-PUT/DELETE traffic accumulates deltas on each node going forward — there is no automatic
-correction toward the true object count.
+!!! note "Changed in 1.0.0"
+    Earlier builds kept in-memory counters that each node updated for the writes it served. They reset
+    to zero when a node restarted, so a full bucket could show `0 Objects` after a rolling restart. The
+    counts are now computed from the metadata as described above.

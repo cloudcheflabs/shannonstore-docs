@@ -25,7 +25,14 @@ The `S3 Backup` page in the admin UI exposes the full configuration:
 - **Cron** — optional 5-field UNIX cron expression for wall-clock schedules (e.g. `0 2 * * *` for daily at 02:00). Coexists with the interval rule — both can be set, whichever comes due first fires the backup.
 - **Retention (days)** — how long the visible history is kept (default 30).
 
-The same page also has a **Test Connection** button (probes the destination bucket) and a **Backup now** button (triggers an immediate backup).
+The same page also has a **Test Connection** button (probes the destination bucket with the values on the form, saved or not) and a **Backup now** button. **Backup now** starts the run on the leader and returns at once; the run shows as *In progress* and then in the history. Starting a second run while one is going answers `409`.
+
+Saving refuses an invalid cron expression, and refuses to enable backups without an `http://` or `https://` endpoint, a bucket, an access key and a secret key — a schedule with no target would otherwise fail on every tick. The secret key is write-only: the page shows that one is stored and a blank field keeps it.
+
+Backup settings and the run history live on the leader (the scheduler runs there); every API node answers these pages with the leader's data.
+
+!!! warning "Use another cluster as the target"
+    Backing up into a bucket of the same cluster works for a test, but each run then includes the previous backups (they are chunks on the same data nodes), so the backup grows with every run.
 
 ### Cron vs. Interval
 
@@ -56,10 +63,10 @@ The same `S3 Backup` admin page lists the backup history. Each successful entry 
 
 The flow is:
 
-1. Operator clicks **Restore** on the chosen history row.
-2. The leader API server pulls every file in that backup's manifest into staging directories that sit *next to* the live RocksDB / chunk-store dirs (e.g. `iam.restore-pending/`).
+1. Operator clicks **Restore** on the chosen history row (`POST /admin/restore {"backupId": ...}`).
+2. The leader API server starts staging in the background: it pulls every file in that backup's manifest into staging directories that sit *next to* the live RocksDB / chunk-store dirs (e.g. `iam.restore-pending/`).
 3. The leader fans out the same request to every data node, which stages its own slice in parallel.
-4. The admin UI reports per-node staging results and asks the operator to **restart the cluster**.
+4. The admin UI polls `GET /admin/restore/status` (`inProgress`, `last`) and, when staging is done, shows the per-node report and asks the operator to **restart the cluster**.
 5. On the next process start, each component checks for staged dirs, archives the live one to `*.restore-old-<ts>/`, and atomically renames the staged dir into place.
 
 The two-stage design (stage now, swap on restart) avoids hot-swapping directories that RocksDB and the chunk store hold open file handles on. Old snapshots remain on disk as `*.restore-old-<ts>` until the operator removes them, so a restore is reversible by hand.

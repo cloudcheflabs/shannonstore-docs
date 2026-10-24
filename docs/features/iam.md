@@ -198,6 +198,13 @@ A legacy plaintext-blob path is kept for one upgrade window: if KMS-decrypt fail
 
 ## Management surfaces
 
+The admin API validates what it stores: user, group and policy names are 1–64 characters of letters,
+digits and `. _ @ + -`; new passwords need at least 8 characters; a policy must be JSON with a
+`Statement`. Creating a user or group that already exists answers `409` (it no longer replaces the
+existing one), and naming an unknown user, group or policy answers `404`. Revoking an STS session takes
+effect on every API node: the revocation travels with the IAM snapshot, so the additive merge of
+temporary credentials between nodes cannot bring it back.
+
 Day-to-day administration goes through the Admin UI (visual policy editor, user/group browser, access-key issuance) backed by the Admin REST endpoints on port `:8888`. The same REST endpoints are what cross-product tooling (chango, ontul, kiok, neorunbase) drives for automated provisioning.
 
 Local recovery — when the `admin` user is locked out — uses a Unix domain socket on the API node, never an HTTP path. See [Admin Password Recovery](admin-password-recovery.md).
