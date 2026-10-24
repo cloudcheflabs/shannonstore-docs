@@ -1677,6 +1677,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/nginx-proxy/" class="md-nav__link">
         
   
@@ -1936,6 +1992,12 @@
 <p>On a successful write, the <code>updateListener</code> callback receives the encrypted snapshot and broadcasts it to peer API nodes through the standard IAM sync channel. Followers receive the bytes, decrypt locally, swap their in-memory maps under a write lock, and persist back to their own RocksDB. Loops are avoided because the listener guards on the local node's leadership state.</p>
 <p>A legacy plaintext-blob path is kept for one upgrade window: if KMS-decrypt fails on load, the loader falls back to plaintext, re-encrypts, and writes back. The <code>Legacy plaintext IAM detected on disk — re-saving as KMS-encrypted</code> log line tells you the upgrade has just happened.</p>
 <h2 id="management-surfaces">Management surfaces</h2>
+<p>The admin API validates what it stores: user, group and policy names are 1–64 characters of letters,
+digits and <code>. _ @ + -</code>; new passwords need at least 8 characters; a policy must be JSON with a
+<code>Statement</code>. Creating a user or group that already exists answers <code>409</code> (it no longer replaces the
+existing one), and naming an unknown user, group or policy answers <code>404</code>. Revoking an STS session takes
+effect on every API node: the revocation travels with the IAM snapshot, so the additive merge of
+temporary credentials between nodes cannot bring it back.</p>
 <p>Day-to-day administration goes through the Admin UI (visual policy editor, user/group browser, access-key issuance) backed by the Admin REST endpoints on port <code>:8888</code>. The same REST endpoints are what cross-product tooling (chango, ontul, kiok, neorunbase) drives for automated provisioning.</p>
 <p>Local recovery — when the <code>admin</code> user is locked out — uses a Unix domain socket on the API node, never an HTTP path. See <a href="../admin-password-recovery/">Admin Password Recovery</a>.</p>
 <h2 id="see-also">See also</h2>

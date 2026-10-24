@@ -1672,6 +1672,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/nginx-proxy/" class="md-nav__link">
         
   
@@ -1781,7 +1837,7 @@
 <ul>
 <li><code>rotateKey(keyId)</code> generates a brand-new random AES-256 KEK, marks the previous ACTIVE version <code>RETIRED</code> (not deleted — still needed to unwrap objects written under it), and installs the new key as <code>ACTIVE</code>. This runs on the leader and syncs to followers through the same replication channel as IAM.</li>
 <li>New objects (and any object whose DEK is re-issued through a rewrite path) wrap their DEK with the new ACTIVE KEK version. Existing objects keep their old wrapped DEK and are unwrapped using the exact version number embedded in their envelope — not by trying every known key.</li>
-<li>Admin REST surface (all require an admin JWT):</li>
+<li>Admin REST surface (all administrator-only):</li>
 </ul>
 <table>
 <thead>
@@ -1800,20 +1856,24 @@
 <tr>
 <td>GET</td>
 <td><code>/admin/kms/status/{keyId}</code></td>
-<td>Lifecycle detail for one <code>keyId</code></td>
+<td>Lifecycle detail for one <code>keyId</code>: each version's number, state and creation time</td>
 </tr>
 <tr>
 <td>POST</td>
 <td><code>/admin/kms/create</code> <code>{"keyId": "..."}</code></td>
-<td>Create a new <code>keyId</code> (first version <code>ACTIVE</code>)</td>
+<td>Create a new <code>keyId</code> (first version <code>ACTIVE</code>); <code>409</code> if the id already exists</td>
 </tr>
 <tr>
 <td>POST</td>
 <td><code>/admin/kms/rotate/{keyId}</code></td>
-<td>Retire the current version, activate a new random one</td>
+<td>Retire the current version, activate a new random one; <code>404</code> for an unknown id</td>
 </tr>
 </tbody>
 </table>
+<p>Key material never leaves the keystore: none of these responses, nor the leader's answer to a
+follower that forwarded a rotation, carries KEK bytes. Key IDs are 1–64 characters of letters, digits
+and <code>. _ -</code>. A rotation is pushed to every API node and data node at once and pulled again by any node
+that restarts, so all nodes hold every version.</p>
 <p>There is no comma-separated multi-key master-password mechanism — <code>SHANNONSTORE_MASTER_KEY</code> is validated as a single non-blank string, and rotating it is a separate, out-of-band re-keying of the keystore's own wrapping key rather than the normal <code>keyId</code> rotation path described above.</p>
 <h2 id="whats-encrypted">What's encrypted</h2>
 <p>The same KMS pipeline protects every persistent surface the cluster owns:</p>

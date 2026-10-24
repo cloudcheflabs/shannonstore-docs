@@ -1655,6 +1655,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/nginx-proxy/" class="md-nav__link">
         
   
@@ -1849,6 +1905,10 @@ would generate events that it re-ingests, and so on. Scope the rule to the speci
 application bucket instead of <code>*</code>.</p>
 </div>
 <h2 id="configure-via-the-admin-rest-api">Configure via the admin REST API</h2>
+<p>The configuration endpoints and the test endpoint are administrator-only. Webhook header values and
+Kafka producer properties whose names look like credentials (<code>password</code>, <code>secret</code>, <code>token</code>, <code>jaas</code>, ...)
+are returned as <code>********</code>; sending <code>********</code> back unchanged keeps the stored value, so a read-modify-write
+of the document never wipes a token.</p>
 <p>The whole configuration is one JSON document (<code>GET</code>/<code>PUT</code>):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Read the current config</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>curl<span class="w"> </span>http://node:8888/admin/notifications/config<span class="w"> </span><span class="se">\</span>

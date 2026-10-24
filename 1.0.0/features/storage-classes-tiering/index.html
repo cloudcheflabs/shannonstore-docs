@@ -1628,6 +1628,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/nginx-proxy/" class="md-nav__link">
         
   
@@ -1692,7 +1748,10 @@
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">}</span>
 </code></pre></div>
-<p><code>description</code> and <code>tierDestination.kmsKeyId</code> are both optional fields on the <code>StorageClass</code> model.</p>
+<p><code>description</code> and <code>tierDestination.kmsKeyId</code> are both optional fields on the <code>StorageClass</code> model.
+Names are 1–64 characters of letters, digits and <code>_ . -</code>. Reads return <code>tierDestination.secretKey</code> as
+<code>********</code>; a <code>PUT</code> that sends <code>********</code> keeps the stored secret. Creating, changing and deleting classes
+and bucket assignments is administrator-only.</p>
 <h3 id="admin-endpoints">Admin endpoints</h3>
 <table>
 <thead>

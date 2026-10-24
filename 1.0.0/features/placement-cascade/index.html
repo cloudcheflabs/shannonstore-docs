@@ -1561,6 +1561,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/nginx-proxy/" class="md-nav__link">
         
   
@@ -1649,13 +1705,14 @@
 <h2 id="weighted-hrw-heterogeneous-disks">Weighted HRW (heterogeneous disks)</h2>
 <p>When <code>shannonstore.api.s3.ec.weighted.placement=true</code>, the placement strategy switches from plain Rendezvous hashing to <strong>weighted Rendezvous (Schindelhauer-Schomaker)</strong> using each disk's capacity as its weight. A node with 2× the storage gets 2× the expected shards over time. Disabled by default — turn on for clusters with unequal disks.</p>
 <h2 id="chunk-rebalance">Chunk rebalance</h2>
-<p>When the topology changes (a node added, a label updated), the existing chunk metadata still points at the <em>old</em> shard locations. The leader-only <code>RebalanceService</code> walks objects, recomputes the desired placement, and migrates chunks whose actual placement differs from the new cascade. Trigger from the admin UI <strong>Rebalance</strong> page or via:</p>
+<p>When the topology changes (a node added, a label updated), the existing chunk metadata still points at the <em>old</em> shard locations. The leader-only <code>RebalanceService</code> walks objects, recomputes the desired placement, and migrates chunks whose actual placement differs from the new cascade. Trigger from the admin UI <strong>Chunk Rebalance</strong> page or via:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-sS<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOK</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span>http://api:8888/admin/rebalance/run
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>curl<span class="w"> </span>-sS<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer </span><span class="nv">$TOK</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>http://api:8888/admin/rebalance<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </code></pre></div>
-<p>Status JSON shows <code>enabled</code>, <code>cycles</code>, <code>objectsScanned</code>, <code>chunksMoved</code>, <code>lastError</code>. Tiered objects (storage class != STANDARD) are skipped — their location lives outside this cluster.</p>
+<p>Status JSON shows <code>enabled</code>, <code>leader</code>, <code>scanInProgress</code>, <code>cyclesCompleted</code>, <code>objectsScanned</code>, <code>chunksMigrated</code>, <code>lastCycleStart</code>, <code>lastCycleEnd</code> and <code>lastCycleStatus</code>. Every API node answers <code>/admin/rebalance</code> with the leader's status, and <code>enable</code> / <code>run</code> are forwarded to the leader, so the switch is the one the worker actually reads. Changing it is administrator-only. Tiered objects (storage class != STANDARD) are skipped — their location lives outside this cluster.</p>
+<p>A chunk counts as misplaced only when its recorded location (<code>host:port</code> and disk path) is not among the disks the cascade picks for it today, so a cycle on a cluster whose topology has not changed migrates nothing. (Builds before 1.0.0 compared against the data node's registry id instead and re-copied every chunk on every cycle.)</p>
 
 
 

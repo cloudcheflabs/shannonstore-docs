@@ -1,0 +1,2441 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/operations/admin-rest-api/">
+      
+      
+        <link rel="prev" href="../admin-ui/">
+      
+      
+        <link rel="next" href="../nginx-proxy/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../images/logo/shannonstore-logo-without-name.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Admin REST API - ShannonStore</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#admin-rest-api" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ShannonStore" class="md-header__button md-logo" aria-label="ShannonStore" data-md-component="logo">
+      
+  <img src="../../images/logo/shannonstore-logo-without-name.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ShannonStore
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Admin REST API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="lime"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/architecture/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../installation/installation/" class="md-tabs__link">
+          
+  
+  
+  Installation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../features/s3-compatible-api/" class="md-tabs__link">
+          
+  
+  
+  Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../operations/" class="md-tabs__link">
+          
+  
+  
+  Operations
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ShannonStore" class="md-nav__button md-logo" aria-label="ShannonStore" data-md-component="logo">
+      
+  <img src="../../images/logo/shannonstore-logo-without-name.png" alt="logo">
+
+    </a>
+    ShannonStore
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ShannonStore Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Installation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Download & Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/s3-compatible-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S3 Compatible API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/bucket-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bucket Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/storage-classes-tiering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage Classes & Tiering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/bucket-counters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bucket Counters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/site-replication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Site Replication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/event-notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object Event Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/distributed-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/ec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erasure Coding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/placement-cascade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Topology-Aware Placement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/nic-fail-safety/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NIC Silent-Fail Safety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/data-integrity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Integrity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/kms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Encryption & Key Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/data-compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Compression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/iam/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Identity & Access Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/auth-authz/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication & Authorization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/sso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Single Sign-On (OIDC/SAML/LDAP)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/worm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object Lock (WORM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/admin-password-recovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin Password Recovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/disk-repair/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Disk Repair Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/monitoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring & Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/metadata-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/multi-disk-storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Disk Storage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/maintenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & Restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network & Internal Communication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cluster Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conventions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authentication-adminauth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication — /admin/auth
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cluster
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#maintenance-and-workers-adminmaintenance-adminrebalance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Maintenance and workers — /admin/maintenance, /admin/rebalance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#object-browser-adminbrowser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Object browser — /admin/browser
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#buckets-and-storage-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Buckets and storage classes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#iam-adminiam" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        IAM — /admin/iam
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sts-adminsts-admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        STS — /admin/sts (admin)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kms-adminkms-admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        KMS — /admin/kms (admin)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sso-settings-adminsso-admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SSO settings — /admin/sso (admin)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notifications-and-site-replication-admin-except-stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notifications and site replication (admin, except stats)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backup-and-restore-admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backup and restore (admin)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nginx-proxy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nginx Reverse Proxy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="admin-rest-api">Admin REST API</h1>
+<p>Everything the <a href="../admin-ui/">Admin UI</a> does goes through this REST API on the API server's admin port
+(default <code>8888</code>, or <code>/admin</code> behind nginx). Any API server accepts any call.</p>
+<h2 id="conventions">Conventions</h2>
+<ul>
+<li><strong>Authentication.</strong> <code>POST /admin/auth/login</code> with <code>{"userId": "...", "password": "..."}</code> (or
+  <code>username</code>) returns <code>{"token", "refreshToken", "isAdmin", "requirePasswordChange", ...}</code>. Send the token
+  as <code>Authorization: Bearer &lt;token&gt;</code>. <code>POST /admin/iam/keys</code> also returns a long-lived <code>token</code> that works
+  the same way for automation.</li>
+<li><strong>Who may call.</strong> <em>Admin</em> routes require a user whose policies include <code>AdministratorAccess</code>; anyone
+  else gets <code>403</code>. <em>User</em> routes are open to every signed-in user, and the object-browser routes are
+  further limited by the caller's IAM policies, as over S3. A session that still has to change its
+  password gets <code>403</code> everywhere except <code>/admin/auth/*</code>.</li>
+<li><strong>Leader routing.</strong> Writes to IAM, STS, SSO, buckets, storage classes, backup and restore, and the
+  leader-only workers (lifecycle, bucket and site replication, rebalance) are forwarded to the leader
+  automatically. Backup settings and history are always read from the leader.</li>
+<li><strong>Errors</strong> are JSON: <code>{"error": "&lt;HTTP reason&gt;", "message": "&lt;why&gt;"}</code>. Validation failures answer
+  <code>400</code>, missing things <code>404</code>, duplicates and state conflicts <code>409</code>, maintenance mode <code>503</code> with
+  <code>Retry-After</code>.</li>
+<li><strong>Secrets are write-only.</strong> Responses never contain a secret that was stored: backup reports
+  <code>secretKeySet</code>, SSO reports <code>secretsSet</code>, and storage-class tier secrets, site-replication peer secrets,
+  bucket-replication destination secrets, webhook headers and sensitive Kafka properties come back as
+  <code>********</code>. Sending <code>********</code> back unchanged keeps the stored value.</li>
+<li><strong>Proxy parameters.</strong> Some read routes accept <code>targetHost</code> / <code>targetPort</code> (and <code>nodeType=data</code> for
+  logs) to be answered by a specific node. Only registered cluster nodes are accepted; anything else
+  answers <code>400</code>.</li>
+</ul>
+<h2 id="authentication-adminauth">Authentication — <code>/admin/auth</code></h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Who</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/admin/auth/login</code></td>
+<td>anyone</td>
+<td>Sign in; returns tokens</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/auth/refresh</code></td>
+<td>anyone</td>
+<td><code>{"refreshToken"}</code> → new token pair (refresh tokens are single-use)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/auth/logout</code></td>
+<td>user</td>
+<td>Revoke the current token</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/auth/session</code></td>
+<td>user</td>
+<td>The session behind the token</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/auth/change-password</code></td>
+<td>user</td>
+<td><code>{"oldPassword","newPassword"}</code>; at least 8 characters, different from the old one</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/auth/sso/providers</code></td>
+<td>anyone</td>
+<td>Enabled SSO providers for the login page</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/auth/sso/oidc/start</code>, <code>/oidc/callback</code>, <code>/saml/start</code>; POST <code>/saml/acs</code>, <code>/ldap/login</code></td>
+<td>anyone</td>
+<td>Federated sign-in flows (<a href="../../features/sso/">Single Sign-On</a>)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/health</code></td>
+<td>anyone</td>
+<td><code>{"status":"UP"}</code> once the node and the cluster are ready, <code>503</code> before</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cluster">Cluster</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Who</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/admin/stats</code></td>
+<td>user</td>
+<td>API and data node counts</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/nodes/api</code>, <code>/admin/nodes/data</code></td>
+<td>user</td>
+<td>Registered nodes with their payload (ports, disks, labels)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/monitoring/metrics?startTs=&amp;endTs=</code></td>
+<td>user</td>
+<td>Per-node metrics history (served by the leader)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/cluster/zookeeper[?targetHost&amp;targetPort]</code></td>
+<td>user</td>
+<td>ZooKeeper servers, quorum and the answering node's session</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/cluster/hrw[?targetHost&amp;targetPort]</code></td>
+<td>user</td>
+<td>One API node's HRW ownership counts</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/logs/tail?lines=&amp;offset=[&amp;targetHost&amp;targetPort&amp;nodeType]</code></td>
+<td>admin</td>
+<td>Tail a node's log</td>
+</tr>
+</tbody>
+</table>
+<h2 id="maintenance-and-workers-adminmaintenance-adminrebalance">Maintenance and workers — <code>/admin/maintenance</code>, <code>/admin/rebalance</code></h2>
+<p>Reads are open to users; every <code>POST</code> is admin-only.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/admin/maintenance/status[?targetHost&amp;targetPort]</code></td>
+<td>Background task status and <code>maintenanceMode</code> of a node</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/maintenance/mode</code></td>
+<td><code>{"enabled": bool}</code> on every API node (<a href="../../features/maintenance/">Maintenance Mode</a>)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/maintenance/flush</code></td>
+<td>Flush write buffers cluster-wide</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/maintenance/repair/status</code></td>
+<td>Disk repair counters (<code>inProgress</code>, <code>totalRepaired</code>, <code>totalFailed</code>, <code>lastCycleStatus</code>, reactive queue)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/maintenance/repair/scan</code></td>
+<td>Find dead disks and the shards they hold (<code>deadDisks</code>, <code>totalAffectedShards</code>)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/maintenance/repair/trigger</code></td>
+<td>Run a repair cycle now</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/maintenance/scrubber/status</code></td>
+<td>Bitrot scrubber, summed over all API nodes, with a <code>nodes</code> array</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/maintenance/scrubber/enable</code></td>
+<td><code>{"enabled": bool}</code> on every API node</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/maintenance/scrubber/trigger</code></td>
+<td>Scan now on every API node</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/maintenance/reconcile/status</code></td>
+<td>HRW reconcile sweep, summed over all API nodes, with a <code>nodes</code> array</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/maintenance/reconcile/enable</code>, <code>/reconcile/trigger</code></td>
+<td>On every API node</td>
+</tr>
+<tr>
+<td>GET / POST</td>
+<td><code>/admin/maintenance/lifecycle/status</code>, <code>/enable</code>, <code>/trigger</code></td>
+<td>Lifecycle scanner (leader)</td>
+</tr>
+<tr>
+<td>GET / POST</td>
+<td><code>/admin/maintenance/replication/status</code>, <code>/enable</code>, <code>/trigger</code></td>
+<td>Bucket replication worker (leader)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/rebalance</code></td>
+<td>Chunk rebalance status (leader)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/rebalance/enable</code>, <code>/admin/rebalance/run</code></td>
+<td>Toggle / run a rebalance cycle (leader)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="object-browser-adminbrowser">Object browser — <code>/admin/browser</code></h2>
+<p>Open to users, limited by their IAM policies. Data-changing calls answer <code>503</code> during maintenance.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Required permission</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/admin/browser/buckets</code></td>
+<td><code>s3:ListBucket</code> per bucket</td>
+<td>Buckets the caller may list, with <code>objectCount</code>, <code>totalSizeBytes</code>, <code>versioning</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/browser/buckets</code></td>
+<td><code>s3:CreateBucket</code></td>
+<td><code>{"name","versioning"}</code>; S3 naming rules, <code>409</code> if it exists</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/admin/browser/buckets/{bucket}</code></td>
+<td>admin</td>
+<td><code>409</code> while it holds objects, <code>404</code> if missing</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/browser/objects/{bucket}</code></td>
+<td><code>s3:ListBucket</code></td>
+<td>Current objects with their metadata</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/admin/browser/objects/{bucket}/{key}[?versionId=]</code></td>
+<td><code>s3:DeleteObject</code></td>
+<td>Delete (a delete marker on a versioned bucket)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/browser/upload/{bucket}/{key}</code></td>
+<td><code>s3:PutObject</code></td>
+<td>Body = object bytes, <code>Content-Type</code> = object type</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/browser/download/{bucket}/{key}</code></td>
+<td><code>s3:GetObject</code></td>
+<td>Object bytes; <code>409</code> for SSE-C objects, <code>404</code> if missing</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/browser/versions/{bucket}/{key}</code></td>
+<td><code>s3:ListBucketVersions</code></td>
+<td>Versions of a key</td>
+</tr>
+<tr>
+<td>GET / PUT / DELETE</td>
+<td><code>/admin/browser/bucket-config/{bucket}/{type}</code></td>
+<td>admin</td>
+<td><code>type</code> = <code>policy</code>, <code>cors</code>, <code>lifecycle</code>, <code>replication</code>, <code>tagging</code>; documents are validated (<a href="../../features/bucket-configuration/">Bucket Configuration</a>)</td>
+</tr>
+</tbody>
+</table>
+<p>Bucket object counts are exact and survive restarts: each API node counts the objects it is the HRW
+primary for (reusing one metadata scan for <code>shannonstore.api.bucket.stats.cache.ms</code>) and the answering
+node sums the nodes.</p>
+<h2 id="buckets-and-storage-classes">Buckets and storage classes</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Who</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/admin/buckets/{bucket}/lifecycle</code></td>
+<td>user</td>
+<td>Lifecycle XML (empty when none)</td>
+</tr>
+<tr>
+<td>PUT / DELETE</td>
+<td><code>/admin/buckets/{bucket}/lifecycle</code></td>
+<td>admin</td>
+<td>Set (validated) / remove</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/buckets/{bucket}/storage-class</code></td>
+<td>user</td>
+<td>Assigned class and effective EC profile</td>
+</tr>
+<tr>
+<td>PUT / DELETE</td>
+<td><code>/admin/buckets/{bucket}/storage-class</code></td>
+<td>admin</td>
+<td><code>{"storageClass": "..."}</code> / clear</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/storage-classes</code>, <code>/admin/storage-classes/{name}</code></td>
+<td>user</td>
+<td>Registry (tier secret masked)</td>
+</tr>
+<tr>
+<td>PUT / DELETE</td>
+<td><code>/admin/storage-classes/{name}</code></td>
+<td>admin</td>
+<td>Create or update / delete (<code>409</code> while a bucket uses it)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="iam-adminiam">IAM — <code>/admin/iam</code></h2>
+<p><code>GET</code> routes are open to users (a user sees only themselves and their groups); every other method is
+admin-only.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/admin/iam/users</code></td>
+<td>Users with groups and access keys (secrets masked)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/iam/users</code></td>
+<td><code>{"userId","password","groups"}</code>; <code>409</code> if the user exists, password ≥ 8 characters</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/admin/iam/users/{userId}</code>, <code>/admin/iam/users/{userId}/keys/{accessKey}</code></td>
+<td>Delete a user (not <code>admin</code>) / revoke a key</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/iam/keys</code></td>
+<td><code>{"userId","expiresAt"?}</code> → <code>accessKey</code>, <code>secretKey</code>, <code>token</code> (shown once)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/iam/download-key/{userId}/{accessKey}</code></td>
+<td>CSV with the key and secret (admins, or the key's own user)</td>
+</tr>
+<tr>
+<td>GET / POST</td>
+<td><code>/admin/iam/groups</code></td>
+<td>List / create (<code>409</code> if it exists)</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/admin/iam/groups/{group}</code></td>
+<td>Delete</td>
+</tr>
+<tr>
+<td>GET / POST</td>
+<td><code>/admin/iam/policies</code></td>
+<td>List / create or replace <code>{"name","json"}</code> (JSON with a <code>Statement</code>)</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/admin/iam/policies/{name}</code></td>
+<td>Delete (not <code>AdministratorAccess</code>)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/iam/add-user-to-group</code>, <code>/remove-user-from-group</code></td>
+<td><code>{"userId","groupName"}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/iam/attach-group-policy</code>, <code>/detach-group-policy</code></td>
+<td><code>{"groupName","policyName"}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/iam/attach-user-policy</code></td>
+<td><code>{"userId","policyName"}</code></td>
+</tr>
+</tbody>
+</table>
+<p>Unknown users, groups and policies in these calls answer <code>404</code>.</p>
+<h2 id="sts-adminsts-admin">STS — <code>/admin/sts</code> (admin)</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/admin/sts/sessions</code></td>
+<td>Temporary credentials (no secrets)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/sts/sessions</code></td>
+<td><code>{"parentAccessKey","durationSeconds","sessionName"}</code> → full credentials, once</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/sts/sessions/download/{accessKeyId}</code></td>
+<td>CSV of one session</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/admin/sts/sessions</code></td>
+<td><code>{"accessKeyId"}</code>; the revocation reaches every API node</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/sts/sessions/clear</code></td>
+<td>Remove expired sessions</td>
+</tr>
+</tbody>
+</table>
+<h2 id="kms-adminkms-admin">KMS — <code>/admin/kms</code> (admin)</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/admin/kms/list</code></td>
+<td>Key IDs with current version and last rotation</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/kms/status/{keyId}</code></td>
+<td>Versions (number, state, created) — never key material</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/kms/create</code></td>
+<td><code>{"keyId"}</code>; <code>409</code> if it exists</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/kms/rotate/{keyId}</code></td>
+<td>New ACTIVE version; <code>404</code> for an unknown key</td>
+</tr>
+</tbody>
+</table>
+<h2 id="sso-settings-adminsso-admin">SSO settings — <code>/admin/sso</code> (admin)</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET / PUT</td>
+<td><code>/admin/sso/settings</code></td>
+<td>Stored settings (secrets as <code>secretsSet</code>) / update</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/sso/saml/metadata</code></td>
+<td>SP metadata XML</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/sso/saml/import-metadata</code></td>
+<td><code>{"metadata": "&lt;IdP XML&gt;"}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/sso/saml/generate-keypair</code></td>
+<td>New SP keypair (returns the certificate)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/sso/test/{oidc|saml|ldap}</code></td>
+<td>Connection test with the saved settings</td>
+</tr>
+</tbody>
+</table>
+<h2 id="notifications-and-site-replication-admin-except-stats">Notifications and site replication (admin, except stats)</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET / PUT</td>
+<td><code>/admin/notifications/config</code></td>
+<td>Targets, rules, master switch (secrets masked)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/notifications/test</code></td>
+<td><code>{"targetId"}</code> → <code>{"ok": true}</code> or <code>{"ok": false, "error"}</code></td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/notifications/stats</code></td>
+<td>Delivery counters of the answering node (user)</td>
+</tr>
+<tr>
+<td>GET / PUT</td>
+<td><code>/admin/replication/sites</code></td>
+<td><code>{"config": "&lt;json&gt;"}</code> / <code>{"enabled","peers":[...]}</code> (each peer needs a unique <code>siteId</code> and an <code>http(s)://</code> endpoint)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/replication/sites/status</code></td>
+<td>Leader's site-replication counters (user)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/replication/sites/trigger</code></td>
+<td>Run a cycle now</td>
+</tr>
+</tbody>
+</table>
+<h2 id="backup-and-restore-admin">Backup and restore (admin)</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET / POST</td>
+<td><code>/admin/backup/config</code></td>
+<td>Settings (<code>secretKeySet</code> instead of the secret) / update — an invalid cron, or enabling without endpoint, bucket and credentials, answers <code>{"status":"error","message"}</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/backup/test-connection</code></td>
+<td>Probe the target with optional unsaved overrides</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/backup/run</code></td>
+<td>Start a backup in the background → <code>{"status":"started"}</code>; <code>409</code> while one runs</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/backup/history</code></td>
+<td><code>inProgress</code> and recent runs</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/admin/restore</code></td>
+<td><code>{"backupId"}</code> → staging starts in the background</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/admin/restore/status</code></td>
+<td><code>inProgress</code> (backup id) and the <code>last</code> restore report</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="../../features/backup/">Backup &amp; Restore</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © <script>document.write(new Date().getFullYear())</script> Cloud Chef Labs, Inc. All rights reserved. <a href="mailto:admin@cloudchef-labs.com">admin@cloudchef-labs.com</a>
+
+    </div>
+  
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "header.autohide"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "2.2.0", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/extra.js"></script>
+      
+    
+  </body>
+</html>

@@ -1622,6 +1622,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/nginx-proxy/" class="md-nav__link">
         
   
@@ -1688,7 +1744,13 @@
 <li><strong>Cron</strong> — optional 5-field UNIX cron expression for wall-clock schedules (e.g. <code>0 2 * * *</code> for daily at 02:00). Coexists with the interval rule — both can be set, whichever comes due first fires the backup.</li>
 <li><strong>Retention (days)</strong> — how long the visible history is kept (default 30).</li>
 </ul>
-<p>The same page also has a <strong>Test Connection</strong> button (probes the destination bucket) and a <strong>Backup now</strong> button (triggers an immediate backup).</p>
+<p>The same page also has a <strong>Test Connection</strong> button (probes the destination bucket with the values on the form, saved or not) and a <strong>Backup now</strong> button. <strong>Backup now</strong> starts the run on the leader and returns at once; the run shows as <em>In progress</em> and then in the history. Starting a second run while one is going answers <code>409</code>.</p>
+<p>Saving refuses an invalid cron expression, and refuses to enable backups without an <code>http://</code> or <code>https://</code> endpoint, a bucket, an access key and a secret key — a schedule with no target would otherwise fail on every tick. The secret key is write-only: the page shows that one is stored and a blank field keeps it.</p>
+<p>Backup settings and the run history live on the leader (the scheduler runs there); every API node answers these pages with the leader's data.</p>
+<div class="admonition warning">
+<p class="admonition-title">Use another cluster as the target</p>
+<p>Backing up into a bucket of the same cluster works for a test, but each run then includes the previous backups (they are chunks on the same data nodes), so the backup grows with every run.</p>
+</div>
 <h3 id="cron-vs-interval">Cron vs. Interval</h3>
 <p>The two automatic rules are independent and share the same tick loop:</p>
 <ul>
@@ -1707,10 +1769,10 @@
 <p>The same <code>S3 Backup</code> admin page lists the backup history. Each successful entry has a <strong>Restore</strong> button that points the cluster back at that snapshot.</p>
 <p>The flow is:</p>
 <ol>
-<li>Operator clicks <strong>Restore</strong> on the chosen history row.</li>
-<li>The leader API server pulls every file in that backup's manifest into staging directories that sit <em>next to</em> the live RocksDB / chunk-store dirs (e.g. <code>iam.restore-pending/</code>).</li>
+<li>Operator clicks <strong>Restore</strong> on the chosen history row (<code>POST /admin/restore {"backupId": ...}</code>).</li>
+<li>The leader API server starts staging in the background: it pulls every file in that backup's manifest into staging directories that sit <em>next to</em> the live RocksDB / chunk-store dirs (e.g. <code>iam.restore-pending/</code>).</li>
 <li>The leader fans out the same request to every data node, which stages its own slice in parallel.</li>
-<li>The admin UI reports per-node staging results and asks the operator to <strong>restart the cluster</strong>.</li>
+<li>The admin UI polls <code>GET /admin/restore/status</code> (<code>inProgress</code>, <code>last</code>) and, when staging is done, shows the per-node report and asks the operator to <strong>restart the cluster</strong>.</li>
 <li>On the next process start, each component checks for staged dirs, archives the live one to <code>*.restore-old-&lt;ts&gt;/</code>, and atomically renames the staged dir into place.</li>
 </ol>
 <p>The two-stage design (stage now, swap on restart) avoids hot-swapping directories that RocksDB and the chunk store hold open file handles on. Old snapshots remain on disk as <code>*.restore-old-&lt;ts&gt;</code> until the operator removes them, so a restore is reversible by hand.</p>

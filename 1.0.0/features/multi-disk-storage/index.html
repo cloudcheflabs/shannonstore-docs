@@ -1616,6 +1616,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/nginx-proxy/" class="md-nav__link">
         
   
@@ -1776,7 +1832,7 @@
 <li>HRW placement starts considering it for new writes immediately.</li>
 <li><strong>No data is migrated to fill the new disk</strong> — placement converges naturally as new writes accumulate. Over time the new disk catches up with the others' utilization.</li>
 </ol>
-<p>If the operator wants the new disk warm immediately, run a manual repair sweep (<code>POST /admin/disk-repair/start</code> on the API node) which redistributes shards more aggressively. This is the only path that actively moves <em>existing</em> data to a <em>new</em> disk.</p>
+<p>If the operator wants the new disk warm immediately, run a <a href="../placement-cascade/">chunk rebalance</a> (<code>POST /admin/rebalance/run</code>, or <strong>Run now</strong> on the Admin UI's <em>Chunk Rebalance</em> page), which moves existing chunks to the disks the placement picks today. This is the path that actively moves <em>existing</em> data to a <em>new</em> disk; the <a href="../disk-repair/">Disk Repair Service</a> only re-creates shards that are missing.</p>
 <h2 id="removing-a-disk">Removing a disk</h2>
 <p>The graceful sequence:</p>
 <ol>

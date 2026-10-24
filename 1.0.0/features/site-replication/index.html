@@ -1572,6 +1572,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/nginx-proxy/" class="md-nav__link">
         
   
@@ -1672,8 +1728,10 @@ node. Set it from the Admin UI (<strong>Site Replication</strong> page) or the a
 <a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>curl<span class="w">     </span>http://siteA:8888/admin/replication/sites/status<span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span>
 <a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://siteA:8888/admin/replication/sites/trigger<span class="w"> </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer &lt;admin-jwt&gt;&quot;</span><span class="w">  </span><span class="c1"># run a cycle now</span>
 </code></pre></div>
-<p>The peer <code>endpoint</code> is the peer cluster's <strong>S3 endpoint</strong>, and the credentials are an
-S3 access key/secret valid on the peer. The worker uses them to create buckets, set
+<p>The peer <code>endpoint</code> is the peer cluster's <strong>S3 endpoint</strong> (<code>http://</code> or <code>https://</code>), and the credentials are an
+S3 access key/secret valid on the peer. Every peer needs a unique <code>siteId</code>. Reading the configuration
+is administrator-only and returns each stored <code>secretKey</code> as <code>********</code>; sending <code>********</code> back unchanged
+keeps the stored secret. The worker uses them to create buckets, set
 versioning, and copy objects there.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># shannonstore.properties — reuses the bucket-replication cadence knob</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="na">shannonstore.api.replication.scan.interval.ms</span><span class="o">=</span><span class="s">60000   # cycle every 60s</span>

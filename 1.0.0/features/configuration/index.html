@@ -1760,6 +1760,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/nginx-proxy/" class="md-nav__link">
         
   
@@ -2137,7 +2193,17 @@
 <tr>
 <td><code>shannonstore.api.network.http.max.content.length</code></td>
 <td><code>268435456</code> (256 MiB)</td>
-<td>Maximum permitted HTTP request body length (bytes); effectively caps a single non-streaming PutObject body.</td>
+<td>Maximum permitted HTTP request body length (bytes); effectively caps a single non-streaming PutObject body and an Admin UI upload.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.bucket.stats.cache.ms</code></td>
+<td><code>5000</code></td>
+<td>How long (ms) an API node reuses its metadata scan for <a href="../bucket-counters/">bucket object counts and sizes</a>. One scan serves every bucket; a write on the node clears it.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.node.ids.cache.ms</code></td>
+<td><code>1000</code></td>
+<td>How long (ms) an API node reuses the API node list it read from ZooKeeper for HRW metadata ownership. Every metadata lookup needs the list; without the cache each one was a ZooKeeper round trip. A node joining or leaving is seen within this time.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.s3.object.encryption.type</code></td>

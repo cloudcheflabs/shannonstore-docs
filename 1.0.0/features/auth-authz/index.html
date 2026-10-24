@@ -1705,6 +1705,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../operations/admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../operations/nginx-proxy/" class="md-nav__link">
         
   
@@ -1820,7 +1876,8 @@
 <li>Look up <code>sub</code> (user id) in the in-memory <code>usersById</code> map. Missing → 401.</li>
 <li>Stamp the response context with <code>isAdmin</code> and <code>requirePasswordChange</code> for downstream checks.</li>
 </ol>
-<p>The handler then enforces the admin-only gate on management endpoints (user/group/policy mutation, access-key issuance) and, in addition, blocks any request from a user whose <code>requirePasswordChange</code> flag is still true.</p>
+<p>The handler then enforces the admin-only gate and, in addition, blocks any request from a user whose <code>requirePasswordChange</code> flag is still true. Administrator-only: backup and restore, server logs, KMS, SSO, STS, notification and site-replication settings, bucket configuration documents, storage-class and rebalance changes, every maintenance switch and every IAM write. The object-browser routes are open to every signed-in user but evaluated against that user's IAM policies exactly as S3 requests are (<code>s3:ListBucket</code>, <code>s3:GetObject</code>, <code>s3:PutObject</code>, <code>s3:DeleteObject</code>, <code>s3:CreateBucket</code>). See the <a href="../../operations/admin-rest-api/">Admin REST API</a> for the full list.</p>
+<p>Routes that let one API node answer for another (<code>targetHost</code> / <code>targetPort</code>) accept only registered cluster nodes, so the admin port cannot be used to make the server call — and send the caller's token to — an arbitrary host.</p>
 <h3 id="default-credential-gate">Default-credential gate</h3>
 <p>The very first start materializes <code>admin / admin</code> with <code>requirePasswordChange = true</code>. While the flag is set, <strong>every privileged path returns 403</strong> — admin UI navigation, IAM mutation, access-key issuance, even the S3 control plane through the admin REST. The only callable endpoint is <code>POST /admin/auth/change-password</code>, which clears the flag once the caller proves they know the current password and supplies a new one that differs from it.</p>
 <p>See <a href="../admin-password-recovery/">Admin Password Recovery</a> for the out-of-band recovery channel when the admin password is forgotten.</p>
