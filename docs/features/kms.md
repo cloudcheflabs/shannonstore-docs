@@ -79,14 +79,19 @@ Rotation does **not** involve the master-key environment variable or a restart �
 
 - `rotateKey(keyId)` generates a brand-new random AES-256 KEK, marks the previous ACTIVE version `RETIRED` (not deleted — still needed to unwrap objects written under it), and installs the new key as `ACTIVE`. This runs on the leader and syncs to followers through the same replication channel as IAM.
 - New objects (and any object whose DEK is re-issued through a rewrite path) wrap their DEK with the new ACTIVE KEK version. Existing objects keep their old wrapped DEK and are unwrapped using the exact version number embedded in their envelope — not by trying every known key.
-- Admin REST surface (all require an admin JWT):
+- Admin REST surface (all administrator-only):
 
 | Method | Path | Effect |
 | --- | --- | --- |
 | GET | `/admin/kms/list` | List all `keyId`s and their version states |
-| GET | `/admin/kms/status/{keyId}` | Lifecycle detail for one `keyId` |
-| POST | `/admin/kms/create` `{"keyId": "..."}` | Create a new `keyId` (first version `ACTIVE`) |
-| POST | `/admin/kms/rotate/{keyId}` | Retire the current version, activate a new random one |
+| GET | `/admin/kms/status/{keyId}` | Lifecycle detail for one `keyId`: each version's number, state and creation time |
+| POST | `/admin/kms/create` `{"keyId": "..."}` | Create a new `keyId` (first version `ACTIVE`); `409` if the id already exists |
+| POST | `/admin/kms/rotate/{keyId}` | Retire the current version, activate a new random one; `404` for an unknown id |
+
+Key material never leaves the keystore: none of these responses, nor the leader's answer to a
+follower that forwarded a rotation, carries KEK bytes. Key IDs are 1–64 characters of letters, digits
+and `. _ -`. A rotation is pushed to every API node and data node at once and pulled again by any node
+that restarts, so all nodes hold every version.
 
 There is no comma-separated multi-key master-password mechanism — `SHANNONSTORE_MASTER_KEY` is validated as a single non-blank string, and rotating it is a separate, out-of-band re-keying of the keystore's own wrapping key rather than the normal `keyId` rotation path described above.
 

@@ -63,7 +63,9 @@ Every admin REST call below the auth gate runs through `validateSession()`:
 3. Look up `sub` (user id) in the in-memory `usersById` map. Missing → 401.
 4. Stamp the response context with `isAdmin` and `requirePasswordChange` for downstream checks.
 
-The handler then enforces the admin-only gate on management endpoints (user/group/policy mutation, access-key issuance) and, in addition, blocks any request from a user whose `requirePasswordChange` flag is still true.
+The handler then enforces the admin-only gate and, in addition, blocks any request from a user whose `requirePasswordChange` flag is still true. Administrator-only: backup and restore, server logs, KMS, SSO, STS, notification and site-replication settings, bucket configuration documents, storage-class and rebalance changes, every maintenance switch and every IAM write. The object-browser routes are open to every signed-in user but evaluated against that user's IAM policies exactly as S3 requests are (`s3:ListBucket`, `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, `s3:CreateBucket`). See the [Admin REST API](../operations/admin-rest-api.md) for the full list.
+
+Routes that let one API node answer for another (`targetHost` / `targetPort`) accept only registered cluster nodes, so the admin port cannot be used to make the server call — and send the caller's token to — an arbitrary host.
 
 ### Default-credential gate
 

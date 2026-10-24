@@ -127,7 +127,9 @@ API node only.
 | `shannonstore.api.s3.circular.buffer.size` | `134217728` (128 MiB) | Capacity (bytes) of the `CircularBufferInputStream` used to stream very large objects out to the client. **Caveat:** in-code default is 64 MiB; the file sets 128 MiB. |
 | `shannonstore.api.s3.chunked.stream.size` | `1048576` (1 MiB) | Heap buffer size per read/copy step of chunked HTTP transfer on S3 GET/PUT. |
 | `shannonstore.api.s3.fetch.timeout.seconds` | `120` | Max time (seconds) the API node waits for a Data node to return a chunk. **Caveat:** in-code default is 60; the file sets 120. |
-| `shannonstore.api.network.http.max.content.length` | `268435456` (256 MiB) | Maximum permitted HTTP request body length (bytes); effectively caps a single non-streaming PutObject body. |
+| `shannonstore.api.network.http.max.content.length` | `268435456` (256 MiB) | Maximum permitted HTTP request body length (bytes); effectively caps a single non-streaming PutObject body and an Admin UI upload. |
+| `shannonstore.api.bucket.stats.cache.ms` | `5000` | How long (ms) an API node reuses its metadata scan for [bucket object counts and sizes](bucket-counters.md). One scan serves every bucket; a write on the node clears it. |
+| `shannonstore.api.node.ids.cache.ms` | `1000` | How long (ms) an API node reuses the API node list it read from ZooKeeper for HRW metadata ownership. Every metadata lookup needs the list; without the cache each one was a ZooKeeper round trip. A node joining or leaving is seen within this time. |
 | `shannonstore.api.s3.object.encryption.type` | `AES` | Encryption of object data at rest. `AES` = envelope-encrypt chunks with a KEK; `NONE` = plaintext. |
 | `shannonstore.api.s3.object.versioning.enabled` | `false` | Enable S3 bucket object versioning (keep prior versions instead of overwriting). |
 | `shannonstore.api.s3.object.compression.type` | `SNAPPY` | Codec applied to object data before storage (only for MIME types in the allowlist below). Supported: `NONE`, `SNAPPY`, `GZIP`, `ZSTD`. |

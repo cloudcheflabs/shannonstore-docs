@@ -91,16 +91,24 @@ A disk that fails one probe is not immediately written off. The grace period giv
 | Probe failed for grace window | enqueue repair tasks for shards on the disk |
 | Probe recovered before grace expired | reinstate the disk; cancel any pending tasks for shards on it |
 
-The grace window is configurable, default one minute. It does **not** protect against repeated short failures — five consecutive 10-second flaps still trigger repair because the disk is clearly unstable.
+The grace window is configurable (`shannonstore.api.repair.grace.period.seconds`, default 600 seconds). It does **not** protect against repeated short failures — five consecutive 10-second flaps still trigger repair because the disk is clearly unstable.
 
 ## Manual trigger
 
 Operators can force a repair sweep through the Admin REST or Admin UI:
 
 ```bash
-curl -sf -X POST http://localhost:8888/admin/disk-repair/start \
+# which disks are dead, and how many shards they hold
+curl -sf -X POST http://localhost:8888/admin/maintenance/repair/scan \
+    -H "Authorization: Bearer $TOKEN"
+# run a repair cycle now
+curl -sf -X POST http://localhost:8888/admin/maintenance/repair/trigger \
     -H "Authorization: Bearer $TOKEN"
 ```
+
+Both are administrator-only. In the Admin UI the **Disk Repair** button on the Topology page runs the
+scan, triggers a cycle when it finds dead disks, and follows the cycle until it finishes (or reports
+*No Repairs Needed*).
 
 The sweep walks every object's layout and emits a task for any shard whose owning disk is currently unavailable. This is the right path for:
 
@@ -108,17 +116,24 @@ The sweep walks every object's layout and emits a task for any shard whose ownin
 - Cluster-wide reassurance after a long maintenance event.
 - One-off recovery after disabling and re-enabling the scrubber.
 
-Status comes back from `GET /admin/disk-repair/status`:
+Status comes back from `GET /admin/maintenance/repair/status`:
 
 ```json
 {
-  "enabled":             true,
-  "scanInProgress":      false,
-  "lastCycleStartedAt":  1779999000000,
-  "lastCycleFinishedAt": 1779999900000,
-  "totalRepaired":       12483,
-  "totalRepairFailed":   2,
-  "queuedTasks":         0
+  "enabled":            true,
+  "inProgress":         false,
+  "totalRepaired":      12483,
+  "totalFailed":        2,
+  "totalScanned":       40211,
+  "lastCycleTimestamp": 1779999900000,
+  "lastCycleStatus":    "ok",
+  "deadDisksTracked":   [],
+  "intervalSeconds":    300,
+  "gracePeriodSeconds": 600,
+  "reactiveQueueSize":  0,
+  "reactiveSubmitted":  17,
+  "reactiveSucceeded":  17,
+  "reactiveFailed":     0
 }
 ```
 

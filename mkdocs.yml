@@ -68,6 +68,8 @@ nav:
       - "Network & Internal Communication": features/network.md
   - "Operations":
       - "Cluster Operations": operations/operations.md
+      - "Admin UI Guide": operations/admin-ui.md
+      - "Admin REST API": operations/admin-rest-api.md
       - "Nginx Reverse Proxy": operations/nginx-proxy.md
 
 

@@ -94,7 +94,7 @@ Mount it, edit `shannonstore.data.storage.dirs`, restart the data node. On resta
 4. HRW placement starts considering it for new writes immediately.
 5. **No data is migrated to fill the new disk** — placement converges naturally as new writes accumulate. Over time the new disk catches up with the others' utilization.
 
-If the operator wants the new disk warm immediately, run a manual repair sweep (`POST /admin/disk-repair/start` on the API node) which redistributes shards more aggressively. This is the only path that actively moves *existing* data to a *new* disk.
+If the operator wants the new disk warm immediately, run a [chunk rebalance](placement-cascade.md) (`POST /admin/rebalance/run`, or **Run now** on the Admin UI's *Chunk Rebalance* page), which moves existing chunks to the disks the placement picks today. This is the path that actively moves *existing* data to a *new* disk; the [Disk Repair Service](disk-repair.md) only re-creates shards that are missing.
 
 ## Removing a disk
 

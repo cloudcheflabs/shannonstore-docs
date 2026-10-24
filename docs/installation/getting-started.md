@@ -10,21 +10,21 @@ Once `bin/start-example-servers.sh` reports the cluster is ready, point a browse
 http://localhost:8888/admin
 ```
 
-The first sign-in uses the bootstrap credentials `admin` / `admin`. The UI immediately requires a password change before any other action is permitted.
+The first sign-in uses the bootstrap credentials `admin` / `admin`. The UI immediately requires a password change (at least 8 characters) before any other action is permitted.
 
 <img width="1200" src="../../images/getting-started/dashboard.png"/>
 
-The dashboard shows the leader API server, registered Data Nodes, per-node ownership distribution, KMS state, and per-disk capacity.
+The dashboard shows how many API servers and data nodes are registered, CPU, memory, S3 throughput and latency charts, and per-disk capacity of the data nodes. The [Admin UI Guide](../operations/admin-ui.md) walks through every page.
 
 ## Create a Bucket and an Access Key
 
 To upload objects you need two things: an S3 bucket and a credential pair.
 
-**Create an access key.** In the **Identity Control** menu, click **New Keypair**. A new keypair is generated and stored encrypted under the cluster's KMS. Click the download icon to save the access key and secret to a JSON file — the secret is only shown once.
+**Create an access key.** In the **Identity Control** menu, click **New Keypair** on the `admin` row and then **Generate API Credentials**. A new keypair is generated and stored encrypted under the cluster's KMS. The access key and secret are shown once in a banner; the download icon next to the key saves them as a CSV file at any time.
 
 <img width="1200" src="../../images/getting-started/credential.png"/>
 
-**Create a bucket.** In the **Object Store** menu, click **New Bucket** and enter `test-bucket` as the name.
+**Create a bucket.** In the **Object Store** menu, click **New Bucket** and enter `test-bucket` as the name (S3 naming rules: 3–63 lower-case letters, digits, dots and hyphens). Select the bucket to browse it; **Upload** adds files from the browser.
 
 > Buckets and IAM state replicate to every API Server in the cluster via runtime sync. There is no per-server bucket — once a bucket is created on the leader, every node can serve it.
 

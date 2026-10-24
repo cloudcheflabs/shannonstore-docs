@@ -36,7 +36,7 @@ When `shannonstore.api.s3.ec.weighted.placement=true`, the placement strategy sw
 
 ## Chunk rebalance
 
-When the topology changes (a node added, a label updated), the existing chunk metadata still points at the *old* shard locations. The leader-only `RebalanceService` walks objects, recomputes the desired placement, and migrates chunks whose actual placement differs from the new cascade. Trigger from the admin UI **Rebalance** page or via:
+When the topology changes (a node added, a label updated), the existing chunk metadata still points at the *old* shard locations. The leader-only `RebalanceService` walks objects, recomputes the desired placement, and migrates chunks whose actual placement differs from the new cascade. Trigger from the admin UI **Chunk Rebalance** page or via:
 
 ```bash
 curl -sS -X POST -H "Authorization: Bearer $TOK" \
@@ -45,4 +45,6 @@ curl -sS -H "Authorization: Bearer $TOK" \
   http://api:8888/admin/rebalance | jq .
 ```
 
-Status JSON shows `enabled`, `cycles`, `objectsScanned`, `chunksMoved`, `lastError`. Tiered objects (storage class != STANDARD) are skipped — their location lives outside this cluster.
+Status JSON shows `enabled`, `leader`, `scanInProgress`, `cyclesCompleted`, `objectsScanned`, `chunksMigrated`, `lastCycleStart`, `lastCycleEnd` and `lastCycleStatus`. Every API node answers `/admin/rebalance` with the leader's status, and `enable` / `run` are forwarded to the leader, so the switch is the one the worker actually reads. Changing it is administrator-only. Tiered objects (storage class != STANDARD) are skipped — their location lives outside this cluster.
+
+A chunk counts as misplaced only when its recorded location (`host:port` and disk path) is not among the disks the cascade picks for it today, so a cycle on a cluster whose topology has not changed migrates nothing. (Builds before 1.0.0 compared against the data node's registry id instead and re-copied every chunk on every cycle.)

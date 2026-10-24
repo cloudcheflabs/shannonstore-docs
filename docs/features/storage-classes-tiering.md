@@ -24,6 +24,9 @@ A storage class is a cluster-global record with an EC profile and an optional ti
 ```
 
 `description` and `tierDestination.kmsKeyId` are both optional fields on the `StorageClass` model.
+Names are 1–64 characters of letters, digits and `_ . -`. Reads return `tierDestination.secretKey` as
+`********`; a `PUT` that sends `********` keeps the stored secret. Creating, changing and deleting classes
+and bucket assignments is administrator-only.
 
 ### Admin endpoints
 
