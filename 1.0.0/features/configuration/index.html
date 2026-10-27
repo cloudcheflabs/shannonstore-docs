@@ -2056,6 +2056,11 @@
 <td>Name of the file under <code>&lt;shannonstore.home&gt;/bin</code> where the API node writes the socket path it actually bound to; <code>bin/shannonstore-cli.sh</code> prefers it over guessing candidate locations. Removed on shutdown.</td>
 </tr>
 <tr>
+<td><code>shannonstore.api.admin.socket.forward.timeout.ms</code></td>
+<td><code>15000</code></td>
+<td>How long a <strong>follower</strong> waits for the leader to apply a forwarded <code>iam:reset-password</code> before the CLI exits 1 with "password was NOT changed". The forwarded request carries a deadline of one third of this; a leader that receives it later discards it. See <a href="../admin-password-recovery/#running-it-in-a-cluster-leader-follower">Admin Password Recovery</a>.</td>
+</tr>
+<tr>
 <td><code>shannonstore.api.admin.ui.static.path</code></td>
 <td><code>admin-ui</code></td>
 <td>Path to the Admin Web Console's static front-end assets. <strong>Caveat:</strong> the in-code default is <code>shannonstore-admin-ui/dist</code>; the bundled file sets <code>admin-ui</code> to match the packaged layout.</td>
@@ -2731,7 +2736,12 @@ config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
 <tr>
 <td><code>shannonstore.network.nio.connection.read.buffer.size</code></td>
 <td><code>1048576</code> (1 MiB)</td>
-<td>Per-connection heap read buffer for the internal NIO server, allocated per accepted connection.</td>
+<td>Per-connection heap read buffer for the internal NIO server, allocated per accepted connection. A message larger than this grows that connection's buffer to fit it and shrinks back afterwards.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.nio.max.message.bytes</code></td>
+<td><code>536870912</code> (512 MiB)</td>
+<td>Largest single internal NIO message (header + body) a node accepts; larger frames are refused and the connection closed.</td>
 </tr>
 <tr>
 <td><code>shannonstore.network.rpc.default.timeout.seconds</code></td>

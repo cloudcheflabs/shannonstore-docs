@@ -1204,6 +1204,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Quick start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#after-the-reset-change-the-password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        After the reset: change the password
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1211,6 +1228,17 @@
     <span class="md-ellipsis">
       
         Input modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-it-in-a-cluster-leader-follower" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running it in a cluster (leader / follower)
       
     </span>
   </a>
@@ -1816,7 +1844,7 @@ rotation.</p>
 </tr>
 <tr>
 <td><strong>Cluster sync</strong></td>
-<td>automatic — IAM state propagates to peer nodes via the existing sync path</td>
+<td>leader-owned — run on a follower, the reset is forwarded to the leader, applied there, pushed to every api node, and confirmed on the follower before the CLI exits 0</td>
 </tr>
 <tr>
 <td><strong>Audit log</strong></td>
@@ -1834,6 +1862,19 @@ password and print it to stdout. The new password must be changed on the
 admin's next login (the <code>requirePasswordChange</code> flag is set automatically).</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Inside the api node host or container:</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password
+</code></pre></div>
+<h3 id="after-the-reset-change-the-password">After the reset: change the password</h3>
+<p>The reset sets <code>requirePasswordChange = true</code>. Until the password is changed, every admin
+API except login and change-password answers <code>403</code> with
+<em>Password change required before accessing this API: this account's password is the initial
+one or was reset by an administrator. Change it with POST /admin/auth/change-password …</em></p>
+<p>The CLI says so on <strong>stderr</strong> — stdout stays exactly the generated password, so
+<code>NEW=$(bin/shannonstore-cli.sh iam:reset-password)</code> keeps working — and prints the exact calls
+for this node:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>note: &#39;admin&#39; must change this password before any other admin API call works (until then they answer 403 &quot;Password change required&quot;). Log in with it, then change it:
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  curl -s -X POST http://localhost:8888/admin/auth/login -H &#39;Content-Type: application/json&#39; -d &#39;{&quot;userId&quot;:&quot;admin&quot;,&quot;password&quot;:&quot;&lt;password above&gt;&quot;}&#39;      # -&gt; accessToken
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  curl -s -X POST http://localhost:8888/admin/auth/change-password -H &#39;Content-Type: application/json&#39; -H &#39;Authorization: Bearer &lt;accessToken&gt;&#39; -d &#39;{&quot;oldPassword&quot;:&quot;&lt;password above&gt;&quot;,&quot;newPassword&quot;:&quot;&lt;new password&gt;&quot;}&#39;
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  (or sign in to the Admin UI, which asks for the new password.)
 </code></pre></div>
 <h2 id="input-modes">Input modes</h2>
 <table>
@@ -1868,22 +1909,77 @@ admin's next login (the <code>requirePasswordChange</code> flag is set automatic
 </tbody>
 </table>
 <p>Resetting a different user is also supported:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password<span class="w"> </span>--user<span class="w"> </span>some-user<span class="w"> </span>--new-password<span class="w"> </span><span class="s1">&#39;NewPass123&#39;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password<span class="w"> </span>--user<span class="w"> </span>some-user<span class="w"> </span>--new-password<span class="w"> </span><span class="s1">&#39;NewPass123&#39;</span>
 </code></pre></div>
+<h2 id="running-it-in-a-cluster-leader-follower">Running it in a cluster (leader / follower)</h2>
+<p>IAM is owned by the <strong>leader</strong> api node: the leader applies every change and pushes the
+IAM state to the other api nodes. You can run the CLI on <strong>any</strong> api node:</p>
+<table>
+<thead>
+<tr>
+<th>Where you run it</th>
+<th>What happens</th>
+<th>Exit code</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Leader</td>
+<td>Applied on the leader, pushed to every api node</td>
+<td><code>0</code></td>
+</tr>
+<tr>
+<td>Follower, leader healthy</td>
+<td>Forwarded to the leader over the internal NIO port, applied there, then confirmed on this follower (<code>replicatedHere</code>)</td>
+<td><code>0</code></td>
+</tr>
+<tr>
+<td>Follower, no leader elected</td>
+<td>Nothing is applied anywhere</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td>Follower, leader paused / unreachable / too slow</td>
+<td>Nothing is applied anywhere; the message names the leader</td>
+<td><code>1</code></td>
+</tr>
+</tbody>
+</table>
+<p>A failure always says <strong>the password was NOT changed</strong> and names the leader, for example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>error: this api node (8cf0…) is a follower and the leader a272… (api-1:9000) did not apply
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>the reset (no answer within 15000 ms); the password was NOT changed. (A leader discards a
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>forwarded reset that reaches it after 2026-10-27T11:47:14.331Z.) Check the leader, or run
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>shannonstore-cli on the leader host.
+</code></pre></div>
+<p>The forwarded request carries a <strong>deadline</strong> (one third of the forward timeout). A leader
+that receives it later — it was frozen by a GC pause, <code>docker pause</code>, or a network
+partition — discards it, so a reset the CLI reported as failed can never be applied
+afterwards. Before this, a reset on a follower changed only that follower's copy, the
+leader's next IAM push silently put the old password back, and the CLI still exited <code>0</code>.</p>
+<p><code>ping</code> shows the node's role and the current leader, so you can tell where you are:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>bin/shannonstore-cli.sh<span class="w"> </span>ping
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1"># pong role=follower node=8cf0d2eb-… leader=a272d87d-… (api-1:9000)</span>
+</code></pre></div>
+<p>The request and the answer travel KMS-encrypted on the internal port (they can carry a
+password), on their own message type.</p>
 <h2 id="configuration">Configuration</h2>
 <p>The recovery socket is enabled by default. Every key below lives in
 <code>conf/shannonstore.properties</code> and is read at api node startup:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># conf/shannonstore.properties</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="c1"># Set false to remove the local recovery path entirely.</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="na">shannonstore.api.admin.socket.enabled</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s">true</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Leave EMPTY to derive the path from the IAM store</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># (&lt;parent of shannonstore.api.iam.rocksdb.dir&gt;/admin.sock), which is the default.</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="na">shannonstore.api.admin.socket.path</span><span class="w">    </span><span class="o">=</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Name of the file under &lt;shannonstore.home&gt;/bin that receives the socket path the</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="c1"># api node actually bound to (see &quot;How the CLI finds the socket&quot; below).</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="na">shannonstore.api.admin.socket.marker.file</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s">api.socket</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="c1"># Append-only audit trail of socket operations.</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="na">shannonstore.api.iam.audit.dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&lt;socket dir&gt;/iam-audit</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># conf/shannonstore.properties</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1"># Set false to remove the local recovery path entirely.</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="na">shannonstore.api.admin.socket.enabled</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s">true</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Leave EMPTY to derive the path from the IAM store</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># (&lt;parent of shannonstore.api.iam.rocksdb.dir&gt;/admin.sock), which is the default.</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="na">shannonstore.api.admin.socket.path</span><span class="w">    </span><span class="o">=</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Name of the file under &lt;shannonstore.home&gt;/bin that receives the socket path the</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># api node actually bound to (see &quot;How the CLI finds the socket&quot; below).</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="na">shannonstore.api.admin.socket.marker.file</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s">api.socket</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># Follower only: how long to wait for the leader to apply a forwarded reset before the</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># CLI fails with &quot;password was NOT changed&quot;. The leader discards a forwarded reset that</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="c1"># arrives later than one third of this.</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="na">shannonstore.api.admin.socket.forward.timeout.ms</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">15000</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="c1"># Append-only audit trail of socket operations.</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="na">shannonstore.api.iam.audit.dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&lt;socket dir&gt;/iam-audit</span>
 </code></pre></div>
 <p>With the shipped <code>shannonstore.api.iam.rocksdb.dir = ./data/s3-metadata/iam</code>, the socket
 lands at <code>./data/s3-metadata/admin.sock</code> and the audit log at
@@ -1911,8 +2007,8 @@ shutdown. <code>bin/shannonstore-cli.sh</code> prefers it.</p>
 <code>/data/admin.sock</code> and the properties file still saying <code>./data</code>, only the marker
 knows where to connect.</p>
 <p>To rename the marker, change one key — both ends read it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># conf/shannonstore.properties</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>shannonstore.api.admin.socket.marker.file<span class="w"> </span><span class="o">=</span><span class="w"> </span>shannonstore-recovery.socket
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># conf/shannonstore.properties</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>shannonstore.api.admin.socket.marker.file<span class="w"> </span><span class="o">=</span><span class="w"> </span>shannonstore-recovery.socket
 </code></pre></div>
 <p>Restart the api node; it publishes <code>bin/shannonstore-recovery.socket</code>, and the CLI
 picks the new name up from the same properties file.</p>
@@ -1920,42 +2016,42 @@ picks the new name up from the same properties file.</p>
 <p><code>SHANNONSTORE_MASTER_KEY</code> must be exported for the api node process. <code>bin/start-api-server.sh</code> checks it up front and refuses to start when it is unset.
 The variable name itself is configurable — <code>shannonstore.kms.master.key.env</code> in
 <code>conf/shannonstore.properties</code> names the variable the api node reads:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SHANNONSTORE_MASTER_KEY</span><span class="o">=</span><span class="s1">&#39;replace-with-a-32-char-or-longer-secret&#39;</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>bin/start-api-server.sh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SHANNONSTORE_MASTER_KEY</span><span class="o">=</span><span class="s1">&#39;replace-with-a-32-char-or-longer-secret&#39;</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>bin/start-api-server.sh
 </code></pre></div>
 <p><code>bin/shannonstore-cli.sh</code> does <strong>not</strong> need it. The CLI only opens the Unix socket and
 hands the request to the running api node, which already holds the unsealed key,
 so this works with the variable unset:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">unset</span><span class="w"> </span>SHANNONSTORE_MASTER_KEY
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>bin/shannonstore-cli.sh<span class="w"> </span>ping
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1"># pong</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">unset</span><span class="w"> </span>SHANNONSTORE_MASTER_KEY
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>bin/shannonstore-cli.sh<span class="w"> </span>ping
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1"># pong</span>
 </code></pre></div>
 <p>If a CLI invocation complains about the key rather than the socket, you are
 running a start script, not the CLI.</p>
 <h3 id="worked-examples">Worked examples</h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># 1. On the host, as the same OS user that runs the api node:</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">cd</span><span class="w"> </span>/opt/shannonstore
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>bin/shannonstore-cli.sh<span class="w"> </span>ping
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1"># 2. The api node runs as a service account and you are root:</span>
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>sudo<span class="w"> </span>-u<span class="w"> </span>shannonstore<span class="w"> </span>/opt/shannonstore/bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password
-<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>
-<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="c1"># 3. Inside a container:</span>
-<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>shannonstore-api-1<span class="w"> </span>/app/bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password
-<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>
-<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="c1"># 4. Data dir was relocated at launch — no extra flags needed, the CLI</span>
-<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="c1">#    reads the published marker:</span>
-<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>cat<span class="w"> </span>/opt/shannonstore/bin/api.socket
-<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="c1"># /var/lib/shannonstore/admin.sock</span>
-<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>bin/shannonstore-cli.sh<span class="w"> </span>ping
-<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>
-<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="c1"># 5. Socket in a non-standard place and no marker (the api node is stopped,</span>
-<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="c1">#    or you are on a host where the marker was cleaned up):</span>
-<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>bin/shannonstore-cli.sh<span class="w"> </span>--socket<span class="w"> </span>/var/lib/shannonstore/admin.sock<span class="w"> </span>iam:reset-password
-<a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>
-<a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="c1"># 6. Non-interactive automation, password from stdin so it never reaches argv:</span>
-<a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;S0me!Strong!Pass&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password<span class="w"> </span>--new-password<span class="w"> </span>-
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># 1. On the host, as the same OS user that runs the api node:</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">cd</span><span class="w"> </span>/opt/shannonstore
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>bin/shannonstore-cli.sh<span class="w"> </span>ping
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="c1"># 2. The api node runs as a service account and you are root:</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>sudo<span class="w"> </span>-u<span class="w"> </span>shannonstore<span class="w"> </span>/opt/shannonstore/bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="c1"># 3. Inside a container:</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>shannonstore-api-1<span class="w"> </span>/app/bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="c1"># 4. Data dir was relocated at launch — no extra flags needed, the CLI</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="c1">#    reads the published marker:</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>cat<span class="w"> </span>/opt/shannonstore/bin/api.socket
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a><span class="c1"># /var/lib/shannonstore/admin.sock</span>
+<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a>bin/shannonstore-cli.sh<span class="w"> </span>ping
+<a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a>
+<a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a><span class="c1"># 5. Socket in a non-standard place and no marker (the api node is stopped,</span>
+<a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a><span class="c1">#    or you are on a host where the marker was cleaned up):</span>
+<a id="__codelineno-10-20" name="__codelineno-10-20" href="#__codelineno-10-20"></a>bin/shannonstore-cli.sh<span class="w"> </span>--socket<span class="w"> </span>/var/lib/shannonstore/admin.sock<span class="w"> </span>iam:reset-password
+<a id="__codelineno-10-21" name="__codelineno-10-21" href="#__codelineno-10-21"></a>
+<a id="__codelineno-10-22" name="__codelineno-10-22" href="#__codelineno-10-22"></a><span class="c1"># 6. Non-interactive automation, password from stdin so it never reaches argv:</span>
+<a id="__codelineno-10-23" name="__codelineno-10-23" href="#__codelineno-10-23"></a><span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;S0me!Strong!Pass&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>bin/shannonstore-cli.sh<span class="w"> </span>iam:reset-password<span class="w"> </span>--new-password<span class="w"> </span>-
 </code></pre></div>
 <h2 id="security-model">Security model</h2>
 <p><strong>1. The socket is OS-gated.</strong>
@@ -1965,12 +2061,18 @@ host cannot connect. There is no token, no shared secret, no network
 listener.</p>
 <p><strong>2. The audit log records every reset.</strong>
 Every successful reset appends a JSON line to
-<code>data/s3-metadata/iam-audit/reset.log</code> (mode <code>600</code>). The plaintext
-password is <strong>never</strong> logged — only the first 8 characters of its hash,
-the user, whether it was server-generated, and the OS user that invoked
-the CLI.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="p">{</span><span class="nt">&quot;ts&quot;</span><span class="p">:</span><span class="s2">&quot;2026-05-23T16:00:46.922Z&quot;</span><span class="p">,</span><span class="nt">&quot;event&quot;</span><span class="p">:</span><span class="s2">&quot;iam.reset-password&quot;</span><span class="p">,</span><span class="nt">&quot;user&quot;</span><span class="p">:</span><span class="s2">&quot;admin&quot;</span><span class="p">,</span><span class="nt">&quot;generated&quot;</span><span class="p">:</span><span class="kc">true</span><span class="p">,</span><span class="nt">&quot;hashFp&quot;</span><span class="p">:</span><span class="s2">&quot;OYV/Ojf/&quot;</span><span class="p">,</span><span class="nt">&quot;invokedAs&quot;</span><span class="p">:</span><span class="s2">&quot;root&quot;</span><span class="p">}</span>
+<code>data/s3-metadata/iam-audit/reset.log</code> (mode <code>600</code>). Nothing derived from the
+plaintext password is logged. <code>hashFp</code> is the first 12 hex characters of SHA-256
+over the <strong>stored, salted</strong> password hash — it identifies the password record (the
+leader and a follower print the same value for the same reset), but it cannot be
+used to test password guesses, and resetting to the same password twice gives two
+different values. <code>route</code> shows where a forwarded reset came from or went to.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="p">{</span><span class="nt">&quot;ts&quot;</span><span class="p">:</span><span class="s2">&quot;2026-10-27T11:46:35.578Z&quot;</span><span class="p">,</span><span class="nt">&quot;event&quot;</span><span class="p">:</span><span class="s2">&quot;iam.reset-password&quot;</span><span class="p">,</span><span class="nt">&quot;user&quot;</span><span class="p">:</span><span class="s2">&quot;admin&quot;</span><span class="p">,</span><span class="nt">&quot;generated&quot;</span><span class="p">:</span><span class="kc">false</span><span class="p">,</span><span class="nt">&quot;hashFp&quot;</span><span class="p">:</span><span class="s2">&quot;948b633b6622&quot;</span><span class="p">,</span><span class="nt">&quot;invokedAs&quot;</span><span class="p">:</span><span class="s2">&quot;root&quot;</span><span class="p">,</span><span class="nt">&quot;route&quot;</span><span class="p">:</span><span class="s2">&quot;forwardedFrom=8cf0d2eb-…&quot;</span><span class="p">}</span>
 </code></pre></div>
+<p>Earlier versions logged a prefix of the <strong>unsalted</strong> SHA-256 of the plaintext password,
+which let anyone with read access to the log check password guesses offline. Lines written
+by those versions are still in old logs; rotate the affected passwords if the log may have
+been read.</p>
 <p><strong>3. The new password is exposed exactly once.</strong>
 For server-generated passwords, the plaintext is returned only on the
 single CLI invocation that triggered the reset. It is not retransmitted.

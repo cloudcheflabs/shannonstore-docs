@@ -864,6 +864,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#upload-body-encodings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload body encodings
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2305,7 +2316,7 @@ with that model: the owner owns everything and there are no other grants.</p>
 <li>Validator reconstructs the canonical request from the wire-form path, query string, signed headers, and payload hash, then compares the recomputed signature with the one in the header.</li>
 <li><strong>Wire-form path matters</strong>: SigV4 canonicalizes the URI exactly as it appears on the wire — including percent-encoding. The validator therefore uses <code>HttpRequest.rawPath()</code> (the undecoded path) rather than a <code>URLDecode</code>'d copy. This is the only way Iceberg- and Hive-style partition keys (<code>year%3D2026/month%3D05/file.parquet</code>) sign correctly under default SDK settings.</li>
 <li>Service names accepted: <code>s3</code> and <code>sts</code>.</li>
-<li>Streaming body (<code>aws-chunked</code>): payload hash is <code>STREAMING-AWS4-HMAC-SHA256-PAYLOAD</code>; the body is read through an <code>AwsChunkedInputStream</code> that strips chunk framing as data arrives. The <code>x-amz-decoded-content-length</code> header carries the real object size.</li>
+<li>Streaming body (<code>aws-chunked</code>): payload hash is one of <code>STREAMING-AWS4-HMAC-SHA256-PAYLOAD</code>, <code>STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER</code> or <code>STREAMING-UNSIGNED-PAYLOAD-TRAILER</code>; the body is read through an <code>AwsChunkedInputStream</code> that strips chunk framing as data arrives. <code>x-amz-decoded-content-length</code> carries the real object size, and the body must match it (<code>400 IncompleteBody</code> otherwise). See <a href="#upload-body-encodings">Upload body encodings</a>.</li>
 </ul>
 <h3 id="presigned-urls-query-string-sigv4">Presigned URLs (query-string SigV4)</h3>
 <p>A presigned URL carries the entire SigV4 signature in the <strong>query string</strong> instead
@@ -2445,6 +2456,7 @@ the response:</p>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>x-amz-checksum-crc32c
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>x-amz-checksum-sha1
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>x-amz-checksum-sha256
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>x-amz-checksum-crc64nvme
 </code></pre></div>
 <p>Newer AWS SDKs compute one of these by default and send it on every upload,
 usually with no <code>Content-MD5</code> at all. Their presence therefore forces the same
@@ -2452,6 +2464,55 @@ buffered path Content-MD5 does: a checksum header is a promise the server is
 expected to check, and checking it requires the whole body. Ignoring one would be
 worse than not supporting checksums — a corrupted body would be stored, reported
 as a success, and the client would believe it had verified the write.</p>
+<p><code>CRC64NVME</code> is what the AWS C++ SDK (and therefore <strong>pyarrow</strong>'s <code>S3FileSystem</code>) and recent
+Java/Python SDKs send by default.</p>
+<h3 id="upload-body-encodings">Upload body encodings</h3>
+<p>PutObject and UploadPart accept every body framing the AWS SDKs produce:</p>
+<table>
+<thead>
+<tr>
+<th>Framing</th>
+<th>Sent by</th>
+<th>Handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Plain body + <code>Content-Length</code></td>
+<td>most clients</td>
+<td>streamed</td>
+</tr>
+<tr>
+<td><code>Content-Encoding: aws-chunked</code> (+ <code>x-amz-decoded-content-length</code>)</td>
+<td>AWS Java SDK v2, Iceberg <code>S3FileIO</code>, aws-cli</td>
+<td>chunk framing stripped; length checked</td>
+</tr>
+<tr>
+<td>aws-chunked with a <strong>trailing checksum</strong> (<code>x-amz-trailer: x-amz-checksum-…</code>)</td>
+<td>AWS C++ SDK / <strong>pyarrow</strong>, newer SDKs</td>
+<td>trailer read after the last chunk and verified before the body is stored (<code>400 BadDigest</code> on mismatch, <code>400 MalformedTrailerError</code> when announced but missing)</td>
+</tr>
+<tr>
+<td><code>Transfer-Encoding: chunked</code> (no <code>Content-Length</code>)</td>
+<td>AWS C++ SDK / <strong>pyarrow</strong> UploadPart</td>
+<td>HTTP chunking decoded first, then aws-chunked</td>
+</tr>
+</tbody>
+</table>
+<p>Malformed framing (a truncated chunk, a bad chunk size, a missing CRLF) is rejected with
+<code>400 IncompleteBody</code> instead of being stored.</p>
+<div class="admonition warning">
+<p class="admonition-title">Objects uploaded by pyarrow before this fix</p>
+<p>Earlier builds ignored request bodies sent with <code>Transfer-Encoding: chunked</code>. Every
+UploadPart from pyarrow (and any client using the AWS C++ SDK) was therefore stored
+as an <strong>empty part</strong>, acknowledged with <code>200</code>, and recorded with the part's encrypted
+size (for example 98 bytes) as its length — so every later GET failed with
+<code>500 Decoded size mismatch</code>. The uploaded bytes never reached storage and cannot be
+recovered. Such objects now answer GET and HEAD with
+<code>403 InvalidObjectState</code> and a message that says exactly this; delete them and
+upload them again. A genuinely empty file written that way cannot be told apart from
+a lost one, so it is reported the same way.</p>
+</div>
 <h2 id="conditional-requests">Conditional requests</h2>
 <p><code>GET</code> and <code>HEAD</code> both honour RFC 7232 pre-conditions:</p>
 <table>
