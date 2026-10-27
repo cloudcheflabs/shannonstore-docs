@@ -23,6 +23,10 @@ Everything the [Admin UI](admin-ui.md) does goes through this REST API on the AP
   `secretKeySet`, SSO reports `secretsSet`, and storage-class tier secrets, site-replication peer secrets,
   bucket-replication destination secrets, webhook headers and sensitive Kafka properties come back as
   `********`. Sending `********` back unchanged keeps the stored value.
+- **Replication to the other API nodes.** A change is applied on the leader and then pushed to the
+  other API nodes. If one of them does not acknowledge, the answer is still `200` and also carries
+  `"replication": "pending"`, `unconfirmedNodes` (their node ids) and a `replicationMessage`; those
+  nodes catch up on their own (see [IAM](../features/iam.md#at-rest-encryption-cluster-sync)).
 - **Proxy parameters.** Some read routes accept `targetHost` / `targetPort` (and `nodeType=data` for
   logs) to be answered by a specific node. Only registered cluster nodes are accepted; anything else
   answers `400`.
