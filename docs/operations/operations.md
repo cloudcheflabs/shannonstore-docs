@@ -63,6 +63,10 @@ If the leader restarts, surviving followers re-elect (with sticky-leader bias) a
 
 After bootstrap, every IAM or KMS change runs on the leader and is pushed to all other nodes immediately. Admin requests that mutate IAM (login, password change, access keys, bucket create/delete, STS) automatically route to the leader if they land on a follower.
 
+A node can miss pushes while it stalls longer than its ZooKeeper session timeout, for example during a long GC pause, a frozen VM or a network partition. When it reconnects, it registers again (its log records `Re-registered … the previous session expired`) and catches up. A follower API Server pulls KMS and IAM from the leader, and a Data Node pulls KMS. A KMS key rotated while the node was away is therefore available to it as soon as it is back. If a node receives an IAM push it cannot decrypt, it fetches the leader's KMS once and retries.
+
+A leader that stalls this long loses leadership at once and does not keep acting as leader when it returns. A password change sent to a follower is answered with success only once that follower accepts the new password. Otherwise the answer is `502`.
+
 ## Observability
 
 ### Admin UI
