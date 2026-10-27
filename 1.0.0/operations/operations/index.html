@@ -1914,6 +1914,8 @@
 <p>If the leader restarts, surviving followers re-elect (with sticky-leader bias) and the cycle repeats. Clients never see a half-initialised cluster.</p>
 <h3 id="runtime-synchronisation">Runtime synchronisation</h3>
 <p>After bootstrap, every IAM or KMS change runs on the leader and is pushed to all other nodes immediately. Admin requests that mutate IAM (login, password change, access keys, bucket create/delete, STS) automatically route to the leader if they land on a follower.</p>
+<p>A node can miss pushes while it stalls longer than its ZooKeeper session timeout, for example during a long GC pause, a frozen VM or a network partition. When it reconnects, it registers again (its log records <code>Re-registered … the previous session expired</code>) and catches up. A follower API Server pulls KMS and IAM from the leader, and a Data Node pulls KMS. A KMS key rotated while the node was away is therefore available to it as soon as it is back. If a node receives an IAM push it cannot decrypt, it fetches the leader's KMS once and retries.</p>
+<p>A leader that stalls this long loses leadership at once and does not keep acting as leader when it returns. A password change sent to a follower is answered with success only once that follower accepts the new password. Otherwise the answer is <code>502</code>.</p>
 <h2 id="observability">Observability</h2>
 <h3 id="admin-ui">Admin UI</h3>
 <p>Browse the admin port at <code>/admin</code> to see the cluster snapshot — leader identity, registered nodes, per-node ownership distribution, per-disk capacity and usage, KMS state, and reconciliation sweep stats. Any API Server can serve the UI.</p>
