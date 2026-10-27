@@ -8,7 +8,7 @@ The destination is any AWS-compatible S3 endpoint: another ShannonStore cluster,
 
 A single backup run captures both halves of the cluster's state under one shared backup id, so any single restore reassembles a consistent point in time:
 
-- **API server (leader)** — IAM RocksDB, KMS RocksDB, metadata / index RocksDB, metrics & history stores.
+- **API server (leader)** — IAM RocksDB, KMS RocksDB, metadata / index RocksDB, metrics & history stores, and the bucket-config RocksDB (policies, CORS, lifecycle, tags, storage classes, bucket and site replication, notification targets). The bucket config is KMS-encrypted, so its copy in the backup holds no secret in clear; it opens with the KMS keystore of the same backup.
 - **Every data node** — the raw chunk-store directories (one per configured storage disk).
 
 Each node uploads its own slice directly to the external S3, so the leader doesn't become a bottleneck and ShannonStore's internal S3 API isn't on the backup path.
@@ -29,7 +29,9 @@ The same page also has a **Test Connection** button (probes the destination buck
 
 Saving refuses an invalid cron expression, and refuses to enable backups without an `http://` or `https://` endpoint, a bucket, an access key and a secret key — a schedule with no target would otherwise fail on every tick. The secret key is write-only: the page shows that one is stored and a blank field keeps it.
 
-Backup settings and the run history live on the leader (the scheduler runs there); every API node answers these pages with the leader's data.
+The scheduler and the run history live on the leader; every API node answers these pages with the leader's data. The settings are kept on **every** API node: the leader sends them to the others inside the encrypted IAM snapshot, so whichever node becomes leader next runs the scheduled backups and can restore. On disk they are `data/s3-metadata/backup-config.enc`, sealed with a key derived from `SHANNONSTORE_MASTER_KEY` (the file used to be plain `backup-config.json`; the first start of this release converts and deletes it, and a follower that still has settings from that time offers them to a leader that has none). The settings are not part of the backup, so a restore never rolls the destination back.
+
+The request the leader sends to every data node at the start of a backup or restore carries the destination's secret key and is KMS-encrypted on the wire.
 
 !!! warning "Use another cluster as the target"
     Backing up into a bucket of the same cluster works for a test, but each run then includes the previous backups (they are chunks on the same data nodes), so the backup grows with every run.
@@ -73,7 +75,10 @@ The two-stage design (stage now, swap on restart) avoids hot-swapping directorie
 
 Restore is leader-driven and writes through the same fan-out as backup; followers can read but not initiate.
 
+A directory the chosen backup has no files for — a bucket-config store when restoring a backup taken by a release that did not back it up yet — is left as it is: it gets no staging directory, so the restart does not replace the live directory with an empty one.
+
 ## Limitations
 
+- The API-side slice of a backup is stored under the id of the API node that was leader when it ran (`api-<node id>/`). A restore reads the slice of the API node that runs it, so restore a backup on the API node that took it (make it the leader first), or take a new backup on the current leader.
 - A node whose `advertisedHost` has changed since the backup will not find its manifest. Bring up the replacement node with the original host name first, or re-take a baseline backup before mutating cluster identity.
 - The cluster restart in step 5 is operator-driven on purpose — the swap is a coordinated cluster-wide action, not a per-node one.

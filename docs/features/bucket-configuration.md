@@ -323,6 +323,11 @@ aws --endpoint-url http://localhost:8000 s3api get-bucket-replication --bucket l
 </ReplicationConfiguration>
 ```
 
+The destination `<SecretKey>` is write-only: `GetBucketReplication` (S3) and the admin
+bucket-config `GET` return it as `********`, and writing a configuration back with
+`********` keeps the stored secret. On disk the configuration is KMS-encrypted with the rest
+of the bucket config ([Encryption & Key Management](kms.md)).
+
 How it works:
 
 - **Versioning is not enforced** — `ReplicationService` does not check whether the source

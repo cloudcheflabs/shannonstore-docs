@@ -104,9 +104,11 @@ The same KMS pipeline protects every persistent surface the cluster owns:
 | Object shards on data-node disks | AES-256-GCM per shard, fresh IV per shard, key from the per-object DEK |
 | Object metadata in API node RocksDB | each entry serialized then encrypted with the `default` KEK before `db.put()` |
 | IAM state (`data/s3-metadata/iam/iam_state`) | encrypted with the `default` KEK on every `saveToLocalDb` — see [IAM](iam.md) |
-| BucketManager state (versioning configs, ACLs, …) | same path as IAM, same `default` KEK |
+| Bucket config (`data/s3-metadata/bucket-config-rocksdb`): versioning, ACLs, policies, CORS, lifecycle, tags, storage classes with their tier-destination secret keys, bucket replication with its destination `<SecretKey>`, site-replication peer secret keys, notification targets with webhook headers and Kafka producer properties | the whole snapshot is encrypted with the `default` KEK on every write, like IAM |
+| Backup settings (`data/s3-metadata/backup-config.enc`, with the backup bucket's secret key) | sealed with the PBKDF2-derived key from `SHANNONSTORE_MASTER_KEY` — not a KEK, because a restore replaces the keystore and the settings must still open afterwards. Kept on every API node (see [Backup & Restore](backup.md)) |
 | KMS-local RocksDB (the keystore blob itself) | encrypted with the PBKDF2-derived key from `SHANNONSTORE_MASTER_KEY`; protects the KEKs against a stolen disk |
 | Cluster sync snapshots between API nodes | encrypted in transit *and* at rest after import |
+| Internal requests that carry credentials: a follower's bucket-config change forwarded to the leader, the backup / restore request sent to every data node, admin-socket requests forwarded to the leader | KMS-encrypted on the wire (the internal plane is not TLS) |
 
 Only ephemeral state — in-flight HTTP buffers, decoded part LRU cache, refresh-token map — is plaintext, and only in process memory.
 
@@ -123,6 +125,16 @@ Legacy plaintext IAM detected on disk — re-saving as KMS-encrypted
 is the one-time signal that the upgrade has just happened. Subsequent restarts find ciphertext on disk and take the normal path.
 
 The fallback exists exactly once per blob — corruption that fails *both* paths is rethrown so a bad disk doesn't silently masquerade as a legacy plaintext blob.
+
+Bucket config and backup settings written by a release before their encryption are migrated the same way, on the first start of the new release:
+
+```
+Legacy plaintext bucket config detected on disk — re-saving it KMS-encrypted
+Compacted the bucket-config store: no plaintext version is left on disk
+Legacy plaintext backup config /app/data/s3-metadata/backup-config.json migrated to the sealed /app/data/s3-metadata/backup-config.enc and deleted
+```
+
+The bucket-config store is flushed and compacted right after the rewrite, so the overwritten plaintext version does not linger in RocksDB's log and older table files. A bucket-config blob that a node cannot decrypt at startup is never overwritten: it is kept aside under the key `bucket_config_state.unreadable` and the node takes the leader's copy.
 
 ### `aws kms` shape compatibility
 

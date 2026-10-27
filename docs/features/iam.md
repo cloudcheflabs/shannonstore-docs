@@ -194,6 +194,19 @@ Every privileged Admin REST and S3 path is blocked until the `admin` user change
 
 On a successful write, the `updateListener` callback receives the encrypted snapshot and broadcasts it to peer API nodes through the standard IAM sync channel. Followers receive the bytes, decrypt locally, swap their in-memory maps under a write lock, and persist back to their own RocksDB. Loops are avoided because the listener guards on the local node's leadership state.
 
+An admin change is made, and persisted, on the leader before it is pushed. When an API node does not acknowledge the push (frozen, partitioned, restarting), the request still answers `200`, with the nodes that have not confirmed the change named in the answer:
+
+```json
+{
+  "status" : "ok",
+  "replication" : "pending",
+  "unconfirmedNodes" : [ "5d0c2c1e-…" ],
+  "replicationMessage" : "Applied on the leader. 1 api node(s) have not confirmed the change yet [5d0c2c1e-…]; they pick it up from the periodic sync or when they rejoin the cluster."
+}
+```
+
+Those nodes get the change from the leader's periodic push (`shannonstore.api.iam.sync.interval.seconds`, 60 s by default) or from their own catch-up when they rejoin the cluster after a ZooKeeper session loss. Earlier releases answered `500 Cluster-wide IAM sync failed` here although the change had been made, so a retry changed it a second time. The same holds for bucket-config changes made through the S3 API: they succeed once the leader has them.
+
 A legacy plaintext-blob path is kept for one upgrade window: if KMS-decrypt fails on load, the loader falls back to plaintext, re-encrypts, and writes back. The `Legacy plaintext IAM detected on disk — re-saving as KMS-encrypted` log line tells you the upgrade has just happened.
 
 ## Management surfaces

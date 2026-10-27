@@ -133,7 +133,9 @@ Data nodes do not talk directly to each other. Every cluster-wide message either
 
 ## TLS
 
-The internal plane runs plaintext by design — both ends are inside the cluster's private network and the messages are already protected by the cluster's at-rest encryption pipeline (shards leave the API node already ciphertext). Adding TLS to the internal plane would double-encrypt payloads that are already secure. Wrap the cluster's network at the perimeter (VPC, WireGuard, etc.) rather than wrapping individual peer links.
+The internal plane runs plaintext by design — both ends are inside the cluster's private network and the messages are already protected by the cluster's at-rest encryption pipeline (shards leave the API node already ciphertext). Messages that carry credentials are KMS-encrypted before they go on the wire: the IAM / bucket-config snapshot, a follower's bucket-config change forwarded to the leader (it can hold replication and site-replication secret keys and webhook credentials), the backup and restore requests the leader sends to every data node (they hold the backup bucket's secret key), and admin-socket requests forwarded to the leader. Adding TLS to the internal plane would double-encrypt payloads that are already secure. Wrap the cluster's network at the perimeter (VPC, WireGuard, etc.) rather than wrapping individual peer links.
+
+Admin requests that only the leader may serve (IAM, storage classes, backup settings) and that land on a follower are relayed to the leader's admin port as they came in, so they are as protected as the operator's own connection: run the admin plane over TLS.
 
 The S3 and Admin planes are HTTP and *should* run over TLS in production. Terminate at the upstream nginx; see [Nginx Reverse Proxy](../operations/nginx-proxy.md).
 
