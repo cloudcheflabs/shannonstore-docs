@@ -32,6 +32,9 @@ bin/stop-data-node.sh
 
 Configure the storage directories in `conf/shannonstore.properties` — multiple paths give multi-disk capacity in a single node.
 
+With no argument, `bin/stop-data-node.sh` stops the Data Node running from this installation. The start script names the PID file after the instance's port (`bin/data-node-<port>.pid`, the NIO port), and the stop script looks there. When several Data Nodes run from the same installation it does not guess: it lists their ports and exits 1, and you pass the port of the one to stop, e.g. `bin/stop-data-node.sh 9001`. It reports "not running" only when no Data Node from this installation is running.
+`bin/stop-api-server.sh` works the same way with the API Server's S3 port.
+
 ### ZooKeeper
 
 ```
