@@ -1894,6 +1894,8 @@
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>bin/stop-data-node.sh
 </code></pre></div>
 <p>Configure the storage directories in <code>conf/shannonstore.properties</code> — multiple paths give multi-disk capacity in a single node.</p>
+<p>With no argument, <code>bin/stop-data-node.sh</code> stops the Data Node running from this installation. The start script names the PID file after the instance's port (<code>bin/data-node-&lt;port&gt;.pid</code>, the NIO port), and the stop script looks there. When several Data Nodes run from the same installation it does not guess: it lists their ports and exits 1, and you pass the port of the one to stop, e.g. <code>bin/stop-data-node.sh 9001</code>. It reports "not running" only when no Data Node from this installation is running.
+<code>bin/stop-api-server.sh</code> works the same way with the API Server's S3 port.</p>
 <h3 id="zookeeper">ZooKeeper</h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>bin/start-zk.sh
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>bin/stop-zk.sh
