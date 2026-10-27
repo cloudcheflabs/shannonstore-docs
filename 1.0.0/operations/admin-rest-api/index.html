@@ -1784,6 +1784,10 @@
   <code>secretKeySet</code>, SSO reports <code>secretsSet</code>, and storage-class tier secrets, site-replication peer secrets,
   bucket-replication destination secrets, webhook headers and sensitive Kafka properties come back as
   <code>********</code>. Sending <code>********</code> back unchanged keeps the stored value.</li>
+<li><strong>Replication to the other API nodes.</strong> A change is applied on the leader and then pushed to the
+  other API nodes. If one of them does not acknowledge, the answer is still <code>200</code> and also carries
+  <code>"replication": "pending"</code>, <code>unconfirmedNodes</code> (their node ids) and a <code>replicationMessage</code>; those
+  nodes catch up on their own (see <a href="../../features/iam/#at-rest-encryption-cluster-sync">IAM</a>).</li>
 <li><strong>Proxy parameters.</strong> Some read routes accept <code>targetHost</code> / <code>targetPort</code> (and <code>nodeType=data</code> for
   logs) to be answered by a specific node. Only registered cluster nodes are accepted; anything else
   answers <code>400</code>.</li>

@@ -1729,7 +1729,7 @@
 <h2 id="what-gets-backed-up">What Gets Backed Up</h2>
 <p>A single backup run captures both halves of the cluster's state under one shared backup id, so any single restore reassembles a consistent point in time:</p>
 <ul>
-<li><strong>API server (leader)</strong> — IAM RocksDB, KMS RocksDB, metadata / index RocksDB, metrics &amp; history stores.</li>
+<li><strong>API server (leader)</strong> — IAM RocksDB, KMS RocksDB, metadata / index RocksDB, metrics &amp; history stores, and the bucket-config RocksDB (policies, CORS, lifecycle, tags, storage classes, bucket and site replication, notification targets). The bucket config is KMS-encrypted, so its copy in the backup holds no secret in clear; it opens with the KMS keystore of the same backup.</li>
 <li><strong>Every data node</strong> — the raw chunk-store directories (one per configured storage disk).</li>
 </ul>
 <p>Each node uploads its own slice directly to the external S3, so the leader doesn't become a bottleneck and ShannonStore's internal S3 API isn't on the backup path.</p>
@@ -1746,7 +1746,8 @@
 </ul>
 <p>The same page also has a <strong>Test Connection</strong> button (probes the destination bucket with the values on the form, saved or not) and a <strong>Backup now</strong> button. <strong>Backup now</strong> starts the run on the leader and returns at once; the run shows as <em>In progress</em> and then in the history. Starting a second run while one is going answers <code>409</code>.</p>
 <p>Saving refuses an invalid cron expression, and refuses to enable backups without an <code>http://</code> or <code>https://</code> endpoint, a bucket, an access key and a secret key — a schedule with no target would otherwise fail on every tick. The secret key is write-only: the page shows that one is stored and a blank field keeps it.</p>
-<p>Backup settings and the run history live on the leader (the scheduler runs there); every API node answers these pages with the leader's data.</p>
+<p>The scheduler and the run history live on the leader; every API node answers these pages with the leader's data. The settings are kept on <strong>every</strong> API node: the leader sends them to the others inside the encrypted IAM snapshot, so whichever node becomes leader next runs the scheduled backups and can restore. On disk they are <code>data/s3-metadata/backup-config.enc</code>, sealed with a key derived from <code>SHANNONSTORE_MASTER_KEY</code> (the file used to be plain <code>backup-config.json</code>; the first start of this release converts and deletes it, and a follower that still has settings from that time offers them to a leader that has none). The settings are not part of the backup, so a restore never rolls the destination back.</p>
+<p>The request the leader sends to every data node at the start of a backup or restore carries the destination's secret key and is KMS-encrypted on the wire.</p>
 <div class="admonition warning">
 <p class="admonition-title">Use another cluster as the target</p>
 <p>Backing up into a bucket of the same cluster works for a test, but each run then includes the previous backups (they are chunks on the same data nodes), so the backup grows with every run.</p>
@@ -1777,8 +1778,10 @@
 </ol>
 <p>The two-stage design (stage now, swap on restart) avoids hot-swapping directories that RocksDB and the chunk store hold open file handles on. Old snapshots remain on disk as <code>*.restore-old-&lt;ts&gt;</code> until the operator removes them, so a restore is reversible by hand.</p>
 <p>Restore is leader-driven and writes through the same fan-out as backup; followers can read but not initiate.</p>
+<p>A directory the chosen backup has no files for — a bucket-config store when restoring a backup taken by a release that did not back it up yet — is left as it is: it gets no staging directory, so the restart does not replace the live directory with an empty one.</p>
 <h2 id="limitations">Limitations</h2>
 <ul>
+<li>The API-side slice of a backup is stored under the id of the API node that was leader when it ran (<code>api-&lt;node id&gt;/</code>). A restore reads the slice of the API node that runs it, so restore a backup on the API node that took it (make it the leader first), or take a new backup on the current leader.</li>
 <li>A node whose <code>advertisedHost</code> has changed since the backup will not find its manifest. Bring up the replacement node with the original host name first, or re-take a baseline backup before mutating cluster identity.</li>
 <li>The cluster restart in step 5 is operator-driven on purpose — the swap is a coordinated cluster-wide action, not a per-node one.</li>
 </ul>

@@ -2134,6 +2134,10 @@ site replication (active-active across clusters).</p>
 <a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="w">  </span><span class="nt">&lt;/Rule&gt;</span>
 <a id="__codelineno-14-17" name="__codelineno-14-17" href="#__codelineno-14-17"></a><span class="nt">&lt;/ReplicationConfiguration&gt;</span>
 </code></pre></div>
+<p>The destination <code>&lt;SecretKey&gt;</code> is write-only: <code>GetBucketReplication</code> (S3) and the admin
+bucket-config <code>GET</code> return it as <code>********</code>, and writing a configuration back with
+<code>********</code> keeps the stored secret. On disk the configuration is KMS-encrypted with the rest
+of the bucket config (<a href="../kms/">Encryption &amp; Key Management</a>).</p>
 <p>How it works:</p>
 <ul>
 <li><strong>Versioning is not enforced</strong> — <code>ReplicationService</code> does not check whether the source
