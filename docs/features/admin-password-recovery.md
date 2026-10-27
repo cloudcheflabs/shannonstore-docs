@@ -42,7 +42,7 @@ rotation.
 | **Socket path marker** | `bin/api.socket` — written when the socket binds, removed on shutdown |
 | **Network surface** | none — Unix domain socket only |
 | **Downtime** | none — applied in-process on the live api node |
-| **Cluster sync** | automatic — IAM state propagates to peer nodes via the existing sync path |
+| **Cluster sync** | leader-owned — run on a follower, the reset is forwarded to the leader, applied there, pushed to every api node, and confirmed on the follower before the CLI exits 0 |
 | **Audit log** | `data/s3-metadata/iam-audit/reset.log` (mode `600`, append-only) |
 | **Post-reset state** | `requirePasswordChange = true` (forced rotation on next login) |
 
@@ -55,6 +55,24 @@ admin's next login (the `requirePasswordChange` flag is set automatically).
 ```bash
 # Inside the api node host or container:
 bin/shannonstore-cli.sh iam:reset-password
+```
+
+### After the reset: change the password
+
+The reset sets `requirePasswordChange = true`. Until the password is changed, every admin
+API except login and change-password answers `403` with
+*Password change required before accessing this API: this account's password is the initial
+one or was reset by an administrator. Change it with POST /admin/auth/change-password …*
+
+The CLI says so on **stderr** — stdout stays exactly the generated password, so
+`NEW=$(bin/shannonstore-cli.sh iam:reset-password)` keeps working — and prints the exact calls
+for this node:
+
+```text
+note: 'admin' must change this password before any other admin API call works (until then they answer 403 "Password change required"). Log in with it, then change it:
+  curl -s -X POST http://localhost:8888/admin/auth/login -H 'Content-Type: application/json' -d '{"userId":"admin","password":"<password above>"}'      # -> accessToken
+  curl -s -X POST http://localhost:8888/admin/auth/change-password -H 'Content-Type: application/json' -H 'Authorization: Bearer <accessToken>' -d '{"oldPassword":"<password above>","newPassword":"<new password>"}'
+  (or sign in to the Admin UI, which asks for the new password.)
 ```
 
 ## Input modes
@@ -72,6 +90,43 @@ Resetting a different user is also supported:
 bin/shannonstore-cli.sh iam:reset-password --user some-user --new-password 'NewPass123'
 ```
 
+## Running it in a cluster (leader / follower)
+
+IAM is owned by the **leader** api node: the leader applies every change and pushes the
+IAM state to the other api nodes. You can run the CLI on **any** api node:
+
+| Where you run it | What happens | Exit code |
+|---|---|---|
+| Leader | Applied on the leader, pushed to every api node | `0` |
+| Follower, leader healthy | Forwarded to the leader over the internal NIO port, applied there, then confirmed on this follower (`replicatedHere`) | `0` |
+| Follower, no leader elected | Nothing is applied anywhere | `1` |
+| Follower, leader paused / unreachable / too slow | Nothing is applied anywhere; the message names the leader | `1` |
+
+A failure always says **the password was NOT changed** and names the leader, for example:
+
+```text
+error: this api node (8cf0…) is a follower and the leader a272… (api-1:9000) did not apply
+the reset (no answer within 15000 ms); the password was NOT changed. (A leader discards a
+forwarded reset that reaches it after 2026-10-27T11:47:14.331Z.) Check the leader, or run
+shannonstore-cli on the leader host.
+```
+
+The forwarded request carries a **deadline** (one third of the forward timeout). A leader
+that receives it later — it was frozen by a GC pause, `docker pause`, or a network
+partition — discards it, so a reset the CLI reported as failed can never be applied
+afterwards. Before this, a reset on a follower changed only that follower's copy, the
+leader's next IAM push silently put the old password back, and the CLI still exited `0`.
+
+`ping` shows the node's role and the current leader, so you can tell where you are:
+
+```bash
+bin/shannonstore-cli.sh ping
+# pong role=follower node=8cf0d2eb-… leader=a272d87d-… (api-1:9000)
+```
+
+The request and the answer travel KMS-encrypted on the internal port (they can carry a
+password), on their own message type.
+
 ## Configuration
 
 The recovery socket is enabled by default. Every key below lives in
@@ -87,6 +142,10 @@ shannonstore.api.admin.socket.path    =
 # Name of the file under <shannonstore.home>/bin that receives the socket path the
 # api node actually bound to (see "How the CLI finds the socket" below).
 shannonstore.api.admin.socket.marker.file  = api.socket
+# Follower only: how long to wait for the leader to apply a forwarded reset before the
+# CLI fails with "password was NOT changed". The leader discards a forwarded reset that
+# arrives later than one third of this.
+shannonstore.api.admin.socket.forward.timeout.ms = 15000
 # Append-only audit trail of socket operations.
 shannonstore.api.iam.audit.dir = <socket dir>/iam-audit
 ```
@@ -192,14 +251,21 @@ listener.
 
 **2. The audit log records every reset.**
 Every successful reset appends a JSON line to
-`data/s3-metadata/iam-audit/reset.log` (mode `600`). The plaintext
-password is **never** logged — only the first 8 characters of its hash,
-the user, whether it was server-generated, and the OS user that invoked
-the CLI.
+`data/s3-metadata/iam-audit/reset.log` (mode `600`). Nothing derived from the
+plaintext password is logged. `hashFp` is the first 12 hex characters of SHA-256
+over the **stored, salted** password hash — it identifies the password record (the
+leader and a follower print the same value for the same reset), but it cannot be
+used to test password guesses, and resetting to the same password twice gives two
+different values. `route` shows where a forwarded reset came from or went to.
 
 ```json
-{"ts":"2026-05-23T16:00:46.922Z","event":"iam.reset-password","user":"admin","generated":true,"hashFp":"OYV/Ojf/","invokedAs":"root"}
+{"ts":"2026-10-27T11:46:35.578Z","event":"iam.reset-password","user":"admin","generated":false,"hashFp":"948b633b6622","invokedAs":"root","route":"forwardedFrom=8cf0d2eb-…"}
 ```
+
+Earlier versions logged a prefix of the **unsalted** SHA-256 of the plaintext password,
+which let anyone with read access to the log check password guesses offline. Lines written
+by those versions are still in old logs; rotate the affected passwords if the log may have
+been read.
 
 **3. The new password is exposed exactly once.**
 For server-generated passwords, the plaintext is returned only on the
