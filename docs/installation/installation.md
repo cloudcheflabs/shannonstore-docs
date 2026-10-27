@@ -4,7 +4,7 @@ This page walks through downloading the ShannonStore distribution and bringing u
 
 ## Prerequisites
 
-- **Java 17** — ShannonStore is written in Java and ships as a tarball; Java 17 (or newer) must be on `PATH`.
+- **Java 17** — ShannonStore is written in Java and ships as a tarball; Java 17 (or newer) must be on `PATH` **or** pointed to by `JAVA_HOME`. Every script in `bin/` (servers, ZooKeeper, `shannonstore-cli.sh`) uses `$JAVA_HOME/bin/java` when `JAVA_HOME` is set, and `java` from `PATH` otherwise. A `JAVA_HOME` that does not contain an executable `bin/java` stops the script with exit 1 and names the directory; no Java at all stops it with *Java not found. Install Java 17 or later, or set JAVA_HOME to its directory.*
 - **A strong master key (32+ characters recommended)** — used to derive the cluster's root encryption key. Set as the environment variable `SHANNONSTORE_MASTER_KEY` before starting any node. The only thing the process actually enforces at startup is that the variable is set and non-blank (`ClusterKmsProvider` fails closed with a `SecurityException` otherwise) — there is no minimum-length check in code, so the 32-character guidance is an operational recommendation, not an enforced requirement.
 - **macOS or Linux** — the supplied start scripts are bash and assume a POSIX shell.
 
