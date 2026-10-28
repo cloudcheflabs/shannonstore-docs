@@ -44,7 +44,7 @@ bin/stop-zk.sh
 
 The bundled ZooKeeper runs the standard `QuorumPeerMain` with `conf/zk/zoo.cfg` (client port 2181, data under `data/zookeeper`, log in `logs/zk.log`). It is a single server, for evaluation only. In production, point every API Server and Data Node at a managed ensemble of three or five servers through `shannonstore.zk.connect` (`zk1:2181,zk2:2181,zk3:2181`).
 
-The admin **Topology** page reads each server's status with the `srvr` four-letter command and its server id (`myid`) with `conf`. ZooKeeper 3.5+ answers `srvr` by default; if your ensemble sets `4lw.commands.whitelist`, keep `srvr` in it, and add `conf` — which is **not** on the default whitelist — so the page can show each server's id and warn about a duplicate `myid` (the bundled `zoo.cfg` sets `srvr,ruok,conf`). Without `srvr` the page still shows the server as UP but cannot show its role; without `conf` the id reads `server id unknown (conf not in 4lw.commands.whitelist)`.
+The admin **Topology** page reads each server's status with the `srvr` four-letter command and its server id (`myid`) with `conf`. ZooKeeper 3.5+ answers `srvr` by default; if your ensemble sets `4lw.commands.whitelist`, keep `srvr` in it, and add `conf` — which is **not** on the default whitelist — so the page can show each server's id and warn about a duplicate `myid`, then restart that ZooKeeper server (ZooKeeper reads the whitelist only at startup; the bundled `zoo.cfg` sets `srvr,conf,ruok,stat,mntr`). Without `srvr` the page still shows the server as UP but cannot show its role; without `conf` the id reads `server id unknown (conf not in 4lw.commands.whitelist; add conf there and restart that ZooKeeper server)`.
 
 ## Cluster Bootstrap and Restart
 
@@ -152,7 +152,7 @@ was configured with (its `server.N=` lines). The **Server id** column shows the 
 | `Duplicate ZooKeeper server id 2 on zk2:2181, zk3:2181 — the ensemble is misconfigured; give every server a unique myid` | two or more configured servers report the same id |
 | `ZooKeeper server zk4:2181 reports server id 4, which is not in its own ensemble membership (1, 2, 3) — check its myid` | a server's id is not among the `server.N` entries it was configured with |
 | `ZooKeeper servers disagree about the ensemble membership: zk1:2181, zk2:2181 list server ids 1, 2, 3; zk3:2181 lists server ids 2 — every server must be configured with the same server.N list` | the servers were configured with different ensembles |
-| `ZooKeeper server id unknown on zk1:2181, zk2:2181, zk3:2181 (conf not in 4lw.commands.whitelist) — a duplicate myid cannot be ruled out` | the id could not be read (here `conf` is not whitelisted; also `server is down`, `server is not serving requests`) — the check is never reported as passing for those servers |
+| `ZooKeeper server id unknown on zk1:2181, zk2:2181, zk3:2181 (conf not in 4lw.commands.whitelist; add conf there and restart that ZooKeeper server) — a duplicate myid cannot be ruled out` | the id could not be read (here `conf` is not whitelisted; also `server is down`, `server is not serving requests`) — the check is never reported as passing for those servers |
 | `ZooKeeper servers zk1:2181, zk2:2181 run standalone — a standalone server is a separate single-server ZooKeeper, not part of one ensemble with the other configured servers` | the connect string lists several servers but some of them run standalone |
 
 A healthy ensemble shows each server's id and no warning; a single standalone ZooKeeper reports id
@@ -161,9 +161,10 @@ data directory (`ZOO_MY_ID` for the `zookeeper` Docker image) and its `server.N=
 every server has a unique id and all of them list the same ensemble, then restart that server.
 
 `conf` is **not** on ZooKeeper's default whitelist. Add it next to `srvr`, for example
-`4lw.commands.whitelist=srvr,conf` (`ZOO_4LW_COMMANDS_WHITELIST=srvr,conf` for the Docker image).
-Without it every server's id reads `server id unknown (conf not in 4lw.commands.whitelist)`.
-The ZooKeeper bundled with ShannonStore (`conf/zk/zoo.cfg`) whitelists `srvr,ruok,conf`. **Quorum OK** says
+`4lw.commands.whitelist=srvr,conf` (`ZOO_4LW_COMMANDS_WHITELIST=srvr,conf` for the Docker image),
+and restart that ZooKeeper server: ZooKeeper reads the whitelist only at startup.
+Without it every server's id reads `server id unknown (conf not in 4lw.commands.whitelist; add conf there and restart that ZooKeeper server)`.
+The ZooKeeper bundled with ShannonStore (`conf/zk/zoo.cfg`) ships with `4lw.commands.whitelist=srvr,conf,ruok,stat,mntr`. **Quorum OK** says
 nothing about the ids: an ensemble with a duplicate id can still show a quorum.
 
 `tests/e2e-zk-myid.sh` verifies all of this on a real three-server ensemble, on the API and on the
