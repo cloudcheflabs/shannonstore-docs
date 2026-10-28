@@ -65,7 +65,9 @@ After bootstrap, every IAM or KMS change runs on the leader and is pushed to all
 
 A node can miss pushes while it stalls longer than its ZooKeeper session timeout, for example during a long GC pause, a frozen VM or a network partition. When it reconnects, it registers again (its log records `Re-registered … the previous session expired`) and catches up. A follower API Server pulls KMS and IAM from the leader, and a Data Node pulls KMS. A KMS key rotated while the node was away is therefore available to it as soon as it is back. If a node receives an IAM push it cannot decrypt, it fetches the leader's KMS once and retries.
 
-A leader that stalls this long loses leadership at once and does not keep acting as leader when it returns. A password change sent to a follower is answered with success only once that follower accepts the new password. Otherwise the answer is `502`.
+A leader that stalls this long loses leadership at once and does not keep acting as leader when it returns.
+
+A leader also stops acting as leader when its ZooKeeper connection is only suspended, for example when the ZooKeeper server it is attached to stops or the ensemble elects a new ZooKeeper leader. It rejoins the election right away. If another API Server is running, that server takes over. If it is the only API Server, it becomes leader again as soon as the connection is back, usually within a few seconds, and re-runs the leader initialisation from its local KMS and IAM state, so no data is lost. While no leader is known, `/admin/health` answers `503` with `"status":"NO_LEADER"`, and admin requests that must go to the leader answer `503` at once. A password change sent to a follower is answered with success only once that follower accepts the new password. Otherwise the answer is `502`.
 
 ## Observability
 
@@ -169,7 +171,7 @@ Topology page from a non-secure origin (`tests/ui-e2e/45-zk-myid.mjs`).
 
 ### Health Endpoint
 
-`/admin/health` returns 200 when the node is fully ready, 503 otherwise. Suitable for container readiness probes.
+`/admin/health` returns 200 (`{"status":"UP","role":…,"leader":…}`) when the node and the cluster are ready and a leader is known, 503 otherwise. A 503 names the reason in `status`: `STARTING` while the node or the cluster is still initialising, `NO_LEADER` while no leader is elected or the node's own ZooKeeper connection is down (for example between a ZooKeeper leader change and the re-election that follows it). The endpoint answers from cached state, without a ZooKeeper round trip, so it responds within milliseconds even while ZooKeeper is unreachable. Suitable for container readiness probes.
 
 ### Metrics & Logs
 
