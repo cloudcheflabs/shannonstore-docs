@@ -255,7 +255,12 @@ PutObject and UploadPart accept every body framing the AWS SDKs produce:
 | `Transfer-Encoding: chunked` (no `Content-Length`) | AWS C++ SDK / **pyarrow** UploadPart | HTTP chunking decoded first, then aws-chunked |
 
 Malformed framing (a truncated chunk, a bad chunk size, a missing CRLF) is rejected with
-`400 IncompleteBody` instead of being stored.
+`400 IncompleteBody` instead of being stored. So is a body whose length does not match what
+the request declared (`x-amz-decoded-content-length` for aws-chunked, `Content-Length`
+otherwise) — shorter, or an aws-chunked body that runs past its declared length — including
+on the streaming PutObject path that stores while it reads (no checksum header, known
+length: the shape the AWS Java SDK v2 sends over plain http). Earlier builds stored such a
+body cut short and answered `200`.
 
 !!! warning "Objects uploaded by pyarrow before this fix"
     Earlier builds ignored request bodies sent with `Transfer-Encoding: chunked`. Every
@@ -265,8 +270,14 @@ Malformed framing (a truncated chunk, a bad chunk size, a missing CRLF) is rejec
     `500 Decoded size mismatch`. The uploaded bytes never reached storage and cannot be
     recovered. Such objects now answer GET and HEAD with
     `403 InvalidObjectState` and a message that says exactly this; delete them and
-    upload them again. A genuinely empty file written that way cannot be told apart from
-    a lost one, so it is reported the same way.
+    upload them again.
+
+    The same builds recorded every genuinely **empty** object (a 0-byte PutObject, e.g. a
+    RocksDB `LOCK` file in a NeorunBase backup) the same way. Those are not damaged: their
+    object size is 0, which HEAD and listings have always reported, so they are served as
+    the empty objects they are. Only an object that claims bytes it does not hold is
+    refused. (Refusing the empty ones made every NeorunBase backup that contained an empty
+    file unrestorable once the store was upgraded.)
 
 ## Conditional requests
 
