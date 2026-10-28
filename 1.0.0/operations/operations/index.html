@@ -1633,6 +1633,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="ZooKeeper in the Topology page">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#server-ids-myid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server ids (myid)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1901,7 +1918,7 @@
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>bin/stop-zk.sh
 </code></pre></div>
 <p>The bundled ZooKeeper runs the standard <code>QuorumPeerMain</code> with <code>conf/zk/zoo.cfg</code> (client port 2181, data under <code>data/zookeeper</code>, log in <code>logs/zk.log</code>). It is a single server, for evaluation only. In production, point every API Server and Data Node at a managed ensemble of three or five servers through <code>shannonstore.zk.connect</code> (<code>zk1:2181,zk2:2181,zk3:2181</code>).</p>
-<p>The admin <strong>Topology</strong> page reads each server's status with the <code>srvr</code> four-letter command. ZooKeeper 3.5+ answers <code>srvr</code> by default; if your ensemble sets <code>4lw.commands.whitelist</code>, keep <code>srvr</code> in it (the bundled <code>zoo.cfg</code> sets <code>srvr,ruok</code>). Without it the page still shows the server as UP but cannot show its role.</p>
+<p>The admin <strong>Topology</strong> page reads each server's status with the <code>srvr</code> four-letter command and its server id (<code>myid</code>) with <code>conf</code>. ZooKeeper 3.5+ answers <code>srvr</code> by default; if your ensemble sets <code>4lw.commands.whitelist</code>, keep <code>srvr</code> in it, and add <code>conf</code> — which is <strong>not</strong> on the default whitelist — so the page can show each server's id and warn about a duplicate <code>myid</code> (the bundled <code>zoo.cfg</code> sets <code>srvr,ruok,conf</code>). Without <code>srvr</code> the page still shows the server as UP but cannot show its role; without <code>conf</code> the id reads <code>server id unknown (conf not in 4lw.commands.whitelist)</code>.</p>
 <h2 id="cluster-bootstrap-and-restart">Cluster Bootstrap and Restart</h2>
 <p>Bootstrap is fully automatic and deterministic:</p>
 <ol>
@@ -1939,6 +1956,10 @@
 <tr>
 <td>Server</td>
 <td><code>host:port</code> from the connect string (a chroot suffix is ignored; a host without a port is 2181)</td>
+</tr>
+<tr>
+<td>Server id</td>
+<td>the server's own id (<code>myid</code>) as it reports it to <code>conf</code>, or <code>server id unknown (...)</code> with the reason — see <a href="#server-ids-myid">Server ids</a></td>
 </tr>
 <tr>
 <td>Role</td>
@@ -1980,17 +2001,72 @@
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">&quot;connectString&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk1:2181,zk2:2181,zk3:2181&quot;</span><span class="p">,</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">&quot;servers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk1&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;port&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2181</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;UP&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;3.9.1&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;latencyMin&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;latencyAvg&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.4</span><span class="p">,</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">      </span><span class="nt">&quot;latencyMax&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;connections&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;outstanding&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;zxid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0x10000004a&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;follower&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;nodeCount&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">61</span><span class="w"> </span><span class="p">},</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk2&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;port&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2181</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;UP&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;leader&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;...&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="w"> </span><span class="p">},</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk3&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;port&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2181</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;DOWN&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;unknown&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;error&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ConnectException: Connection refused&quot;</span><span class="w"> </span><span class="p">}</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="p">],</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span><span class="nt">&quot;quorum&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;up&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;total&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;required&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;hasQuorum&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;leader&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk2:2181&quot;</span><span class="w"> </span><span class="p">},</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span><span class="nt">&quot;client&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;nodeId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ss-api-1&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;state&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;CONNECTED&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;connected&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;sessionId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0x100000a3c0b0002&quot;</span><span class="p">,</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">              </span><span class="nt">&quot;sessionTimeoutMs&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;connectedServer&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk1/172.18.0.3:2181&quot;</span><span class="w"> </span><span class="p">},</span>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="nt">&quot;checkedAt&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1760780000000</span>
-<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="p">}</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">      </span><span class="nt">&quot;latencyMax&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">7</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;connections&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;outstanding&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;zxid&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0x10000004a&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;follower&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;nodeCount&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">61</span><span class="p">,</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="nt">&quot;probeMs&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;serverId&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;serverIdNote&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">      </span><span class="nt">&quot;membership&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;1&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk1:2888:3888:participant;0.0.0.0:2181&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;2&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk2:2888:3888:participant;0.0.0.0:2181&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">                      </span><span class="nt">&quot;3&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk3:2888:3888:participant;0.0.0.0:2181&quot;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">},</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk2&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;port&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2181</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;UP&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;leader&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;serverId&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;...&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="w"> </span><span class="p">},</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;host&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk3&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;port&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2181</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;DOWN&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;unknown&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;error&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ConnectException: Connection refused&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">      </span><span class="nt">&quot;serverId&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;serverIdNote&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;server id unknown (server is down)&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;membership&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="p">],</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">  </span><span class="nt">&quot;quorum&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;up&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;total&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;required&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;hasQuorum&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;leader&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk2:2181&quot;</span><span class="w"> </span><span class="p">},</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">  </span><span class="nt">&quot;warnings&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="s2">&quot;ZooKeeper server id unknown on zk3:2181 (server is down) — a duplicate myid cannot be ruled out&quot;</span><span class="w"> </span><span class="p">],</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">  </span><span class="nt">&quot;client&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;nodeId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ss-api-1&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;state&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;CONNECTED&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;connected&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;sessionId&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0x100000a3c0b0002&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">              </span><span class="nt">&quot;sessionTimeoutMs&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;connectedServer&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zk1/172.18.0.3:2181&quot;</span><span class="w"> </span><span class="p">},</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="w">  </span><span class="nt">&quot;checkedAt&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1760780000000</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="p">}</span>
 </code></pre></div>
 <p>Data Nodes use the same ensemble but have no HTTP surface, so their sessions are not listed; a Data Node that lost its session disappears from the <strong>Data Nodes</strong> table when its ephemeral registration expires.</p>
+<p><code>warnings</code> is empty when every server reported a unique id and all of them agree on the membership.</p>
+<h4 id="server-ids-myid">Server ids (myid)</h4>
+<p>Every server of an ensemble needs its own id (<code>myid</code>). Two servers with the same id — typically
+left behind by a scale-out or a rebuild that reused an instance number — or servers that do not
+agree on who is in the ensemble break it <strong>silently</strong>: ZooKeeper raises no error, and clients just
+see an unstable or split service. The section therefore also asks each server that answers with the
+<code>conf</code> four-letter word, which reports the server's own <code>serverId</code> and the ensemble membership it
+was configured with (its <code>server.N=</code> lines). The <strong>Server id</strong> column shows the id, or
+<code>server id unknown (...)</code> with the reason, and a red line above the table names each problem:</p>
+<table>
+<thead>
+<tr>
+<th>Warning</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Duplicate ZooKeeper server id 2 on zk2:2181, zk3:2181 — the ensemble is misconfigured; give every server a unique myid</code></td>
+<td>two or more configured servers report the same id</td>
+</tr>
+<tr>
+<td><code>ZooKeeper server zk4:2181 reports server id 4, which is not in its own ensemble membership (1, 2, 3) — check its myid</code></td>
+<td>a server's id is not among the <code>server.N</code> entries it was configured with</td>
+</tr>
+<tr>
+<td><code>ZooKeeper servers disagree about the ensemble membership: zk1:2181, zk2:2181 list server ids 1, 2, 3; zk3:2181 lists server ids 2 — every server must be configured with the same server.N list</code></td>
+<td>the servers were configured with different ensembles</td>
+</tr>
+<tr>
+<td><code>ZooKeeper server id unknown on zk1:2181, zk2:2181, zk3:2181 (conf not in 4lw.commands.whitelist) — a duplicate myid cannot be ruled out</code></td>
+<td>the id could not be read (here <code>conf</code> is not whitelisted; also <code>server is down</code>, <code>server is not serving requests</code>) — the check is never reported as passing for those servers</td>
+</tr>
+<tr>
+<td><code>ZooKeeper servers zk1:2181, zk2:2181 run standalone — a standalone server is a separate single-server ZooKeeper, not part of one ensemble with the other configured servers</code></td>
+<td>the connect string lists several servers but some of them run standalone</td>
+</tr>
+</tbody>
+</table>
+<p>A healthy ensemble shows each server's id and no warning; a single standalone ZooKeeper reports id
+<code>0</code> and is not a warning. To fix a duplicate or a mismatch, correct the <code>myid</code> file in the server's
+data directory (<code>ZOO_MY_ID</code> for the <code>zookeeper</code> Docker image) and its <code>server.N=</code> lines so that
+every server has a unique id and all of them list the same ensemble, then restart that server.</p>
+<p><code>conf</code> is <strong>not</strong> on ZooKeeper's default whitelist. Add it next to <code>srvr</code>, for example
+<code>4lw.commands.whitelist=srvr,conf</code> (<code>ZOO_4LW_COMMANDS_WHITELIST=srvr,conf</code> for the Docker image).
+Without it every server's id reads <code>server id unknown (conf not in 4lw.commands.whitelist)</code>.
+The ZooKeeper bundled with ShannonStore (<code>conf/zk/zoo.cfg</code>) whitelists <code>srvr,ruok,conf</code>. <strong>Quorum OK</strong> says
+nothing about the ids: an ensemble with a duplicate id can still show a quorum.</p>
+<p><code>tests/e2e-zk-myid.sh</code> verifies all of this on a real three-server ensemble, on the API and on the
+Topology page from a non-secure origin (<code>tests/ui-e2e/45-zk-myid.mjs</code>).</p>
 <h3 id="health-endpoint">Health Endpoint</h3>
 <p><code>/admin/health</code> returns 200 when the node is fully ready, 503 otherwise. Suitable for container readiness probes.</p>
 <h3 id="metrics-logs">Metrics &amp; Logs</h3>

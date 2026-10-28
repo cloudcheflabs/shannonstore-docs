@@ -2696,7 +2696,7 @@ config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
 <tr>
 <td><code>shannonstore.api.admin.zk.probe.timeout.ms</code></td>
 <td><code>2000</code></td>
-<td>Connect + read timeout (ms) for each ZooKeeper server the admin <strong>Topology</strong> page asks for its status (<code>GET /admin/cluster/zookeeper</code>, the <code>srvr</code> four-letter command). Servers are asked in parallel, so a dead server costs one timeout; a server that does not answer in time is shown DOWN. See <a href="../../operations/operations/#zookeeper-in-the-topology-page">Cluster Operations → ZooKeeper in the Topology page</a>.</td>
+<td>Connect + read timeout (ms) for each ZooKeeper server the admin <strong>Topology</strong> page asks for its status (<code>GET /admin/cluster/zookeeper</code>, the <code>srvr</code> four-letter command, plus <code>conf</code> for each server's id — whitelist it). Servers are asked in parallel, so a dead server costs one timeout; a server that does not answer in time is shown DOWN. See <a href="../../operations/operations/#zookeeper-in-the-topology-page">Cluster Operations → ZooKeeper in the Topology page</a>.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.admin.proxy.connect.timeout.ms</code></td>
