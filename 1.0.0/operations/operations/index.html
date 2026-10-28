@@ -1918,7 +1918,7 @@
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>bin/stop-zk.sh
 </code></pre></div>
 <p>The bundled ZooKeeper runs the standard <code>QuorumPeerMain</code> with <code>conf/zk/zoo.cfg</code> (client port 2181, data under <code>data/zookeeper</code>, log in <code>logs/zk.log</code>). It is a single server, for evaluation only. In production, point every API Server and Data Node at a managed ensemble of three or five servers through <code>shannonstore.zk.connect</code> (<code>zk1:2181,zk2:2181,zk3:2181</code>).</p>
-<p>The admin <strong>Topology</strong> page reads each server's status with the <code>srvr</code> four-letter command and its server id (<code>myid</code>) with <code>conf</code>. ZooKeeper 3.5+ answers <code>srvr</code> by default; if your ensemble sets <code>4lw.commands.whitelist</code>, keep <code>srvr</code> in it, and add <code>conf</code> — which is <strong>not</strong> on the default whitelist — so the page can show each server's id and warn about a duplicate <code>myid</code> (the bundled <code>zoo.cfg</code> sets <code>srvr,ruok,conf</code>). Without <code>srvr</code> the page still shows the server as UP but cannot show its role; without <code>conf</code> the id reads <code>server id unknown (conf not in 4lw.commands.whitelist)</code>.</p>
+<p>The admin <strong>Topology</strong> page reads each server's status with the <code>srvr</code> four-letter command and its server id (<code>myid</code>) with <code>conf</code>. ZooKeeper 3.5+ answers <code>srvr</code> by default; if your ensemble sets <code>4lw.commands.whitelist</code>, keep <code>srvr</code> in it, and add <code>conf</code> — which is <strong>not</strong> on the default whitelist — so the page can show each server's id and warn about a duplicate <code>myid</code>, then restart that ZooKeeper server (ZooKeeper reads the whitelist only at startup; the bundled <code>zoo.cfg</code> sets <code>srvr,conf,ruok,stat,mntr</code>). Without <code>srvr</code> the page still shows the server as UP but cannot show its role; without <code>conf</code> the id reads <code>server id unknown (conf not in 4lw.commands.whitelist; add conf there and restart that ZooKeeper server)</code>.</p>
 <h2 id="cluster-bootstrap-and-restart">Cluster Bootstrap and Restart</h2>
 <p>Bootstrap is fully automatic and deterministic:</p>
 <ol>
@@ -2048,7 +2048,7 @@ was configured with (its <code>server.N=</code> lines). The <strong>Server id</s
 <td>the servers were configured with different ensembles</td>
 </tr>
 <tr>
-<td><code>ZooKeeper server id unknown on zk1:2181, zk2:2181, zk3:2181 (conf not in 4lw.commands.whitelist) — a duplicate myid cannot be ruled out</code></td>
+<td><code>ZooKeeper server id unknown on zk1:2181, zk2:2181, zk3:2181 (conf not in 4lw.commands.whitelist; add conf there and restart that ZooKeeper server) — a duplicate myid cannot be ruled out</code></td>
 <td>the id could not be read (here <code>conf</code> is not whitelisted; also <code>server is down</code>, <code>server is not serving requests</code>) — the check is never reported as passing for those servers</td>
 </tr>
 <tr>
@@ -2062,9 +2062,10 @@ was configured with (its <code>server.N=</code> lines). The <strong>Server id</s
 data directory (<code>ZOO_MY_ID</code> for the <code>zookeeper</code> Docker image) and its <code>server.N=</code> lines so that
 every server has a unique id and all of them list the same ensemble, then restart that server.</p>
 <p><code>conf</code> is <strong>not</strong> on ZooKeeper's default whitelist. Add it next to <code>srvr</code>, for example
-<code>4lw.commands.whitelist=srvr,conf</code> (<code>ZOO_4LW_COMMANDS_WHITELIST=srvr,conf</code> for the Docker image).
-Without it every server's id reads <code>server id unknown (conf not in 4lw.commands.whitelist)</code>.
-The ZooKeeper bundled with ShannonStore (<code>conf/zk/zoo.cfg</code>) whitelists <code>srvr,ruok,conf</code>. <strong>Quorum OK</strong> says
+<code>4lw.commands.whitelist=srvr,conf</code> (<code>ZOO_4LW_COMMANDS_WHITELIST=srvr,conf</code> for the Docker image),
+and restart that ZooKeeper server: ZooKeeper reads the whitelist only at startup.
+Without it every server's id reads <code>server id unknown (conf not in 4lw.commands.whitelist; add conf there and restart that ZooKeeper server)</code>.
+The ZooKeeper bundled with ShannonStore (<code>conf/zk/zoo.cfg</code>) ships with <code>4lw.commands.whitelist=srvr,conf,ruok,stat,mntr</code>. <strong>Quorum OK</strong> says
 nothing about the ids: an ensemble with a duplicate id can still show a quorum.</p>
 <p><code>tests/e2e-zk-myid.sh</code> verifies all of this on a real three-server ensemble, on the API and on the
 Topology page from a non-secure origin (<code>tests/ui-e2e/45-zk-myid.mjs</code>).</p>
