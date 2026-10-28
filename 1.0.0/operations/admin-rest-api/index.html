@@ -1849,7 +1849,7 @@
 <td>GET</td>
 <td><code>/admin/health</code></td>
 <td>anyone</td>
-<td><code>{"status":"UP"}</code> once the node and the cluster are ready, <code>503</code> before</td>
+<td><code>{"status":"UP","role":…,"leader":…}</code> once the node and the cluster are ready and a leader is known; otherwise <code>503</code> with <code>status</code> <code>STARTING</code> or <code>NO_LEADER</code></td>
 </tr>
 </tbody>
 </table>
