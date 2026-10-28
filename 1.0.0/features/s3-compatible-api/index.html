@@ -2500,7 +2500,12 @@ Java/Python SDKs send by default.</p>
 </tbody>
 </table>
 <p>Malformed framing (a truncated chunk, a bad chunk size, a missing CRLF) is rejected with
-<code>400 IncompleteBody</code> instead of being stored.</p>
+<code>400 IncompleteBody</code> instead of being stored. So is a body whose length does not match what
+the request declared (<code>x-amz-decoded-content-length</code> for aws-chunked, <code>Content-Length</code>
+otherwise) — shorter, or an aws-chunked body that runs past its declared length — including
+on the streaming PutObject path that stores while it reads (no checksum header, known
+length: the shape the AWS Java SDK v2 sends over plain http). Earlier builds stored such a
+body cut short and answered <code>200</code>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Objects uploaded by pyarrow before this fix</p>
 <p>Earlier builds ignored request bodies sent with <code>Transfer-Encoding: chunked</code>. Every
@@ -2510,8 +2515,13 @@ size (for example 98 bytes) as its length — so every later GET failed with
 <code>500 Decoded size mismatch</code>. The uploaded bytes never reached storage and cannot be
 recovered. Such objects now answer GET and HEAD with
 <code>403 InvalidObjectState</code> and a message that says exactly this; delete them and
-upload them again. A genuinely empty file written that way cannot be told apart from
-a lost one, so it is reported the same way.</p>
+upload them again.</p>
+<p>The same builds recorded every genuinely <strong>empty</strong> object (a 0-byte PutObject, e.g. a
+RocksDB <code>LOCK</code> file in a NeorunBase backup) the same way. Those are not damaged: their
+object size is 0, which HEAD and listings have always reported, so they are served as
+the empty objects they are. Only an object that claims bytes it does not hold is
+refused. (Refusing the empty ones made every NeorunBase backup that contained an empty
+file unrestorable once the store was upgraded.)</p>
 </div>
 <h2 id="conditional-requests">Conditional requests</h2>
 <p><code>GET</code> and <code>HEAD</code> both honour RFC 7232 pre-conditions:</p>
