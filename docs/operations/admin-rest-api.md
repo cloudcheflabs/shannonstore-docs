@@ -42,7 +42,7 @@ Everything the [Admin UI](admin-ui.md) does goes through this REST API on the AP
 | POST | `/admin/auth/change-password` | user | `{"oldPassword","newPassword"}`; at least 8 characters, different from the old one |
 | GET | `/admin/auth/sso/providers` | anyone | Enabled SSO providers for the login page |
 | GET | `/admin/auth/sso/oidc/start`, `/oidc/callback`, `/saml/start`; POST `/saml/acs`, `/ldap/login` | anyone | Federated sign-in flows ([Single Sign-On](../features/sso.md)) |
-| GET | `/admin/health` | anyone | `{"status":"UP"}` once the node and the cluster are ready, `503` before |
+| GET | `/admin/health` | anyone | `{"status":"UP","role":…,"leader":…}` once the node and the cluster are ready and a leader is known; otherwise `503` with `status` `STARTING` or `NO_LEADER` |
 
 ## Cluster
 
