@@ -44,7 +44,7 @@ The encoding step is a pure-Java `ReedSolomon`/`ErasureCoder` implementation (`s
 1. **Read the metadata** for the requested key (and version, if specified) from the local RocksDB.
 2. **Fan out shard reads** to the k data shards first. The API node connects to each shard's owning data node through a pooled NIO client and streams the bytes back.
 3. **Verify each shard's CRC32C** against the checksum recorded in metadata. A mismatch is treated as if the shard were missing — see [Data Integrity](data-integrity.md).
-4. **If any data shard is missing or corrupt**, read enough parity shards to bring the total to k healthy shards, run the inverse Reed-Solomon decoder, and emit the reconstructed data.
+4. **If any data shard is missing or corrupt**, read enough parity shards to bring the total to k healthy shards, run the inverse Reed-Solomon decoder, and emit the reconstructed data. Parity is requested at once when a data shard fetch fails, fails its checksum, or is recorded as missing. It is also requested when the data shards have not all arrived within `shannonstore.api.s3.ec.parity.hedge.ms` (2000 ms by default). This hedges against a slow node, and 0 disables time-based hedging. A healthy read never touches parity and never decodes.
 5. **Cache the decoded part** in a bounded LRU keyed by `(objectKey, partNumber)`. A second range request that hits the same part doesn't re-decode — important for Iceberg / Parquet workloads where the column-footer and a column chunk are typically two reads against the same part.
 
 The cache cap is in bytes, not entries — `shannonstore.api.s3.decoded.part.cache.bytes` (default 33554432 / 32 MiB, per `ApiConfig.java`). Sized to roughly one part × the number of concurrent range readers you expect.

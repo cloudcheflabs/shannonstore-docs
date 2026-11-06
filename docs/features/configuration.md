@@ -77,6 +77,9 @@ Applies to both API and Data nodes.
 | `shannonstore.zk.retry.max.retries` | `3` | Maximum retry attempts in the ZooKeeper client's backoff policy before abandoning an operation. |
 | `shannonstore.network.compression.type` | `SNAPPY` | Compression for internal NIO message payloads between nodes. Supported: `NONE`, `SNAPPY`. |
 | `shannonstore.network.compression.threshold` | `1024` | Minimum payload size (bytes) below which network compression is skipped. Only consulted when compression type is not `NONE`. |
+| `shannonstore.network.compression.sample.bytes` | `65536` (64 KiB) | Before compressing a large payload, this prefix is compressed as a probe. If it does not shrink by `compression.min.saving.percent`, the payload is sent uncompressed. Object data is AES-encrypted by default, and ciphertext never compresses. `0` = no probe. |
+| `shannonstore.network.compression.min.saving.percent` | `10` | Smallest saving (percent of the payload) for which a compressed payload is sent instead of the original. |
+| `shannonstore.crypto.native.provider.enabled` | `true` | Use the native Amazon Corretto Crypto Provider (AWS-LC) for AES-GCM and digests when its jar for this platform is present in `lib/native/<os-arch>/`. Measured on aarch64: 95 MiB/s (JDK) vs 5.5 GB/s per core. Same standard algorithms, so data written with either provider is readable with the other. Falls back to the JDK providers when the native library cannot load. API and Data nodes. |
 | `shannonstore.network.socket.send.buffer` | `2097152` (2 MiB) | TCP send buffer (`SO_SNDBUF`, bytes) on inter-node sockets. |
 | `shannonstore.network.socket.recv.buffer` | `2097152` (2 MiB) | TCP receive buffer (`SO_RCVBUF`, bytes) on inter-node sockets. |
 | `shannonstore.kms.type` | `cluster` | KMS provider. `cluster` is the built-in distributed KMS (KEKs envelope-encrypted in a local RocksDB keystore, synced from the leader). |
@@ -129,6 +132,7 @@ API node only.
 | `shannonstore.api.s3.circular.buffer.size` | `134217728` (128 MiB) | Capacity (bytes) of the `CircularBufferInputStream` used to stream very large objects out to the client. **Caveat:** in-code default is 64 MiB; the file sets 128 MiB. |
 | `shannonstore.api.s3.chunked.stream.size` | `1048576` (1 MiB) | Heap buffer size per read/copy step of chunked HTTP transfer on S3 GET/PUT. |
 | `shannonstore.api.s3.fetch.timeout.seconds` | `120` | Max time (seconds) the API node waits for a Data node to return a chunk. **Caveat:** in-code default is 60; the file sets 120. |
+| `shannonstore.api.s3.ec.parity.hedge.ms` | `2000` | Healthy GETs fetch only the data shards. Parity shards are requested when a data shard fails or is missing, or when the data shards have not all arrived after this many ms (hedging against a slow node). `0` = never hedge on time. |
 | `shannonstore.api.network.http.max.content.length` | `268435456` (256 MiB) | Maximum permitted HTTP request body length (bytes); effectively caps a single non-streaming PutObject body and an Admin UI upload. |
 | `shannonstore.api.bucket.stats.cache.ms` | `5000` | How long (ms) an API node reuses its metadata scan for [bucket object counts and sizes](bucket-counters.md). One scan serves every bucket; a write on the node clears it. |
 | `shannonstore.api.node.ids.cache.ms` | `1000` | How long (ms) an API node reuses the API node list it read from ZooKeeper for HRW metadata ownership. Every metadata lookup needs the list; without the cache each one was a ZooKeeper round trip. A node joining or leaving is seen within this time. |
@@ -157,7 +161,15 @@ API node only.
 | `shannonstore.api.part.buffer.enabled` | `true` | When true, multipart-upload parts are first written to a fast local RocksDB-backed buffer and asynchronously flushed to Data nodes, accelerating ingest. |
 | `shannonstore.api.part.buffer.rocksdb.path` | `${shannonstore.base.data.dir}/s3-metadata/part-buffer` | RocksDB directory backing the part buffer. |
 | `shannonstore.api.part.buffer.flush.interval.ms` | `5000` | Interval (ms) at which the background flusher drains buffered parts to Data nodes. |
-| `shannonstore.api.part.buffer.memory.max.bytes` | `2147483648` (2 GiB) | Soft cap (bytes) on the in-memory (L1) part-buffer footprint before parts are evicted. |
+| `shannonstore.api.part.buffer.flush.parallelism` | `4` | Objects whose buffered parts are flushed concurrently in one round (parts of one object stay sequential). |
+| `shannonstore.api.part.buffer.max.bytes` | `262144` (256 KiB) | Largest single-PUT object (stored bytes) that goes through the part buffer. Larger ones are written straight to the data nodes and are durable there before the client is answered. Multipart parts always use the buffer, which carries in-flight uploads across restarts. `0` = no single PUT is buffered. |
+| `shannonstore.api.part.buffer.rocksdb.write.buffer.bytes` | `67108864` (64 MiB) | Part-buffer memtable size. Must hold several parts; at 16 MiB (the former fixed value) one 16 MiB part filled it and every PUT stalled on a flush. |
+| `shannonstore.api.part.buffer.rocksdb.write.buffer.number` | `4` | Memtables kept before writes stall. Native memory is at most number × bytes. |
+| `shannonstore.api.part.buffer.rocksdb.compression` | `NONE` | `NONE` or `SNAPPY`. Buffered data is ciphertext when object encryption is on (default), and it does not compress. |
+| `shannonstore.api.part.buffer.rocksdb.blob.files.enabled` | `true` | Keep large values in blob files (RocksDB BlobDB). Flushes and compactions then move references instead of rewriting MiB-sized parts. |
+| `shannonstore.api.part.buffer.rocksdb.min.blob.bytes` | `65536` | Values at least this large go to blob files. |
+| `shannonstore.api.part.buffer.rocksdb.blob.file.bytes` | `268435456` (256 MiB) | Target blob file size. |
+| `shannonstore.api.part.buffer.memory.max.bytes` | `2147483648` (2 GiB) | Legacy key from the removed in-memory part-buffer layer; the buffer is RocksDB-backed (see `part.buffer.rocksdb.*`). |
 
 ### Advanced RocksDB tuning (metadata index store)
 
@@ -294,13 +306,14 @@ config (Admin UI → Event Notifications), **not** here.
 | `shannonstore.network.nio.write.timeout.ms` | `30000` | Per-connection write timeout (ms) for the internal NIO layer; a queued outbound message that can't flush within the window fails. |
 | `shannonstore.network.nio.connection.read.buffer.size` | `1048576` (1 MiB) | Per-connection heap read buffer for the internal NIO server, allocated per accepted connection. A message larger than this grows that connection's buffer to fit it and shrinks back afterwards. |
 | `shannonstore.network.nio.max.message.bytes` | `536870912` (512 MiB) | Largest single internal NIO message (header + body) a node accepts; larger frames are refused and the connection closed. |
+| `shannonstore.network.nio.io.slice.bytes` | `262144` (256 KiB) | Largest number of bytes passed to one socket read or write on node-to-node connections, and in data-node shard file reads. Whole-shard calls made the JDK copy multi-MiB buffers on every partial transfer and allocate uncached native buffers. API and Data nodes. |
 | `shannonstore.network.rpc.default.timeout.seconds` | `30` | Default timeout (seconds) for a synchronous NIO `sendAndReceive` RPC when the caller specifies none. |
 | `shannonstore.network.rpc.connect.timeout.ms` | `5000` | TCP connect timeout (ms) for `NioRpcClient.connect()` when establishing an inter-node channel. |
 | `shannonstore.network.rpc.connect.poll.sleep.ms` | `100` | Poll/sleep granularity (ms) of the busy-wait loop while `NioRpcClient.connect()` waits for the channel. |
 | `shannonstore.network.nio.client.connect.timeout.seconds` | `10` | Connect timeout (seconds) used by the internal NIO client when opening a new outbound connection to a peer. Not present in the shipped `shannonstore.properties`. |
 | `shannonstore.network.nio.client.write.timeout.seconds` | `10` | Write timeout (seconds) used by the internal NIO client when sending a message to a peer. Not present in the shipped `shannonstore.properties`. |
 | `shannonstore.network.http.header.buffer.size` | `65536` (64 KiB) | Max buffer (bytes) for parsing an incoming HTTP request line + headers; larger header blocks are rejected. |
-| `shannonstore.network.http.body.read.buffer.size` | `8192` (8 KiB) | Heap buffer (bytes) per read step when draining an HTTP request body. |
+| `shannonstore.network.http.body.read.buffer.size` | `262144` (256 KiB) | Largest number of request-body bytes read from the socket in one call, straight into the handler's buffer. The former 8 KiB took about 2,000 reads for a 16 MiB PUT. |
 | `shannonstore.network.http.response.stream.chunk.size` | `8388608` (8 MiB) | HTTP response streaming chunk size (bytes) for large S3 GETs. |
 | `shannonstore.network.http.write.slice.bytes` | `262144` (256 KiB) | Largest slice of a response body handed to one socket write on the S3 port. The JDK caches a per-thread temporary direct buffer as large as the largest write. Writing whole multi-MiB bodies in one call therefore pinned that much native memory on every worker thread, and under large-GET load the API server was OOM-killed. |
 | `shannonstore.network.http.keepalive.enabled` | `true` | HTTP/1.1 persistent connections on the S3 port. A connection is kept only after a cleanly delimited response; `false` closes after every response. |

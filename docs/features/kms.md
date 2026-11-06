@@ -160,6 +160,15 @@ accept the headers and what each refusal means, is in
 - **Rotate KEKs via `POST /admin/kms/rotate/{keyId}` after personnel changes or on a routine cadence** — it's a live, no-restart operation on the leader. The retired-but-not-deleted previous version costs nothing operationally; it just means new objects start under the new KEK version while old ones remain readable under theirs.
 - **Audit on KMS RocksDB tampering**. The keystore is the only path between the master key and the object data. If a row is altered out of band, the AES-GCM tag verification fails on the next read.
 
+### Crypto provider
+
+All AES-GCM here (KEK wrapping, per-object data keys, part-buffer envelopes) goes through the JCA
+`AES/GCM/NoPadding` transformation. On Linux, the native Amazon Corretto Crypto Provider (AWS-LC)
+serves it: about 5.5 GB/s per core against 95 MiB/s for the JDK's implementation, measured on
+aarch64. It is the same standard algorithm (12-byte IV, 128-bit tag), so ciphertext written by
+either provider is read by the other. This was verified both ways on a running cluster before it
+became the default. Turn it off with `shannonstore.crypto.native.provider.enabled=false`.
+
 ## See also
 
 - [S3 API](s3-compatible-api.md#server-side-encryption) — the SSE-S3, SSE-KMS and SSE-C request headers, and what each reports back.

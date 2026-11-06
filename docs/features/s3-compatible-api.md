@@ -440,7 +440,8 @@ address what it just wrote instead of listing versions and guessing which one
 is its own.
 
 Every version keeps its own bytes, including under successive writes to the same
-key with no pause between them. That is worth stating explicitly because writes
+key with no pause between them. That is worth stating explicitly because small writes
+(single PUTs up to `shannonstore.api.part.buffer.max.bytes`, and every multipart part)
 land in a part buffer and are committed to their final location asynchronously:
 the commit has to find the version it belongs to, not whichever version is
 newest by the time it runs. A version only becomes the current one if it is
