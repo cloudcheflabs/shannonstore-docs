@@ -91,22 +91,55 @@ has no HTTP/2 mode). So:
 | Envoy | HTTP/1.1 / HTTP/2 over TLS | **HTTP/2** (`http2_protocol_options` on the cluster) | |
 | Direct (same LAN, no TLS) | h2c or HTTP/1.1 | — | clients that speak h2c |
 
-HAProxy example (TLS from clients, HTTP/2 to the S3 port):
+### HAProxy with HTTP/2 to the S3 port
+
+This is a tuned configuration for TLS from clients and h2c to the API nodes, with HAProxy 2.9 or later. It is the configuration the e2e and benchmark suites run against (`tests/haproxy-h2.cfg`; there, the bind is plain `:8090`).
 
 ```text
+global
+    maxconn 100000
+    # HAProxy's OWN HTTP/2 receive window. As the client of the S3 port it may only receive
+    # this many unacknowledged bytes per stream. The default (65535) caps every large GET at
+    # one window per round trip. 1 MiB matches ShannonStore's http2.initial.window.size.
+    tune.h2.be.initial-window-size 1048576
+    tune.h2.fe.initial-window-size 1048576
+    # Streams per upstream connection; ShannonStore allows 128 (http2.max.concurrent.streams).
+    tune.h2.be.max-concurrent-streams 128
+
+defaults
+    mode http
+    timeout connect 5s
+    timeout client 3600s                 # idle time between reads/writes, not a transfer limit
+    timeout server 3600s
+    timeout http-request 30s             # complete request headers (slowloris guard)
+    timeout http-keep-alive 60s          # below keepalive.idle.timeout.ms (75 s)
+
 frontend s3_in
     bind :443 ssl crt /etc/haproxy/certs/s3.pem alpn h2,http/1.1
-    mode http
     default_backend shannon_s3
 
 backend shannon_s3
-    mode http
-    balance roundrobin
-    timeout server 300s
-    timeout http-keep-alive 60s          # below keepalive.idle.timeout.ms (75 s)
-    server api1 10.0.0.11:8080 proto h2 check
-    server api2 10.0.0.12:8080 proto h2 check
+    balance leastconn                    # long streams and tiny requests mixed
+    http-reuse always                    # share idle upstream connections between clients
+    # Health from the Admin port, which speaks HTTP/1.1 only.
+    option httpchk
+    http-check send meth GET uri /admin/health ver HTTP/1.1 hdr Host localhost
+    http-check expect status 200
+    server api1 10.0.0.11:8080 proto h2 check port 8888 check-proto h1 inter 2s fall 3 rise 2
+    server api2 10.0.0.12:8080 proto h2 check port 8888 check-proto h1 inter 2s fall 3 rise 2
 ```
+
+!!! warning "`check-proto h1` belongs on the `server` line"
+    With `proto h2`, health checks also speak HTTP/2 unless the server line says `check-proto h1`. The Admin port does not speak h2c, so every server is then marked DOWN with `Socket error`, and HAProxy answers `503`. Setting it through `default-server` did not take effect in our tests (HAProxy 2.9).
+
+Measured with the setup of the [benchmark below](#http11-vs-http2-benchmark), GET 8 MiB through HAProxy, 16 in flight, client on HTTP/1.1, averaged over two runs:
+
+| Configuration | Throughput |
+| --- | ---: |
+| Without the two `initial-window-size` lines | 2.62 GB/s |
+| With them | **3.34 GB/s** (+27%) |
+
+Run-to-run noise on this workload is about ±10%. With an HTTP/2 client the difference was within that noise, and small-object rates did not change.
 
 ## Configuration
 
@@ -124,7 +157,21 @@ rolling restart of the API nodes.
 | `shannonstore.network.http.max.connections` | `0` (unlimited) | Cap on open client connections (HTTP/1.1 + HTTP/2). Beyond it new connections are closed immediately and a warning is logged. Check `ulimit -n` too. |
 | `shannonstore.network.http.accept.backlog` | `1024` | Listen backlog (the JDK default is 50). Effective value is capped by the OS (`net.core.somaxconn`). |
 | `shannonstore.network.http.header.initial.buffer.size` | `4096` | Initial per-connection header buffer, grown to `shannonstore.network.http.header.buffer.size` (64 KiB) only when needed. |
+| `shannonstore.network.http.write.slice.bytes` | `262144` | Largest slice of a response body per socket write. This bounds the per-thread native buffers the JDK caches for socket I/O; see the note below. |
 | `shannonstore.api.netty.worker.threads.multiplier` | `4` | Request worker threads = `cores × multiplier` (the name is historical; the S3 port does not use Netty). Each worker serves one HTTP/1.1 request or one HTTP/2 stream at a time. |
+
+!!! note "Native memory and large GETs"
+    Socket I/O from Java heap memory goes through a temporary direct (native) buffer that the
+    JDK caches **per thread**. By default it stays as large as the largest single write that
+    thread ever made. Builds before 2026-11-06 wrote whole object bodies, or 8 MiB stream chunks,
+    in one call. Under sustained large-GET load each of the ~100 request threads then held up to
+    an object's worth of native memory, and an API server without a container memory limit
+    could be OOM-killed.
+
+    Current builds write in `write.slice.bytes` slices (256 KiB) with no loss of throughput.
+    The shipped `conf/jvm.conf` also sets `-Djdk.nio.maxCachedBufferSize=1048576`, so larger
+    temporary buffers are freed instead of cached. Keep that line if you maintain your own JVM
+    options, and set `-Xmx` and a container memory limit for production API servers.
 
 ### HTTP/2
 
@@ -139,6 +186,9 @@ rolling restart of the API nodes.
 | `shannonstore.network.http2.max.header.list.size` | `65536` | Decoded request-header bytes; larger requests get `431`. |
 | `shannonstore.network.http2.header.table.size` | `4096` | HPACK dynamic table the client may use for request headers. |
 | `shannonstore.network.http2.max.queued.write.bytes` | `4194304` | Response bytes queued per connection before writers wait for the socket. |
+| `shannonstore.network.http2.write.batch.bytes` | `262144` | Response bytes a stream packs into one queued buffer of consecutive DATA frames. |
+| `shannonstore.network.http2.write.staging.bytes` | `524288` | Direct buffer frames are copied into before the socket write, borrowed from a shared pool only while the connection is sending. |
+| `shannonstore.network.http2.write.staging.pool.max` | `64` | Idle staging buffers kept for reuse; bounds idle direct memory at 32 MiB. |
 | `shannonstore.network.http2.stream.timeout.ms` | `60000` | How long a stream waits on its client (flow-control credit, socket drain, or request body) before it is reset. |
 
 ## Client tuning
@@ -218,16 +268,62 @@ proxy's upstream keep-alive settings.
 
 ## Measured effect
 
-Same build, same hardware (Docker Desktop, 32 client threads, 3,200 GETs of 32 KiB objects
-against one API node), the only difference being whether each request opens a new connection
-(the pre-keep-alive behaviour, reproduced with `Connection: close`) or reuses one:
+### Keep-alive versus a new connection per request
+
+This test used the same build on Docker Desktop: 32 client threads, 3,200 GETs of 32 KiB objects, one API node. The only difference between the rows is whether each request opens a new connection (the pre-keep-alive behaviour, reproduced with `Connection: close`) or reuses one.
 
 | Mode | Throughput | p50 latency | p99 latency |
 | --- | --- | --- | --- |
 | New connection per request | 2,838 req/s | 9.22 ms | 46.23 ms |
 | Keep-alive reuse | **4,590 req/s** (+62%) | **6.64 ms** | **11.44 ms** (−75%) |
 
-This measurement runs over a local loopback with no TLS. Across a real network, and especially through a TLS-terminating proxy, each new connection costs more, so reusing connections matters even more there.
+### HTTP/1.1 vs HTTP/2 benchmark
+
+**Setup**
+
+- Cluster: the docker compose test cluster (2 API nodes with `-Xmx1536m`, 3 data nodes), Docker Desktop, 10 CPUs.
+- Load: [h2load](https://nghttp2.org/documentation/h2load-howto.html) inside the compose network, presigned GETs, no TLS. Each row ran 10 s after 2 s of warm-up.
+- Per table, the number of requests in flight is fixed, and only the protocol and connection layout change.
+- `c` is connections and `m` is concurrent streams per HTTP/2 connection.
+- Reproduce with `tests/http_bench.py` in the ShannonStore repo. The full report is `tests/http_bench_result.md`.
+- Each workload reads **one object repeatedly**, so the API node serves it from its decoded-part cache. These numbers therefore measure the HTTP layer (protocol, connections, framing), which is the point of this comparison. They are **not** storage throughput: an 8 MiB object read from the data nodes takes far longer than these figures suggest.
+
+**Small objects, direct to one API node**
+
+| Workload | HTTP/1.1 keep-alive | HTTP/2, 1 connection | HTTP/2, 4 connections |
+| --- | ---: | ---: | ---: |
+| GET 1 KiB, 16 in flight | 45,442 req/s · p99 1.30 ms | 43,516 · 1.20 ms | 43,749 · 1.24 ms |
+| GET 1 KiB, 64 in flight | 52,727 req/s · p99 4.00 ms | **60,831** · 3.64 ms | 58,241 · 3.74 ms |
+| GET 1 KiB, 128 in flight | 53,266 req/s · p99 5.92 ms | **62,332** · 5.01 ms | 58,314 · 5.33 ms |
+| GET 64 KiB, 16 in flight | **38,908** req/s · p99 1.79 ms | 32,293 · 2.04 ms | 37,795 · 1.98 ms |
+| GET 64 KiB, 64 in flight | 48,663 req/s · p99 4.38 ms | 48,573 · 4.07 ms | 48,640 · 4.57 ms |
+
+**Large objects, direct**
+
+| Workload | HTTP/1.1 keep-alive | HTTP/2, 1 connection | HTTP/2, 4 connections |
+| --- | ---: | ---: | ---: |
+| GET 8 MiB, 4 in flight | **12.7 GB/s** | 4.8 GB/s | 9.8 GB/s |
+| GET 8 MiB, 16 in flight | **15.5 GB/s** | 4.9 GB/s | 9.0 GB/s |
+
+**Through a proxy, 64 in flight (8 MiB: 16)**
+
+| Workload | nginx, HTTP/1.1 upstream | HAProxy, HTTP/2 upstream (client h1) | HAProxy, HTTP/2 upstream (client h2) |
+| --- | ---: | ---: | ---: |
+| GET 1 KiB | **51,094 req/s** | 45,597 | 47,209 |
+| GET 64 KiB | **35,910 req/s** | 27,232 | 25,449 |
+| GET 8 MiB | **7.0 GB/s** | 3.8 GB/s | 2.7 GB/s |
+
+**What it shows**
+
+- **Many small requests at high concurrency:** HTTP/2 on **one** connection does **+15–17%** more requests per second than 64–128 pooled HTTP/1.1 connections, with a lower p99. At low concurrency the two are even.
+- **Medium and large objects:** HTTP/1.1 keep-alive is as fast or faster. One TCP connection is one byte stream. Many HTTP/1.1 connections spread a large transfer over many sockets and threads, and HTTP/2 serialises its streams onto one. HTTP/2 over four connections closes most of the gap.
+- **The proxy matters more than the protocol.** A tuned nginx with pooled HTTP/1.1 upstreams was faster than HAProxy with HTTP/2 upstreams on every workload here.
+- **The loopback setup understates HTTP/2's main benefit, connection count.** Here a new connection is nearly free. Across real networks, behind TLS, and with thousands of clients, holding 1 connection instead of 64 saves handshakes, sockets, and memory on every hop.
+
+!!! tip "Which to use"
+    - **Default: nginx (or any proxy) with an HTTP/1.1 keep-alive upstream pool**, as in [Nginx Reverse Proxy](../operations/nginx-proxy.md). It is the fastest configuration measured, and every client works with it.
+    - **HTTP/2 to the S3 port** (HAProxy `proto h2`, Envoy, or h2c clients on the same network) pays off when **connection count** is the constraint. Examples: very many clients, connection limits on a firewall or load balancer, or high-latency links where each new connection is expensive.
+    - Workloads dominated by large objects should stay on HTTP/1.1, or use HTTP/2 with several connections.
 
 ## See also
 
