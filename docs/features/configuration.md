@@ -302,6 +302,7 @@ config (Admin UI → Event Notifications), **not** here.
 | `shannonstore.network.http.header.buffer.size` | `65536` (64 KiB) | Max buffer (bytes) for parsing an incoming HTTP request line + headers; larger header blocks are rejected. |
 | `shannonstore.network.http.body.read.buffer.size` | `8192` (8 KiB) | Heap buffer (bytes) per read step when draining an HTTP request body. |
 | `shannonstore.network.http.response.stream.chunk.size` | `8388608` (8 MiB) | HTTP response streaming chunk size (bytes) for large S3 GETs. |
+| `shannonstore.network.http.write.slice.bytes` | `262144` (256 KiB) | Largest slice of a response body handed to one socket write on the S3 port. The JDK caches a per-thread temporary direct buffer as large as the largest write. Writing whole multi-MiB bodies in one call therefore pinned that much native memory on every worker thread, and under large-GET load the API server was OOM-killed. |
 | `shannonstore.network.http.keepalive.enabled` | `true` | HTTP/1.1 persistent connections on the S3 port. A connection is kept only after a cleanly delimited response; `false` closes after every response. |
 | `shannonstore.network.http.keepalive.idle.timeout.ms` | `75000` | Closes an S3-port connection that is idle, or has not finished sending headers, for this long. Also the idle timeout of HTTP/2 connections with no active stream. Keep it above the nginx upstream `keepalive_timeout` and the SDK idle timeouts (60 s). |
 | `shannonstore.network.http.keepalive.max.drain.bytes` | `1048576` (1 MiB) | Unread request body the server reads and discards to keep a connection alive after an early response. A larger remainder closes the connection. |
@@ -317,6 +318,9 @@ config (Admin UI → Event Notifications), **not** here.
 | `shannonstore.network.http2.max.header.list.size` | `65536` | `SETTINGS_MAX_HEADER_LIST_SIZE`. Larger request headers get `431`. |
 | `shannonstore.network.http2.header.table.size` | `4096` | HPACK dynamic table size offered to the client's encoder. |
 | `shannonstore.network.http2.max.queued.write.bytes` | `4194304` (4 MiB) | Response bytes queued per HTTP/2 connection before writers wait for the socket. |
+| `shannonstore.network.http2.write.batch.bytes` | `262144` (256 KiB) | Response bytes one stream packs into a single queued buffer of consecutive DATA frames, as far as flow-control credit allows. Larger values mean fewer allocations on large GETs; smaller values interleave the streams of one connection more finely. |
+| `shannonstore.network.http2.write.staging.bytes` | `524288` (512 KiB) | Direct buffer an HTTP/2 connection copies frames into before writing them to the socket. Borrowed from a shared pool only while the connection has data to send. |
+| `shannonstore.network.http2.write.staging.pool.max` | `64` | Idle staging buffers kept for reuse across all HTTP/2 connections. Idle direct memory is bounded at this × `write.staging.bytes` (32 MiB). |
 | `shannonstore.network.http2.stream.timeout.ms` | `60000` | How long an HTTP/2 stream waits on its client (flow-control credit, socket drain, or request body) before it is reset. |
 | `shannonstore.api.iam.policy.pattern.cache.size` | `10000` | Max entries in the IAM `PolicyEvaluator` regex-pattern cache; cleared and rebuilt when full. |
 | `shannonstore.api.sts.default.session.duration.seconds` | `3600` | Default STS session duration (seconds) when clients omit `DurationSeconds`. AWS-compatible range is [900, 43200]. |
