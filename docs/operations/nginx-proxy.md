@@ -18,6 +18,7 @@ A production ShannonStore cluster runs multiple API Servers — each exposing bo
 | `proxy_buffering` | `off` | Mirror on the response side — stream downloads through, don't buffer. |
 | `proxy_send_timeout` / `proxy_read_timeout` / `send_timeout` | `3600s` | Long transfers (huge objects, slow networks) need long timeouts. |
 | `proxy_http_version 1.1` + `Connection ""` | enable upstream keepalive | Required for `keepalive` in the upstream block to do anything. |
+| upstream `keepalive` / `keepalive_requests` / `keepalive_timeout` | `256` / `10000` / `60s` | Size of the idle connection pool to the S3 port, per worker process, and how long pooled connections live. See [Upstream connection reuse](#upstream-connection-reuse). |
 
 The `client_max_body_size 0` is **the critical one** — without it the S3 API is unusable for objects above the nginx default.
 
@@ -39,7 +40,9 @@ upstream shannon_s3 {
     server api-server-2:8080;
     server localhost:8080 backup;
     server localhost:8081 backup;
-    keepalive 64;
+    keepalive 256;              # idle upstream connections kept PER nginx worker process
+    keepalive_requests 10000;   # requests per upstream connection before it is recycled (default 1000)
+    keepalive_timeout 60s;      # below ShannonStore's keepalive.idle.timeout.ms (75 s)
 }
 
 # --- 2. Admin API & UI Upstream ---
@@ -93,6 +96,51 @@ server {
     }
 }
 ```
+
+## Upstream connection reuse
+
+The S3 port keeps HTTP/1.1 connections alive, so nginx's upstream pool is reused: a client
+request is forwarded over an already-open connection instead of a new TCP handshake per S3
+call. (Builds before 2026-11 closed every connection after the response, which made the
+`keepalive` directive a no-op.) What to set:
+
+| Directive (in `upstream shannon_s3`) | Value | Notes |
+|---|---|---|
+| `keepalive` | `256` | Idle connections cached **per worker process**. Size it to the peak number of concurrent S3 requests divided by `worker_processes`. Too small and nginx closes connections after each burst, leaving `TIME_WAIT` sockets. |
+| `keepalive_requests` | `10000` | Requests per connection before nginx recycles it (default 1000). |
+| `keepalive_timeout` | `60s` | Idle time before nginx closes a pooled connection. It **must be shorter** than ShannonStore's `shannonstore.network.http.keepalive.idle.timeout.ms` (75 s) so that nginx, not the server, closes an idle connection. Otherwise nginx can send a request on a connection the server is closing. |
+
+`keepalive_requests` and `keepalive_timeout` inside an `upstream` block need nginx ≥ 1.15.3.
+Apply with `nginx -t && nginx -s reload`.
+
+To check it works, run this on an API node under steady load:
+
+```bash
+ss -tan state established '( sport = :8080 )' | wc -l    # stays small and stable
+ss -tan state time-wait '( dport = :8080 )' | wc -l       # on the nginx host: should not keep climbing
+```
+
+## TLS and HTTP/2
+
+Terminate TLS in nginx, and let clients use HTTP/2 to nginx:
+
+```nginx
+server {
+    listen 443 ssl http2;          # nginx >= 1.25.1: "listen 443 ssl;" plus "http2 on;"
+    ssl_certificate     /etc/nginx/certs/s3.crt;
+    ssl_certificate_key /etc/nginx/certs/s3.key;
+    # ... same proxy_* settings and locations as above ...
+}
+```
+
+nginx always speaks **HTTP/1.1 to upstreams**. It cannot forward HTTP/2. The hop from nginx to
+ShannonStore is therefore pooled HTTP/1.1 keep-alive, which is what the settings above tune.
+To multiplex over HTTP/2 all the way to the API nodes, use a proxy that speaks HTTP/2 to
+upstreams, such as HAProxy with `server … proto h2` or Envoy. The S3 port serves HTTP/2 (h2c)
+natively. See [HTTP Protocols & Client Tuning](../features/http-protocols.md#where-http2-helps-and-the-nginx-caveat)
+for a HAProxy example.
+
+## Notes on the reference configuration
 
 `shannon_s3` carries S3 PUT/GET/multipart traffic; `shannon_admin` carries the Admin UI, the Admin REST API, and the Prometheus `/metrics` endpoint. `localhost:8080-8081` / `localhost:8888-8889` `backup` entries cover a local/single-host deployment where api-server-1/2 hostnames aren't resolvable.
 

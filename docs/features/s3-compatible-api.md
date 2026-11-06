@@ -16,6 +16,15 @@ ShannonStore implements the Amazon S3 REST API at the wire level — the same ca
    └──────────────────────────────────────┘
 ```
 
+## Transport
+
+The S3 port speaks **HTTP/1.1 with persistent connections** and **HTTP/2 over clear text
+(h2c)**, either with prior knowledge or via `Upgrade: h2c`. Both run on the same port and
+serve the same operations. Signatures (SigV4 headers and presigned URLs) verify the same
+way over both. TLS is terminated by the proxy in front. See
+[HTTP Protocols & Client Tuning](http-protocols.md) for connection reuse, HTTP/2 limits, and
+SDK pool settings.
+
 ## Supported operations
 
 The dispatch table in `S3RequestHandler` routes the following verb × subresource combinations to fully implemented handlers. Each handler returns the canonical S3 XML response.
@@ -24,7 +33,7 @@ The dispatch table in `S3RequestHandler` routes the following verb × subresourc
 
 | Operation | Trigger | Notes |
 | --- | --- | --- |
-| **PutObject** | `PUT /<bucket>/<key>` | Streaming upload via Netty NIO. Body is encrypted &mdash; with a cluster key, or with a caller-supplied one under [SSE-C](#sse-c) &mdash; and then erasure-coded before being persisted across data nodes. Returns `x-amz-version-id` on a versioned bucket. |
+| **PutObject** | `PUT /<bucket>/<key>` | Streaming upload (`Content-Length`, `Transfer-Encoding: chunked`, or `aws-chunked`; HTTP/1.1 or HTTP/2). Body is encrypted &mdash; with a cluster key, or with a caller-supplied one under [SSE-C](#sse-c) &mdash; and then erasure-coded before being persisted across data nodes. Returns `x-amz-version-id` on a versioned bucket. |
 | **GetObject** | `GET /<bucket>/<key>` | Streaming download. Honors `Range` requests for partial / resumable reads. Sets `Content-Length`, `ETag`, `Last-Modified`. |
 | **HeadObject** | `HEAD /<bucket>/<key>` | Returns the same metadata as GET without the body — used by SDKs for existence / size probes. |
 | **DeleteObject** | `DELETE /<bucket>/<key>` | Replies `204 No Content` (S3 idempotent semantics — deleting a missing key still succeeds). |
@@ -316,13 +325,27 @@ Range: bytes=-512        (last 512 bytes — suffix form)
 
 A 206 Partial Content response carries the requested slice and a `Content-Range` header.
 
-**Multi-range** (`Range: bytes=0-99,200-299`) is answered as `multipart/byteranges`,
-one part per range with its own `Content-Range`. Because each part is buffered,
-a multi-range request whose parts add up to more than
-`shannonstore.api.s3.small.object.threshold` is served as the whole object
-instead — a client asking for most of an object in slices is better served the
-object than by having the server hold it all in memory, and RFC 7233 permits
-ignoring the ranges.
+**Multi-range** (`Range: bytes=0-99,200-299`) is answered `206` with
+`multipart/byteranges`, one part per range, each with its own `Content-Range`:
+
+- **Overlapping or adjacent ranges are merged** first (RFC 9110 §14.2). For example,
+  `bytes=1000-1999,500-1500` becomes one part `500-1999`, so a request cannot
+  multiply the bytes served by repeating ranges. Parts come back in ascending order.
+- **Streamed, not buffered.** The response `Content-Length` is computed up front from
+  the part headers and slice lengths. Each slice is then read from storage only when the
+  writer reaches it, so heap use stays at one slice or stream chunk at a time,
+  however large the ranges add up to.
+- **Capped.** A request with more than `shannonstore.api.s3.max.ranges.per.request`
+  (default `64`) ranges, counted after merging, is answered with the whole object (`200`,
+  streamed). RFC 9110 permits this, and it bounds the per-request work a client
+  can ask for with thousands of tiny ranges.
+- A single range, including one left after merging, is answered as a normal `206`
+  with a plain body.
+
+!!! note "Earlier builds"
+    Multi-range bodies used to be assembled in memory. A request whose ranges added
+    up to more than `shannonstore.api.s3.small.object.threshold` (64 MiB) was answered by
+    loading the **entire object** into the heap. Ranges were neither merged nor capped.
 
 Two edge cases behave as the RFC requires rather than as errors:
 
