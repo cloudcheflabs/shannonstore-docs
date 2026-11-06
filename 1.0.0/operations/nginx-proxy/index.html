@@ -1637,7 +1637,7 @@
   <a href="#key-directives-and-why-they-matter-for-s3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Key directives — and why they matter for S3
+        Key directives and why they matter for S3
       
     </span>
   </a>
@@ -1653,6 +1653,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Reference configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#etcnginxnginxconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        /etc/nginx/nginx.conf
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#etcnginxconfdshannonstoreconf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        /etc/nginx/conf.d/shannonstore.conf
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1667,10 +1695,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tls-and-http2" class="md-nav__link">
+  <a href="#tls-and-http2-to-clients" class="md-nav__link">
     <span class="md-ellipsis">
       
-        TLS and HTTP/2
+        TLS and HTTP/2 to clients
       
     </span>
   </a>
@@ -1678,10 +1706,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#notes-on-the-reference-configuration" class="md-nav__link">
+  <a href="#measured-effect-of-the-tuned-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notes on the reference configuration
+        Measured effect of the tuned configuration
       
     </span>
   </a>
@@ -1733,15 +1761,17 @@
 
 
 <h1 id="nginx-reverse-proxy">Nginx Reverse Proxy</h1>
-<p>A production ShannonStore cluster runs multiple API Servers — each exposing both the S3 port (default 8080) and the Admin port (default 8888). Putting <strong>nginx in front</strong> gives clients one stable entry point, load-balances across API Servers, and centralises the few transport tweaks that matter for an object store.</p>
+<p>A production ShannonStore cluster runs multiple API Servers, and each one exposes both the S3 port (default 8080) and the Admin port (default 8888). Putting <strong>nginx in front</strong> gives clients one stable entry point, load-balances across API Servers, and keeps in one place the transport settings that matter for an object store.</p>
+<p>This page gives a tuned configuration, says why each setting is there, and shows what it measured.</p>
 <h2 id="why-an-nginx-ingress">Why an nginx ingress</h2>
 <ul>
-<li><strong>Single endpoint</strong> — clients (S3 SDKs, browsers, monitoring) hit one host:port; you can add or replace API Servers without changing client config.</li>
-<li><strong>High availability</strong> — nginx upstreams round-robin across api-server instances; an unhealthy server is taken out of rotation automatically.</li>
-<li><strong>Two ports unified</strong> — the same listener routes <code>/admin</code> and <code>/metrics</code> to the Admin upstream, and everything else to the S3 upstream — clients don't track two ports.</li>
-<li><strong>Large-upload friendly</strong> — defaults in distributions cap request bodies at 1 MB and buffer the whole body to disk, which breaks S3 multipart uploads of large objects. The config below removes those caps.</li>
+<li><strong>Single endpoint.</strong> Clients (S3 SDKs, browsers, monitoring) hit one host:port. You can add or replace API Servers without changing client config.</li>
+<li><strong>High availability.</strong> nginx spreads requests across API Servers and takes a failing one out of rotation.</li>
+<li><strong>Two ports unified.</strong> The same listener routes <code>/admin</code> and <code>/metrics</code> to the Admin upstream and everything else to the S3 upstream, so clients don't track two ports.</li>
+<li><strong>TLS termination.</strong> ShannonStore serves plain HTTP. nginx (or HAProxy) terminates TLS and can serve HTTP/2 to clients.</li>
+<li><strong>Large-upload friendly.</strong> Distribution defaults cap request bodies at 1 MB and buffer whole bodies to disk, which breaks S3 multipart uploads of large objects. The configuration below removes both.</li>
 </ul>
-<h2 id="key-directives-and-why-they-matter-for-s3">Key directives — and why they matter for S3</h2>
+<h2 id="key-directives-and-why-they-matter-for-s3">Key directives and why they matter for S3</h2>
 <table>
 <thead>
 <tr>
@@ -1754,112 +1784,209 @@
 <tr>
 <td><code>client_max_body_size</code></td>
 <td><strong><code>0</code></strong> (unlimited)</td>
-<td>S3 PUT / UploadPart can be many GB. The nginx default (1 MB) rejects them with <code>413 Request Entity Too Large</code>. <code>0</code> disables the limit.</td>
+<td>S3 PUT / UploadPart bodies can be many GB. The nginx default (1 MB) rejects them with <code>413 Request Entity Too Large</code>. <strong>This is the critical one.</strong></td>
 </tr>
 <tr>
-<td><code>proxy_request_buffering</code></td>
+<td><code>proxy_request_buffering</code> / <code>proxy_buffering</code></td>
 <td><code>off</code></td>
-<td>Stream the request body straight to the upstream instead of spooling to disk first — keeps large uploads moving and bounds memory/disk.</td>
+<td>Stream bodies through in both directions instead of spooling them to disk. This keeps large transfers moving and bounds nginx memory and disk use.</td>
 </tr>
 <tr>
-<td><code>proxy_buffering</code></td>
-<td><code>off</code></td>
-<td>Mirror on the response side — stream downloads through, don't buffer.</td>
+<td><code>proxy_buffer_size</code> (+ <code>proxy_buffers 8 16k</code>)</td>
+<td><code>16k</code></td>
+<td>Upstream response <strong>headers</strong> must fit in this one buffer even with buffering off. S3 responses with many <code>x-amz-meta-*</code> headers overflow the default (4k/8k), and nginx then answers <code>502</code> ("upstream sent too big header"). nginx requires <code>proxy_buffers</code> to grow along with it.</td>
 </tr>
 <tr>
-<td><code>proxy_send_timeout</code> / <code>proxy_read_timeout</code> / <code>send_timeout</code></td>
-<td><code>3600s</code></td>
-<td>Long transfers (huge objects, slow networks) need long timeouts.</td>
+<td><code>large_client_header_buffers</code></td>
+<td><code>4 32k</code></td>
+<td>Presigned URLs (long query strings), SigV4 <code>Authorization</code> headers, and object keys of up to 1024 bytes, which roughly triple in size when percent-encoded.</td>
+</tr>
+<tr>
+<td><code>proxy_set_header Host $http_host</code></td>
+<td>—</td>
+<td><strong>SigV4 signs the Host header.</strong> Forward it exactly as the client sent it, port included, or every request fails with <code>SignatureDoesNotMatch</code>.</td>
 </tr>
 <tr>
 <td><code>proxy_http_version 1.1</code> + <code>Connection ""</code></td>
-<td>enable upstream keepalive</td>
-<td>Required for <code>keepalive</code> in the upstream block to do anything.</td>
+<td>—</td>
+<td>Required for upstream keep-alive. Without them nginx sends <code>Connection: close</code> and opens a new connection to ShannonStore for every request.</td>
 </tr>
 <tr>
 <td>upstream <code>keepalive</code> / <code>keepalive_requests</code> / <code>keepalive_timeout</code></td>
 <td><code>256</code> / <code>10000</code> / <code>60s</code></td>
-<td>Size of the idle connection pool to the S3 port, per worker process, and how long pooled connections live. See <a href="#upstream-connection-reuse">Upstream connection reuse</a>.</td>
+<td>The idle connection pool to the S3 port, per worker process. See <a href="#upstream-connection-reuse">Upstream connection reuse</a>.</td>
+</tr>
+<tr>
+<td><code>least_conn</code></td>
+<td>—</td>
+<td>S3 traffic mixes multi-GB streams with tiny requests. Round-robin keeps sending new requests to a server that is already busy with long transfers; <code>least_conn</code> does not.</td>
+</tr>
+<tr>
+<td><code>max_fails=3 fail_timeout=10s</code> + <code>proxy_connect_timeout 5s</code></td>
+<td>—</td>
+<td>A dead API server is skipped after a 5 s connect failure instead of the 60 s default, and stays out of rotation for 10 s.</td>
+</tr>
+<tr>
+<td><code>proxy_next_upstream error timeout</code> + <code>_tries 2</code></td>
+<td>—</td>
+<td>Retry on another server only when the connection could not be made. nginx never retries POST, and it cannot replay a body it has already streamed.</td>
+</tr>
+<tr>
+<td><code>proxy_send_timeout</code> / <code>proxy_read_timeout</code> / <code>send_timeout</code></td>
+<td><code>3600s</code></td>
+<td>Idle time allowed <strong>between two reads or writes</strong>, not a limit on the whole transfer. Slow clients on huge objects need headroom.</td>
+</tr>
+<tr>
+<td><code>access_log … buffer=64k flush=5s</code></td>
+<td>—</td>
+<td>One log write per 64 KiB instead of one per request. This is measurable at tens of thousands of small requests per second.</td>
+</tr>
+<tr>
+<td><code>keepalive_requests</code> (client side, <code>http {}</code>)</td>
+<td><code>10000</code></td>
+<td>Requests per client connection (default 1000). SDK connection pools otherwise reconnect needlessly.</td>
+</tr>
+<tr>
+<td><code>worker_connections</code> / <code>worker_rlimit_nofile</code></td>
+<td><code>16384</code> / <code>65536</code></td>
+<td>Each proxied request holds two sockets (client and upstream), and the idle upstream pool holds more. The stock <code>1024</code> runs out under a busy analytics cluster.</td>
 </tr>
 </tbody>
 </table>
-<p>The <code>client_max_body_size 0</code> is <strong>the critical one</strong> — without it the S3 API is unusable for objects above the nginx default.</p>
 <h2 id="reference-configuration">Reference configuration</h2>
-<p>The cluster's tests/CI ship a ready-to-use config at <code>tests/nginx.conf</code> in the ShannonStore repo. The complete file:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># --- Unlimited request body size — required for large S3 uploads ---</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">client_max_body_size</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># --- Disable buffering for large upload/download stability ---</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="k">proxy_request_buffering</span><span class="w"> </span><span class="no">off</span><span class="p">;</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="k">proxy_buffering</span><span class="w"> </span><span class="no">off</span><span class="p">;</span>
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># --- 1. S3 API Upstream ---</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="k">upstream</span><span class="w"> </span><span class="s">shannon_s3</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">api-server-1</span><span class="p">:</span><span class="mi">8080</span><span class="p">;</span>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">api-server-2</span><span class="p">:</span><span class="mi">8080</span><span class="p">;</span>
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">localhost</span><span class="p">:</span><span class="mi">8080</span><span class="w"> </span><span class="s">backup</span><span class="p">;</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">localhost</span><span class="p">:</span><span class="mi">8081</span><span class="w"> </span><span class="s">backup</span><span class="p">;</span>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">    </span><span class="kn">keepalive</span><span class="w"> </span><span class="mi">256</span><span class="p">;</span><span class="w">              </span><span class="c1"># idle upstream connections kept PER nginx worker process</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">    </span><span class="kn">keepalive_requests</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w">   </span><span class="c1"># requests per upstream connection before it is recycled (default 1000)</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="kn">keepalive_timeout</span><span class="w"> </span><span class="s">60s</span><span class="p">;</span><span class="w">      </span><span class="c1"># below ShannonStore&#39;s keepalive.idle.timeout.ms (75 s)</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="p">}</span>
+<p>The configuration has two files:</p>
+<ul>
+<li>the process-level settings in <code>nginx.conf</code>;</li>
+<li>the ShannonStore part as a <code>conf.d</code> file.</li>
+</ul>
+<p>Both are the files the ShannonStore e2e and benchmark suites run against (<code>tests/nginx-main.conf</code> and <code>tests/nginx.conf</code> in the repo).</p>
+<h3 id="etcnginxnginxconf"><code>/etc/nginx/nginx.conf</code></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">user</span><span class="w">  </span><span class="s">nginx</span><span class="p">;</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">worker_processes</span><span class="w">  </span><span class="s">auto</span><span class="p">;</span><span class="w">              </span><span class="c1"># one worker per CPU core</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Every proxied request holds two sockets (client + upstream), plus the idle upstream pool.</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Keep this at least 2 x worker_connections.</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="k">worker_rlimit_nofile</span><span class="w">  </span><span class="mi">65536</span><span class="p">;</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="k">error_log</span><span class="w">  </span><span class="s">/var/log/nginx/error.log</span><span class="w"> </span><span class="s">notice</span><span class="p">;</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="k">pid</span><span class="w">        </span><span class="s">/run/nginx.pid</span><span class="p">;</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="k">events</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="kn">worker_connections</span><span class="w">  </span><span class="mi">16384</span><span class="p">;</span><span class="w">       </span><span class="c1"># per worker; client + upstream sockets both count</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="kn">multi_accept</span><span class="w">        </span><span class="no">on</span><span class="p">;</span><span class="w">          </span><span class="c1"># drain the accept queue in one go under connection bursts</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">}</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="k">http</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">    </span><span class="kn">include</span><span class="w">       </span><span class="s">/etc/nginx/mime.types</span><span class="p">;</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">    </span><span class="kn">default_type</span><span class="w">  </span><span class="s">application/octet-stream</span><span class="p">;</span>
 <a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="c1"># --- 2. Admin API &amp; UI Upstream ---</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="k">upstream</span><span class="w"> </span><span class="s">shannon_admin</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">api-server-1</span><span class="p">:</span><span class="mi">8888</span><span class="p">;</span>
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">api-server-2</span><span class="p">:</span><span class="mi">8888</span><span class="p">;</span>
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">localhost</span><span class="p">:</span><span class="mi">8888</span><span class="w"> </span><span class="s">backup</span><span class="p">;</span>
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">localhost</span><span class="p">:</span><span class="mi">8889</span><span class="w"> </span><span class="s">backup</span><span class="p">;</span>
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">    </span><span class="kn">keepalive</span><span class="w"> </span><span class="mi">16</span><span class="p">;</span>
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="p">}</span>
-<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>
-<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="k">server</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="mi">80</span><span class="p">;</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">    </span><span class="kn">server_name</span><span class="w"> </span><span class="s">localhost</span><span class="p">;</span>
-<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>
-<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="w">    </span><span class="c1"># Long transfers / slow networks</span>
-<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="w">    </span><span class="kn">proxy_connect_timeout</span><span class="w">  </span><span class="s">60s</span><span class="p">;</span>
-<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a><span class="w">    </span><span class="kn">proxy_send_timeout</span><span class="w">     </span><span class="s">3600s</span><span class="p">;</span>
-<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="w">    </span><span class="kn">proxy_read_timeout</span><span class="w">     </span><span class="s">3600s</span><span class="p">;</span>
-<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="w">    </span><span class="kn">send_timeout</span><span class="w">           </span><span class="s">3600s</span><span class="p">;</span>
-<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>
-<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="w">    </span><span class="c1"># Pass-through request metadata</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Host</span><span class="w">              </span><span class="nv">$http_host</span><span class="p">;</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Real-IP</span><span class="w">         </span><span class="nv">$remote_addr</span><span class="p">;</span>
-<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-For</span><span class="w">   </span><span class="nv">$proxy_add_x_forwarded_for</span><span class="p">;</span>
-<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-Proto</span><span class="w"> </span><span class="nv">$scheme</span><span class="p">;</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>
-<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="w">    </span><span class="c1"># Upstream keepalive (HTTP/1.1 required)</span>
-<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a><span class="w">    </span><span class="kn">proxy_http_version</span><span class="w"> </span><span class="mi">1</span><span class="s">.1</span><span class="p">;</span>
-<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Connection</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">;</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>
-<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="w">    </span><span class="c1"># Admin UI + Admin API</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/admin</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="w">        </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://shannon_admin</span><span class="p">;</span>
-<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="w">        </span><span class="c1"># WebSocket upgrade — preserved for any live admin tooling</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a><span class="w">        </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Upgrade</span><span class="w"> </span><span class="nv">$http_upgrade</span><span class="p">;</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a><span class="w">        </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Connection</span><span class="w"> </span><span class="s">&quot;upgrade&quot;</span><span class="p">;</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a>
-<a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a><span class="w">    </span><span class="c1"># Prometheus metrics</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/metrics</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a><span class="w">        </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://shannon_admin</span><span class="p">;</span>
-<a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60" href="#__codelineno-0-60"></a>
-<a id="__codelineno-0-61" name="__codelineno-0-61" href="#__codelineno-0-61"></a><span class="w">    </span><span class="c1"># S3 API — everything else</span>
-<a id="__codelineno-0-62" name="__codelineno-0-62" href="#__codelineno-0-62"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-0-63" name="__codelineno-0-63" href="#__codelineno-0-63"></a><span class="w">        </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://shannon_s3</span><span class="p">;</span>
-<a id="__codelineno-0-64" name="__codelineno-0-64" href="#__codelineno-0-64"></a><span class="w">        </span><span class="c1"># Stream large objects through nginx</span>
-<a id="__codelineno-0-65" name="__codelineno-0-65" href="#__codelineno-0-65"></a><span class="w">        </span><span class="kn">proxy_request_buffering</span><span class="w"> </span><span class="no">off</span><span class="p">;</span>
-<a id="__codelineno-0-66" name="__codelineno-0-66" href="#__codelineno-0-66"></a><span class="w">        </span><span class="kn">proxy_buffering</span><span class="w"> </span><span class="no">off</span><span class="p">;</span>
-<a id="__codelineno-0-67" name="__codelineno-0-67" href="#__codelineno-0-67"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-0-68" name="__codelineno-0-68" href="#__codelineno-0-68"></a><span class="p">}</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="kn">log_format</span><span class="w">  </span><span class="s">main</span><span class="w">  </span><span class="s">&#39;</span><span class="nv">$remote_addr</span><span class="w"> </span><span class="s">-</span><span class="w"> </span><span class="nv">$remote_user</span><span class="w"> </span><span class="s">[</span><span class="nv">$time_local]</span><span class="w"> </span><span class="s">&quot;</span><span class="nv">$request&quot;</span><span class="w"> </span><span class="s">&#39;</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">                      </span><span class="s">&#39;</span><span class="nv">$status</span><span class="w"> </span><span class="nv">$body_bytes_sent</span><span class="w"> </span><span class="s">&quot;</span><span class="nv">$http_referer&quot;</span><span class="w"> </span><span class="s">&#39;</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">                      </span><span class="s">&#39;&quot;</span><span class="nv">$http_user_agent&quot;</span><span class="w"> </span><span class="s">&quot;</span><span class="nv">$http_x_forwarded_for&quot;</span><span class="w"> </span><span class="s">&#39;</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">                      </span><span class="s">&#39;rt=</span><span class="nv">$request_time</span><span class="w"> </span><span class="s">urt=</span><span class="nv">$upstream_response_time&#39;</span><span class="p">;</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="c1"># Buffered access log: one write per 64 KiB or 5 s instead of one per request.</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">    </span><span class="kn">access_log</span><span class="w">  </span><span class="s">/var/log/nginx/access.log</span><span class="w">  </span><span class="s">main</span><span class="w">  </span><span class="s">buffer=64k</span><span class="w"> </span><span class="s">flush=5s</span><span class="p">;</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">    </span><span class="kn">sendfile</span><span class="w">        </span><span class="no">on</span><span class="p">;</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">    </span><span class="kn">tcp_nopush</span><span class="w">      </span><span class="no">on</span><span class="p">;</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">    </span><span class="kn">tcp_nodelay</span><span class="w">     </span><span class="no">on</span><span class="p">;</span>
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">    </span><span class="kn">server_tokens</span><span class="w">   </span><span class="no">off</span><span class="p">;</span>
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">    </span><span class="c1"># Client-side keep-alive (SDK -&gt; nginx). SDK connection pools reuse these connections.</span>
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="w">    </span><span class="kn">keepalive_timeout</span><span class="w">   </span><span class="s">65s</span><span class="p">;</span>
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="w">    </span><span class="kn">keepalive_requests</span><span class="w">  </span><span class="mi">10000</span><span class="p">;</span><span class="w">       </span><span class="c1"># default 1000</span>
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="w">    </span><span class="kn">include</span><span class="w"> </span><span class="s">/etc/nginx/conf.d/*.conf</span><span class="p">;</span>
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="p">}</span>
 </code></pre></div>
+<h3 id="etcnginxconfdshannonstoreconf"><code>/etc/nginx/conf.d/shannonstore.conf</code></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># --- Request/response handling for an object store ---</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">client_max_body_size</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w">                 </span><span class="c1"># S3 PUT / UploadPart bodies can be many GB</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">proxy_request_buffering</span><span class="w"> </span><span class="no">off</span><span class="p">;</span><span class="w">            </span><span class="c1"># stream bodies through, both directions</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">proxy_buffering</span><span class="w"> </span><span class="no">off</span><span class="p">;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">proxy_buffer_size</span><span class="w"> </span><span class="mi">16k</span><span class="p">;</span><span class="w">                  </span><span class="c1"># upstream response headers (many x-amz-* headers)</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">proxy_buffers</span><span class="w"> </span><span class="mi">8</span><span class="w"> </span><span class="mi">16k</span><span class="p">;</span><span class="w">                    </span><span class="c1"># must grow with proxy_buffer_size (nginx -t checks)</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">large_client_header_buffers</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="mi">32k</span><span class="p">;</span><span class="w">      </span><span class="c1"># presigned URLs, SigV4 headers, long encoded keys</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1"># WebSocket upgrade only when the client asks; otherwise an empty Connection header so the</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># upstream connection stays in the keep-alive pool.</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">map</span><span class="w"> </span><span class="nv">$http_upgrade</span><span class="w"> </span><span class="nv">$connection_upgrade</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="kn">default</span><span class="w"> </span><span class="s">upgrade</span><span class="p">;</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="kn">&#39;&#39;</span><span class="w">      </span><span class="s">&#39;&#39;</span><span class="p">;</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="p">}</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># --- 1. S3 API upstream ---</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="k">upstream</span><span class="w"> </span><span class="s">shannon_s3</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="kn">least_conn</span><span class="p">;</span><span class="w">                         </span><span class="c1"># long streams and tiny requests mixed</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">10.0.0.11</span><span class="p">:</span><span class="mi">8080</span><span class="w"> </span><span class="s">max_fails=3</span><span class="w"> </span><span class="s">fail_timeout=10s</span><span class="p">;</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">10.0.0.12</span><span class="p">:</span><span class="mi">8080</span><span class="w"> </span><span class="s">max_fails=3</span><span class="w"> </span><span class="s">fail_timeout=10s</span><span class="p">;</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">    </span><span class="c1"># Keep-alive pool, PER worker process. Must come after the balancing directive.</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="kn">keepalive</span><span class="w"> </span><span class="mi">256</span><span class="p">;</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">    </span><span class="kn">keepalive_requests</span><span class="w"> </span><span class="mi">10000</span><span class="p">;</span><span class="w">           </span><span class="c1"># requests per upstream connection before recycling</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="w">    </span><span class="kn">keepalive_timeout</span><span class="w"> </span><span class="s">60s</span><span class="p">;</span><span class="w">              </span><span class="c1"># below ShannonStore&#39;s keepalive.idle.timeout.ms (75 s)</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="p">}</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="c1"># --- 2. Admin API &amp; UI upstream ---</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="k">upstream</span><span class="w"> </span><span class="s">shannon_admin</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">10.0.0.11</span><span class="p">:</span><span class="mi">8888</span><span class="w"> </span><span class="s">max_fails=3</span><span class="w"> </span><span class="s">fail_timeout=10s</span><span class="p">;</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="w">    </span><span class="kn">server</span><span class="w"> </span><span class="n">10.0.0.12</span><span class="p">:</span><span class="mi">8888</span><span class="w"> </span><span class="s">max_fails=3</span><span class="w"> </span><span class="s">fail_timeout=10s</span><span class="p">;</span>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="w">    </span><span class="kn">keepalive</span><span class="w"> </span><span class="mi">16</span><span class="p">;</span>
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="p">}</span>
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a>
+<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="k">server</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a><span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="mi">80</span><span class="p">;</span>
+<a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="w">    </span><span class="kn">server_name</span><span class="w"> </span><span class="s">s3.example.internal</span><span class="p">;</span>
+<a id="__codelineno-1-37" name="__codelineno-1-37" href="#__codelineno-1-37"></a>
+<a id="__codelineno-1-38" name="__codelineno-1-38" href="#__codelineno-1-38"></a><span class="w">    </span><span class="kn">proxy_connect_timeout</span><span class="w">  </span><span class="s">5s</span><span class="p">;</span><span class="w">          </span><span class="c1"># fail over fast when an API server is down</span>
+<a id="__codelineno-1-39" name="__codelineno-1-39" href="#__codelineno-1-39"></a><span class="w">    </span><span class="kn">proxy_send_timeout</span><span class="w">     </span><span class="s">3600s</span><span class="p">;</span><span class="w">       </span><span class="c1"># idle time between two writes / reads,</span>
+<a id="__codelineno-1-40" name="__codelineno-1-40" href="#__codelineno-1-40"></a><span class="w">    </span><span class="kn">proxy_read_timeout</span><span class="w">     </span><span class="s">3600s</span><span class="p">;</span><span class="w">       </span><span class="c1"># not a limit on the whole transfer</span>
+<a id="__codelineno-1-41" name="__codelineno-1-41" href="#__codelineno-1-41"></a><span class="w">    </span><span class="kn">send_timeout</span><span class="w">           </span><span class="s">3600s</span><span class="p">;</span>
+<a id="__codelineno-1-42" name="__codelineno-1-42" href="#__codelineno-1-42"></a><span class="w">    </span><span class="kn">proxy_next_upstream</span><span class="w">         </span><span class="s">error</span><span class="w"> </span><span class="s">timeout</span><span class="p">;</span>
+<a id="__codelineno-1-43" name="__codelineno-1-43" href="#__codelineno-1-43"></a><span class="w">    </span><span class="kn">proxy_next_upstream_tries</span><span class="w">   </span><span class="mi">2</span><span class="p">;</span>
+<a id="__codelineno-1-44" name="__codelineno-1-44" href="#__codelineno-1-44"></a><span class="w">    </span><span class="kn">proxy_socket_keepalive</span><span class="w"> </span><span class="no">on</span><span class="p">;</span><span class="w">          </span><span class="c1"># TCP keepalive: notice API servers that vanished</span>
+<a id="__codelineno-1-45" name="__codelineno-1-45" href="#__codelineno-1-45"></a>
+<a id="__codelineno-1-46" name="__codelineno-1-46" href="#__codelineno-1-46"></a><span class="w">    </span><span class="c1"># SigV4 signs Host: forward it exactly as the client sent it.</span>
+<a id="__codelineno-1-47" name="__codelineno-1-47" href="#__codelineno-1-47"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Host</span><span class="w">              </span><span class="nv">$http_host</span><span class="p">;</span>
+<a id="__codelineno-1-48" name="__codelineno-1-48" href="#__codelineno-1-48"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Real-IP</span><span class="w">         </span><span class="nv">$remote_addr</span><span class="p">;</span>
+<a id="__codelineno-1-49" name="__codelineno-1-49" href="#__codelineno-1-49"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-For</span><span class="w">   </span><span class="nv">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+<a id="__codelineno-1-50" name="__codelineno-1-50" href="#__codelineno-1-50"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-Proto</span><span class="w"> </span><span class="nv">$scheme</span><span class="p">;</span>
+<a id="__codelineno-1-51" name="__codelineno-1-51" href="#__codelineno-1-51"></a>
+<a id="__codelineno-1-52" name="__codelineno-1-52" href="#__codelineno-1-52"></a><span class="w">    </span><span class="c1"># Upstream keep-alive needs HTTP/1.1 and no &quot;Connection: close&quot;.</span>
+<a id="__codelineno-1-53" name="__codelineno-1-53" href="#__codelineno-1-53"></a><span class="w">    </span><span class="kn">proxy_http_version</span><span class="w"> </span><span class="mi">1</span><span class="s">.1</span><span class="p">;</span>
+<a id="__codelineno-1-54" name="__codelineno-1-54" href="#__codelineno-1-54"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Connection</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">;</span>
+<a id="__codelineno-1-55" name="__codelineno-1-55" href="#__codelineno-1-55"></a>
+<a id="__codelineno-1-56" name="__codelineno-1-56" href="#__codelineno-1-56"></a><span class="w">    </span><span class="c1"># Admin UI + Admin API</span>
+<a id="__codelineno-1-57" name="__codelineno-1-57" href="#__codelineno-1-57"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/admin</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-58" name="__codelineno-1-58" href="#__codelineno-1-58"></a><span class="w">        </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://shannon_admin</span><span class="p">;</span>
+<a id="__codelineno-1-59" name="__codelineno-1-59" href="#__codelineno-1-59"></a><span class="w">        </span><span class="c1"># A location with ANY proxy_set_header inherits none from server {}: repeat them.</span>
+<a id="__codelineno-1-60" name="__codelineno-1-60" href="#__codelineno-1-60"></a><span class="w">        </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Host</span><span class="w">              </span><span class="nv">$http_host</span><span class="p">;</span>
+<a id="__codelineno-1-61" name="__codelineno-1-61" href="#__codelineno-1-61"></a><span class="w">        </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Real-IP</span><span class="w">         </span><span class="nv">$remote_addr</span><span class="p">;</span>
+<a id="__codelineno-1-62" name="__codelineno-1-62" href="#__codelineno-1-62"></a><span class="w">        </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-For</span><span class="w">   </span><span class="nv">$proxy_add_x_forwarded_for</span><span class="p">;</span>
+<a id="__codelineno-1-63" name="__codelineno-1-63" href="#__codelineno-1-63"></a><span class="w">        </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-Proto</span><span class="w"> </span><span class="nv">$scheme</span><span class="p">;</span>
+<a id="__codelineno-1-64" name="__codelineno-1-64" href="#__codelineno-1-64"></a><span class="w">        </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Upgrade</span><span class="w">           </span><span class="nv">$http_upgrade</span><span class="p">;</span>
+<a id="__codelineno-1-65" name="__codelineno-1-65" href="#__codelineno-1-65"></a><span class="w">        </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Connection</span><span class="w">        </span><span class="nv">$connection_upgrade</span><span class="p">;</span>
+<a id="__codelineno-1-66" name="__codelineno-1-66" href="#__codelineno-1-66"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-1-67" name="__codelineno-1-67" href="#__codelineno-1-67"></a>
+<a id="__codelineno-1-68" name="__codelineno-1-68" href="#__codelineno-1-68"></a><span class="w">    </span><span class="c1"># Prometheus metrics</span>
+<a id="__codelineno-1-69" name="__codelineno-1-69" href="#__codelineno-1-69"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/metrics</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-70" name="__codelineno-1-70" href="#__codelineno-1-70"></a><span class="w">        </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://shannon_admin</span><span class="p">;</span>
+<a id="__codelineno-1-71" name="__codelineno-1-71" href="#__codelineno-1-71"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-1-72" name="__codelineno-1-72" href="#__codelineno-1-72"></a>
+<a id="__codelineno-1-73" name="__codelineno-1-73" href="#__codelineno-1-73"></a><span class="w">    </span><span class="c1"># S3 API: everything else</span>
+<a id="__codelineno-1-74" name="__codelineno-1-74" href="#__codelineno-1-74"></a><span class="w">    </span><span class="kn">location</span><span class="w"> </span><span class="s">/</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-75" name="__codelineno-1-75" href="#__codelineno-1-75"></a><span class="w">        </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://shannon_s3</span><span class="p">;</span>
+<a id="__codelineno-1-76" name="__codelineno-1-76" href="#__codelineno-1-76"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-1-77" name="__codelineno-1-77" href="#__codelineno-1-77"></a><span class="p">}</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Two traps in configurations copied from elsewhere</p>
+<ul>
+<li><strong><code>proxy_set_header</code> in a <code>location</code> drops every <code>proxy_set_header</code> from the <code>server</code> block.</strong> nginx inherits these directives only when the inner level sets none. An <code>/admin</code> location that adds <code>Upgrade</code> / <code>Connection</code> and nothing else silently stops forwarding <code>Host</code> and <code>X-Forwarded-*</code>. Earlier versions of this page had exactly that.</li>
+<li><strong>A fixed <code>Connection "upgrade"</code></strong> on a location turns off upstream keep-alive for every request there. Use the <code>$connection_upgrade</code> map shown above.</li>
+</ul>
+<p>Don't pass <code>Upgrade</code> to the S3 location at all. A client's <code>Upgrade: h2c</code> must not reach the S3 port through nginx.</p>
+</div>
 <h2 id="upstream-connection-reuse">Upstream connection reuse</h2>
-<p>The S3 port keeps HTTP/1.1 connections alive, so nginx's upstream pool is reused: a client
-request is forwarded over an already-open connection instead of a new TCP handshake per S3
-call. (Builds before 2026-11 closed every connection after the response, which made the
-<code>keepalive</code> directive a no-op.) What to set:</p>
+<p>The S3 port keeps HTTP/1.1 connections alive, so nginx forwards each client request over an already-open upstream connection instead of making a new TCP handshake per S3 call. Builds before 2026-11 closed every connection after the response, which made the <code>keepalive</code> directive a no-op.</p>
 <table>
 <thead>
 <tr>
@@ -1872,7 +1999,7 @@ call. (Builds before 2026-11 closed every connection after the response, which m
 <tr>
 <td><code>keepalive</code></td>
 <td><code>256</code></td>
-<td>Idle connections cached <strong>per worker process</strong>. Size it to the peak number of concurrent S3 requests divided by <code>worker_processes</code>. Too small and nginx closes connections after each burst, leaving <code>TIME_WAIT</code> sockets.</td>
+<td>Idle connections cached <strong>per worker process</strong>. Size it to peak concurrent S3 requests divided by <code>worker_processes</code>. If it is too small, nginx closes connections after each burst and leaves <code>TIME_WAIT</code> sockets.</td>
 </tr>
 <tr>
 <td><code>keepalive_requests</code></td>
@@ -1882,46 +2009,97 @@ call. (Builds before 2026-11 closed every connection after the response, which m
 <tr>
 <td><code>keepalive_timeout</code></td>
 <td><code>60s</code></td>
-<td>Idle time before nginx closes a pooled connection. It <strong>must be shorter</strong> than ShannonStore's <code>shannonstore.network.http.keepalive.idle.timeout.ms</code> (75 s) so that nginx, not the server, closes an idle connection. Otherwise nginx can send a request on a connection the server is closing.</td>
+<td>Idle time before nginx closes a pooled connection. It <strong>must be shorter</strong> than ShannonStore's <code>shannonstore.network.http.keepalive.idle.timeout.ms</code> (75 s), so that nginx, not the server, closes an idle connection. Otherwise nginx can send a request on a connection the server is closing.</td>
 </tr>
 </tbody>
 </table>
-<p><code>keepalive_requests</code> and <code>keepalive_timeout</code> inside an <code>upstream</code> block need nginx ≥ 1.15.3.
-Apply with <code>nginx -t &amp;&amp; nginx -s reload</code>.</p>
-<p>To check it works, run this on an API node under steady load:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>ss<span class="w"> </span>-tan<span class="w"> </span>state<span class="w"> </span>established<span class="w"> </span><span class="s1">&#39;( sport = :8080 )&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="w">    </span><span class="c1"># stays small and stable</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>ss<span class="w"> </span>-tan<span class="w"> </span>state<span class="w"> </span>time-wait<span class="w"> </span><span class="s1">&#39;( dport = :8080 )&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="w">       </span><span class="c1"># on the nginx host: should not keep climbing</span>
+<p><code>keepalive_requests</code> and <code>keepalive_timeout</code> inside an <code>upstream</code> block need nginx ≥ 1.15.3. Apply changes with <code>nginx -t &amp;&amp; nginx -s reload</code>.</p>
+<p>To check that connections are reused, run this under steady load:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ss<span class="w"> </span>-tan<span class="w"> </span>state<span class="w"> </span>established<span class="w"> </span><span class="s1">&#39;( sport = :8080 )&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="w">    </span><span class="c1"># on an API node: stays small and stable</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>ss<span class="w"> </span>-tan<span class="w"> </span>state<span class="w"> </span>time-wait<span class="w"> </span><span class="s1">&#39;( dport = :8080 )&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="w">       </span><span class="c1"># on the nginx host: should not keep climbing</span>
 </code></pre></div>
-<h2 id="tls-and-http2">TLS and HTTP/2</h2>
-<p>Terminate TLS in nginx, and let clients use HTTP/2 to nginx:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">server</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="mi">443</span><span class="w"> </span><span class="s">ssl</span><span class="w"> </span><span class="s">http2</span><span class="p">;</span><span class="w">          </span><span class="c1"># nginx &gt;= 1.25.1: &quot;listen 443 ssl;&quot; plus &quot;http2 on;&quot;</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="kn">ssl_certificate</span><span class="w">     </span><span class="s">/etc/nginx/certs/s3.crt</span><span class="p">;</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="kn">ssl_certificate_key</span><span class="w"> </span><span class="s">/etc/nginx/certs/s3.key</span><span class="p">;</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="c1"># ... same proxy_* settings and locations as above ...</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="p">}</span>
+<h2 id="tls-and-http2-to-clients">TLS and HTTP/2 to clients</h2>
+<p>Terminate TLS in nginx and let clients use HTTP/2 to nginx. Add this server next to (or instead of) the plain <code>listen 80</code> one. The <code>proxy_*</code> settings and locations are the same.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">server</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="kn">listen</span><span class="w"> </span><span class="mi">443</span><span class="w"> </span><span class="s">ssl</span><span class="p">;</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="kn">http2</span><span class="w"> </span><span class="no">on</span><span class="p">;</span><span class="w">                            </span><span class="c1"># nginx &gt;= 1.25.1; older: &quot;listen 443 ssl http2;&quot;</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="kn">server_name</span><span class="w"> </span><span class="s">s3.example.internal</span><span class="p">;</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="kn">ssl_certificate</span><span class="w">     </span><span class="s">/etc/nginx/certs/s3.crt</span><span class="p">;</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="kn">ssl_certificate_key</span><span class="w"> </span><span class="s">/etc/nginx/certs/s3.key</span><span class="p">;</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="kn">ssl_protocols</span><span class="w">       </span><span class="s">TLSv1.2</span><span class="w"> </span><span class="s">TLSv1.3</span><span class="p">;</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="c1"># Resumed sessions skip the full handshake when an SDK reconnects.</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="kn">ssl_session_cache</span><span class="w">   </span><span class="s">shared:SSL:50m</span><span class="p">;</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">    </span><span class="kn">ssl_session_timeout</span><span class="w"> </span><span class="s">1d</span><span class="p">;</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="kn">ssl_session_tickets</span><span class="w"> </span><span class="no">off</span><span class="p">;</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">    </span><span class="kn">http2_max_concurrent_streams</span><span class="w"> </span><span class="mi">256</span><span class="p">;</span><span class="w">    </span><span class="c1"># concurrent requests per client connection (default 128)</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">    </span><span class="c1"># ... the same proxy_* settings, proxy_set_header lines and locations as the port-80 server ...</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="p">}</span>
 </code></pre></div>
-<p>nginx always speaks <strong>HTTP/1.1 to upstreams</strong>. It cannot forward HTTP/2. The hop from nginx to
-ShannonStore is therefore pooled HTTP/1.1 keep-alive, which is what the settings above tune.
-To multiplex over HTTP/2 all the way to the API nodes, use a proxy that speaks HTTP/2 to
-upstreams, such as HAProxy with <code>server … proto h2</code> or Envoy. The S3 port serves HTTP/2 (h2c)
-natively. See <a href="../../features/http-protocols/#where-http2-helps-and-the-nginx-caveat">HTTP Protocols &amp; Client Tuning</a>
-for a HAProxy example.</p>
-<h2 id="notes-on-the-reference-configuration">Notes on the reference configuration</h2>
-<p><code>shannon_s3</code> carries S3 PUT/GET/multipart traffic; <code>shannon_admin</code> carries the Admin UI, the Admin REST API, and the Prometheus <code>/metrics</code> endpoint. <code>localhost:8080-8081</code> / <code>localhost:8888-8889</code> <code>backup</code> entries cover a local/single-host deployment where api-server-1/2 hostnames aren't resolvable.</p>
+<p>nginx always speaks <strong>HTTP/1.1 to upstreams</strong>; it cannot forward HTTP/2. The hop from nginx to ShannonStore is therefore the pooled HTTP/1.1 keep-alive tuned above. To multiplex over HTTP/2 all the way to the API nodes, use a proxy that speaks HTTP/2 to upstreams, such as HAProxy with <code>server … proto h2</code> or Envoy. The S3 port serves HTTP/2 (h2c) natively.</p>
+<p>See <a href="../../features/http-protocols/#haproxy-with-http2-to-the-s3-port">HTTP Protocols &amp; Client Tuning</a> for a tuned HAProxy configuration, and for when HTTP/2 to the API nodes is worth it. Measured through nginx, it usually isn't.</p>
+<h2 id="measured-effect-of-the-tuned-configuration">Measured effect of the tuned configuration</h2>
+<p><strong>Setup</strong></p>
+<ul>
+<li>The "previous" configuration is what this page used to show: upstream <code>keepalive</code>, but round-robin balancing, the stock <code>nginx.conf</code> (<code>worker_connections 1024</code>, unbuffered access log, client <code>keepalive_requests 1000</code>), and a 60 s connect timeout.</li>
+<li>Each configuration ran in its own nginx 1.31 container in front of the same 2 API servers on Docker Desktop. h2load ran on the compose network with presigned GETs and no TLS, and the client spoke HTTP/1.1 to nginx.</li>
+<li>Values are the average of two 8 s runs.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Configuration</th>
+<th style="text-align: right;">GET 1 KiB, 64 in flight</th>
+<th style="text-align: right;">GET 64 KiB, 64 in flight</th>
+<th style="text-align: right;">GET 8 MiB, 16 in flight</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Previous</td>
+<td style="text-align: right;">42,411 req/s</td>
+<td style="text-align: right;">25,389 req/s</td>
+<td style="text-align: right;">4.5 GB/s</td>
+</tr>
+<tr>
+<td><strong>Tuned (this page)</strong></td>
+<td style="text-align: right;"><strong>50,004 req/s</strong> (+18%)</td>
+<td style="text-align: right;"><strong>35,448 req/s</strong> (+40%)</td>
+<td style="text-align: right;"><strong>7.6 GB/s</strong> (+69%)</td>
+</tr>
+<tr>
+<td>Tuned, but unbuffered access log</td>
+<td style="text-align: right;">44,828 (−10% vs tuned)</td>
+<td style="text-align: right;">31,619 (−11%)</td>
+<td style="text-align: right;">6.4 GB/s</td>
+</tr>
+<tr>
+<td>Tuned, but round-robin instead of <code>least_conn</code></td>
+<td style="text-align: right;">46,742 (−7%)</td>
+<td style="text-align: right;">33,377 (−6%)</td>
+<td style="text-align: right;">7.1 GB/s</td>
+</tr>
+</tbody>
+</table>
+<p>The buffered access log and <code>least_conn</code> each account for part of the gain. The rest comes from the remaining settings together, which were not separated. The client-side <code>keepalive_requests 10000</code> alone, tested separately, showed no difference beyond run-to-run noise in this setup. It still saves a reconnect per 1000 requests per client, which matters more where connections are expensive (TLS).</p>
+<p>The 8 MiB runs vary by about ±10% between runs (6.9 and 8.4 GB/s for the tuned configuration). All requests succeeded in every run. Absolute numbers on one machine are not a capacity figure, so compare the rows, not the values.</p>
 <h2 id="deploying">Deploying</h2>
 <ul>
-<li><strong>Docker Compose</strong> — drop the file at <code>nginx/nginx.conf</code> and mount it into an <code>nginx:alpine</code> service:
-    <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">nginx</span><span class="p">:</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx:alpine</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">ports</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;80:80&quot;</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">volumes</span><span class="p">:</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./nginx/nginx.conf:/etc/nginx/conf.d/shannonstore.conf:ro</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">depends_on</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">api-server-1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">api-server-2</span><span class="p p-Indicator">]</span>
+<li><strong>Docker Compose.</strong> Mount both files into an <code>nginx:alpine</code> service:
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">nginx</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx:alpine</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nt">ports</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;80:80&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;443:443&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">volumes</span><span class="p">:</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./nginx/nginx.conf:/etc/nginx/nginx.conf:ro</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./nginx/shannonstore.conf:/etc/nginx/conf.d/default.conf:ro</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./nginx/certs:/etc/nginx/certs:ro</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="nt">depends_on</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">api-server-1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">api-server-2</span><span class="p p-Indicator">]</span>
 </code></pre></div></li>
-<li><strong>Standalone nginx</strong> — drop it under <code>/etc/nginx/conf.d/shannonstore.conf</code> and reload (<code>nginx -s reload</code>).</li>
+<li><strong>Standalone nginx.</strong> Put the <code>conf.d</code> file at <code>/etc/nginx/conf.d/shannonstore.conf</code>, merge the <code>nginx.conf</code> settings into the distribution's main file, raise the service's <code>LimitNOFILE</code> (systemd) to match <code>worker_rlimit_nofile</code>, and reload (<code>nginx -t &amp;&amp; nginx -s reload</code>).</li>
 </ul>
-<p>Point S3 SDKs at <code>http://&lt;nginx-host&gt;/</code> and the Admin UI at <code>http://&lt;nginx-host&gt;/admin</code>. The cluster's <a href="../operations/#cluster-bootstrap-and-restart">readiness gate</a> still applies — nginx returns whatever the upstream returns, so a not-yet-open cluster will respond <code>503</code> through the proxy too.</p>
+<p>Point S3 SDKs at <code>http(s)://&lt;nginx-host&gt;/</code> and the Admin UI at <code>http(s)://&lt;nginx-host&gt;/admin</code>.</p>
+<p>The cluster's <a href="../operations/#cluster-bootstrap-and-restart">readiness gate</a> still applies. nginx returns whatever the upstream returns, so a cluster that is not open yet answers <code>503</code> through the proxy too.</p>
 
 
 

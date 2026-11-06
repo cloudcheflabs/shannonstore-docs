@@ -2817,6 +2817,11 @@ config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
 <td>HTTP response streaming chunk size (bytes) for large S3 GETs.</td>
 </tr>
 <tr>
+<td><code>shannonstore.network.http.write.slice.bytes</code></td>
+<td><code>262144</code> (256 KiB)</td>
+<td>Largest slice of a response body handed to one socket write on the S3 port. The JDK caches a per-thread temporary direct buffer as large as the largest write. Writing whole multi-MiB bodies in one call therefore pinned that much native memory on every worker thread, and under large-GET load the API server was OOM-killed.</td>
+</tr>
+<tr>
 <td><code>shannonstore.network.http.keepalive.enabled</code></td>
 <td><code>true</code></td>
 <td>HTTP/1.1 persistent connections on the S3 port. A connection is kept only after a cleanly delimited response; <code>false</code> closes after every response.</td>
@@ -2890,6 +2895,21 @@ config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
 <td><code>shannonstore.network.http2.max.queued.write.bytes</code></td>
 <td><code>4194304</code> (4 MiB)</td>
 <td>Response bytes queued per HTTP/2 connection before writers wait for the socket.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.write.batch.bytes</code></td>
+<td><code>262144</code> (256 KiB)</td>
+<td>Response bytes one stream packs into a single queued buffer of consecutive DATA frames, as far as flow-control credit allows. Larger values mean fewer allocations on large GETs; smaller values interleave the streams of one connection more finely.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.write.staging.bytes</code></td>
+<td><code>524288</code> (512 KiB)</td>
+<td>Direct buffer an HTTP/2 connection copies frames into before writing them to the socket. Borrowed from a shared pool only while the connection has data to send.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.write.staging.pool.max</code></td>
+<td><code>64</code></td>
+<td>Idle staging buffers kept for reuse across all HTTP/2 connections. Idle direct memory is bounded at this × <code>write.staging.bytes</code> (32 MiB).</td>
 </tr>
 <tr>
 <td><code>shannonstore.network.http2.stream.timeout.ms</code></td>

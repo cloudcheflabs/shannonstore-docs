@@ -1487,6 +1487,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#haproxy-with-http2-to-the-s3-port" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HAProxy with HTTP/2 to the S3 port
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1600,6 +1611,34 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Measured effect">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#keep-alive-versus-a-new-connection-per-request" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keep-alive versus a new connection per request
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#http11-vs-http2-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP/1.1 vs HTTP/2 benchmark
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1965,20 +2004,64 @@ has no HTTP/2 mode). So:</p>
 </tr>
 </tbody>
 </table>
-<p>HAProxy example (TLS from clients, HTTP/2 to the S3 port):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>frontend s3_in
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    bind :443 ssl crt /etc/haproxy/certs/s3.pem alpn h2,http/1.1
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    mode http
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    default_backend shannon_s3
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>backend shannon_s3
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    mode http
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    balance roundrobin
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    timeout server 300s
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    timeout http-keep-alive 60s          # below keepalive.idle.timeout.ms (75 s)
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    server api1 10.0.0.11:8080 proto h2 check
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    server api2 10.0.0.12:8080 proto h2 check
+<h3 id="haproxy-with-http2-to-the-s3-port">HAProxy with HTTP/2 to the S3 port</h3>
+<p>This is a tuned configuration for TLS from clients and h2c to the API nodes, with HAProxy 2.9 or later. It is the configuration the e2e and benchmark suites run against (<code>tests/haproxy-h2.cfg</code>; there, the bind is plain <code>:8090</code>).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>global
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    maxconn 100000
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    # HAProxy&#39;s OWN HTTP/2 receive window. As the client of the S3 port it may only receive
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    # this many unacknowledged bytes per stream. The default (65535) caps every large GET at
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    # one window per round trip. 1 MiB matches ShannonStore&#39;s http2.initial.window.size.
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    tune.h2.be.initial-window-size 1048576
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    tune.h2.fe.initial-window-size 1048576
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    # Streams per upstream connection; ShannonStore allows 128 (http2.max.concurrent.streams).
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    tune.h2.be.max-concurrent-streams 128
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>defaults
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    mode http
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    timeout connect 5s
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    timeout client 3600s                 # idle time between reads/writes, not a transfer limit
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    timeout server 3600s
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    timeout http-request 30s             # complete request headers (slowloris guard)
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>    timeout http-keep-alive 60s          # below keepalive.idle.timeout.ms (75 s)
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>frontend s3_in
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>    bind :443 ssl crt /etc/haproxy/certs/s3.pem alpn h2,http/1.1
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>    default_backend shannon_s3
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>backend shannon_s3
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>    balance leastconn                    # long streams and tiny requests mixed
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>    http-reuse always                    # share idle upstream connections between clients
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>    # Health from the Admin port, which speaks HTTP/1.1 only.
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>    option httpchk
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>    http-check send meth GET uri /admin/health ver HTTP/1.1 hdr Host localhost
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>    http-check expect status 200
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>    server api1 10.0.0.11:8080 proto h2 check port 8888 check-proto h1 inter 2s fall 3 rise 2
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a>    server api2 10.0.0.12:8080 proto h2 check port 8888 check-proto h1 inter 2s fall 3 rise 2
 </code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title"><code>check-proto h1</code> belongs on the <code>server</code> line</p>
+<p>With <code>proto h2</code>, health checks also speak HTTP/2 unless the server line says <code>check-proto h1</code>. The Admin port does not speak h2c, so every server is then marked DOWN with <code>Socket error</code>, and HAProxy answers <code>503</code>. Setting it through <code>default-server</code> did not take effect in our tests (HAProxy 2.9).</p>
+</div>
+<p>Measured with the setup of the <a href="#http11-vs-http2-benchmark">benchmark below</a>, GET 8 MiB through HAProxy, 16 in flight, client on HTTP/1.1, averaged over two runs:</p>
+<table>
+<thead>
+<tr>
+<th>Configuration</th>
+<th style="text-align: right;">Throughput</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Without the two <code>initial-window-size</code> lines</td>
+<td style="text-align: right;">2.62 GB/s</td>
+</tr>
+<tr>
+<td>With them</td>
+<td style="text-align: right;"><strong>3.34 GB/s</strong> (+27%)</td>
+</tr>
+</tbody>
+</table>
+<p>Run-to-run noise on this workload is about ±10%. With an HTTP/2 client the difference was within that noise, and small-object rates did not change.</p>
 <h2 id="configuration">Configuration</h2>
 <p>All keys live in <code>shannonstore.properties</code> (system-property overrides work as usual — see
 <a href="../configuration/">Configuration Management</a>). They are read at startup; changing them needs a
@@ -2024,12 +2107,30 @@ rolling restart of the API nodes.</p>
 <td>Initial per-connection header buffer, grown to <code>shannonstore.network.http.header.buffer.size</code> (64 KiB) only when needed.</td>
 </tr>
 <tr>
+<td><code>shannonstore.network.http.write.slice.bytes</code></td>
+<td><code>262144</code></td>
+<td>Largest slice of a response body per socket write. This bounds the per-thread native buffers the JDK caches for socket I/O; see the note below.</td>
+</tr>
+<tr>
 <td><code>shannonstore.api.netty.worker.threads.multiplier</code></td>
 <td><code>4</code></td>
 <td>Request worker threads = <code>cores × multiplier</code> (the name is historical; the S3 port does not use Netty). Each worker serves one HTTP/1.1 request or one HTTP/2 stream at a time.</td>
 </tr>
 </tbody>
 </table>
+<div class="admonition note">
+<p class="admonition-title">Native memory and large GETs</p>
+<p>Socket I/O from Java heap memory goes through a temporary direct (native) buffer that the
+JDK caches <strong>per thread</strong>. By default it stays as large as the largest single write that
+thread ever made. Builds before 2026-11-06 wrote whole object bodies, or 8 MiB stream chunks,
+in one call. Under sustained large-GET load each of the ~100 request threads then held up to
+an object's worth of native memory, and an API server without a container memory limit
+could be OOM-killed.</p>
+<p>Current builds write in <code>write.slice.bytes</code> slices (256 KiB) with no loss of throughput.
+The shipped <code>conf/jvm.conf</code> also sets <code>-Djdk.nio.maxCachedBufferSize=1048576</code>, so larger
+temporary buffers are freed instead of cached. Keep that line if you maintain your own JVM
+options, and set <code>-Xmx</code> and a container memory limit for production API servers.</p>
+</div>
 <h3 id="http2">HTTP/2</h3>
 <table>
 <thead>
@@ -2084,6 +2185,21 @@ rolling restart of the API nodes.</p>
 <td><code>shannonstore.network.http2.max.queued.write.bytes</code></td>
 <td><code>4194304</code></td>
 <td>Response bytes queued per connection before writers wait for the socket.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.write.batch.bytes</code></td>
+<td><code>262144</code></td>
+<td>Response bytes a stream packs into one queued buffer of consecutive DATA frames.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.write.staging.bytes</code></td>
+<td><code>524288</code></td>
+<td>Direct buffer frames are copied into before the socket write, borrowed from a shared pool only while the connection is sending.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.write.staging.pool.max</code></td>
+<td><code>64</code></td>
+<td>Idle staging buffers kept for reuse; bounds idle direct memory at 32 MiB.</td>
 </tr>
 <tr>
 <td><code>shannonstore.network.http2.stream.timeout.ms</code></td>
@@ -2150,9 +2266,8 @@ front) negotiates <code>h2</code>.</p>
 connections are not being reused — check the client pool size and idle timeouts, and the
 proxy's upstream keep-alive settings.</p>
 <h2 id="measured-effect">Measured effect</h2>
-<p>Same build, same hardware (Docker Desktop, 32 client threads, 3,200 GETs of 32 KiB objects
-against one API node), the only difference being whether each request opens a new connection
-(the pre-keep-alive behaviour, reproduced with <code>Connection: close</code>) or reuses one:</p>
+<h3 id="keep-alive-versus-a-new-connection-per-request">Keep-alive versus a new connection per request</h3>
+<p>This test used the same build on Docker Desktop: 32 client threads, 3,200 GETs of 32 KiB objects, one API node. The only difference between the rows is whether each request opens a new connection (the pre-keep-alive behaviour, reproduced with <code>Connection: close</code>) or reuses one.</p>
 <table>
 <thead>
 <tr>
@@ -2177,7 +2292,130 @@ against one API node), the only difference being whether each request opens a ne
 </tr>
 </tbody>
 </table>
-<p>This measurement runs over a local loopback with no TLS. Across a real network, and especially through a TLS-terminating proxy, each new connection costs more, so reusing connections matters even more there.</p>
+<h3 id="http11-vs-http2-benchmark">HTTP/1.1 vs HTTP/2 benchmark</h3>
+<p><strong>Setup</strong></p>
+<ul>
+<li>Cluster: the docker compose test cluster (2 API nodes with <code>-Xmx1536m</code>, 3 data nodes), Docker Desktop, 10 CPUs.</li>
+<li>Load: <a href="https://nghttp2.org/documentation/h2load-howto.html">h2load</a> inside the compose network, presigned GETs, no TLS. Each row ran 10 s after 2 s of warm-up.</li>
+<li>Per table, the number of requests in flight is fixed, and only the protocol and connection layout change.</li>
+<li><code>c</code> is connections and <code>m</code> is concurrent streams per HTTP/2 connection.</li>
+<li>Reproduce with <code>tests/http_bench.py</code> in the ShannonStore repo. The full report is <code>tests/http_bench_result.md</code>.</li>
+<li>Each workload reads <strong>one object repeatedly</strong>, so the API node serves it from its decoded-part cache. These numbers therefore measure the HTTP layer (protocol, connections, framing), which is the point of this comparison. They are <strong>not</strong> storage throughput: an 8 MiB object read from the data nodes takes far longer than these figures suggest.</li>
+</ul>
+<p><strong>Small objects, direct to one API node</strong></p>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th style="text-align: right;">HTTP/1.1 keep-alive</th>
+<th style="text-align: right;">HTTP/2, 1 connection</th>
+<th style="text-align: right;">HTTP/2, 4 connections</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET 1 KiB, 16 in flight</td>
+<td style="text-align: right;">45,442 req/s · p99 1.30 ms</td>
+<td style="text-align: right;">43,516 · 1.20 ms</td>
+<td style="text-align: right;">43,749 · 1.24 ms</td>
+</tr>
+<tr>
+<td>GET 1 KiB, 64 in flight</td>
+<td style="text-align: right;">52,727 req/s · p99 4.00 ms</td>
+<td style="text-align: right;"><strong>60,831</strong> · 3.64 ms</td>
+<td style="text-align: right;">58,241 · 3.74 ms</td>
+</tr>
+<tr>
+<td>GET 1 KiB, 128 in flight</td>
+<td style="text-align: right;">53,266 req/s · p99 5.92 ms</td>
+<td style="text-align: right;"><strong>62,332</strong> · 5.01 ms</td>
+<td style="text-align: right;">58,314 · 5.33 ms</td>
+</tr>
+<tr>
+<td>GET 64 KiB, 16 in flight</td>
+<td style="text-align: right;"><strong>38,908</strong> req/s · p99 1.79 ms</td>
+<td style="text-align: right;">32,293 · 2.04 ms</td>
+<td style="text-align: right;">37,795 · 1.98 ms</td>
+</tr>
+<tr>
+<td>GET 64 KiB, 64 in flight</td>
+<td style="text-align: right;">48,663 req/s · p99 4.38 ms</td>
+<td style="text-align: right;">48,573 · 4.07 ms</td>
+<td style="text-align: right;">48,640 · 4.57 ms</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Large objects, direct</strong></p>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th style="text-align: right;">HTTP/1.1 keep-alive</th>
+<th style="text-align: right;">HTTP/2, 1 connection</th>
+<th style="text-align: right;">HTTP/2, 4 connections</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET 8 MiB, 4 in flight</td>
+<td style="text-align: right;"><strong>12.7 GB/s</strong></td>
+<td style="text-align: right;">4.8 GB/s</td>
+<td style="text-align: right;">9.8 GB/s</td>
+</tr>
+<tr>
+<td>GET 8 MiB, 16 in flight</td>
+<td style="text-align: right;"><strong>15.5 GB/s</strong></td>
+<td style="text-align: right;">4.9 GB/s</td>
+<td style="text-align: right;">9.0 GB/s</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Through a proxy, 64 in flight (8 MiB: 16)</strong></p>
+<table>
+<thead>
+<tr>
+<th>Workload</th>
+<th style="text-align: right;">nginx, HTTP/1.1 upstream</th>
+<th style="text-align: right;">HAProxy, HTTP/2 upstream (client h1)</th>
+<th style="text-align: right;">HAProxy, HTTP/2 upstream (client h2)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET 1 KiB</td>
+<td style="text-align: right;"><strong>51,094 req/s</strong></td>
+<td style="text-align: right;">45,597</td>
+<td style="text-align: right;">47,209</td>
+</tr>
+<tr>
+<td>GET 64 KiB</td>
+<td style="text-align: right;"><strong>35,910 req/s</strong></td>
+<td style="text-align: right;">27,232</td>
+<td style="text-align: right;">25,449</td>
+</tr>
+<tr>
+<td>GET 8 MiB</td>
+<td style="text-align: right;"><strong>7.0 GB/s</strong></td>
+<td style="text-align: right;">3.8 GB/s</td>
+<td style="text-align: right;">2.7 GB/s</td>
+</tr>
+</tbody>
+</table>
+<p><strong>What it shows</strong></p>
+<ul>
+<li><strong>Many small requests at high concurrency:</strong> HTTP/2 on <strong>one</strong> connection does <strong>+15–17%</strong> more requests per second than 64–128 pooled HTTP/1.1 connections, with a lower p99. At low concurrency the two are even.</li>
+<li><strong>Medium and large objects:</strong> HTTP/1.1 keep-alive is as fast or faster. One TCP connection is one byte stream. Many HTTP/1.1 connections spread a large transfer over many sockets and threads, and HTTP/2 serialises its streams onto one. HTTP/2 over four connections closes most of the gap.</li>
+<li><strong>The proxy matters more than the protocol.</strong> A tuned nginx with pooled HTTP/1.1 upstreams was faster than HAProxy with HTTP/2 upstreams on every workload here.</li>
+<li><strong>The loopback setup understates HTTP/2's main benefit, connection count.</strong> Here a new connection is nearly free. Across real networks, behind TLS, and with thousands of clients, holding 1 connection instead of 64 saves handshakes, sockets, and memory on every hop.</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Which to use</p>
+<ul>
+<li><strong>Default: nginx (or any proxy) with an HTTP/1.1 keep-alive upstream pool</strong>, as in <a href="../../operations/nginx-proxy/">Nginx Reverse Proxy</a>. It is the fastest configuration measured, and every client works with it.</li>
+<li><strong>HTTP/2 to the S3 port</strong> (HAProxy <code>proto h2</code>, Envoy, or h2c clients on the same network) pays off when <strong>connection count</strong> is the constraint. Examples: very many clients, connection limits on a firewall or load balancer, or high-latency links where each new connection is expensive.</li>
+<li>Workloads dominated by large objects should stay on HTTP/1.1, or use HTTP/2 with several connections.</li>
+</ul>
+</div>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="../network/">Network &amp; Internal Communication</a>: the three traffic planes and their ports.</li>
