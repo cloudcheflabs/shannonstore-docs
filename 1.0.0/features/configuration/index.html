@@ -2000,6 +2000,21 @@
 <td>Minimum payload size (bytes) below which network compression is skipped. Only consulted when compression type is not <code>NONE</code>.</td>
 </tr>
 <tr>
+<td><code>shannonstore.network.compression.sample.bytes</code></td>
+<td><code>65536</code> (64 KiB)</td>
+<td>Before compressing a large payload, this prefix is compressed as a probe. If it does not shrink by <code>compression.min.saving.percent</code>, the payload is sent uncompressed. Object data is AES-encrypted by default, and ciphertext never compresses. <code>0</code> = no probe.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.compression.min.saving.percent</code></td>
+<td><code>10</code></td>
+<td>Smallest saving (percent of the payload) for which a compressed payload is sent instead of the original.</td>
+</tr>
+<tr>
+<td><code>shannonstore.crypto.native.provider.enabled</code></td>
+<td><code>true</code></td>
+<td>Use the native Amazon Corretto Crypto Provider (AWS-LC) for AES-GCM and digests when its jar for this platform is present in <code>lib/native/&lt;os-arch&gt;/</code>. Measured on aarch64: 95 MiB/s (JDK) vs 5.5 GB/s per core. Same standard algorithms, so data written with either provider is readable with the other. Falls back to the JDK providers when the native library cannot load. API and Data nodes.</td>
+</tr>
+<tr>
 <td><code>shannonstore.network.socket.send.buffer</code></td>
 <td><code>2097152</code> (2 MiB)</td>
 <td>TCP send buffer (<code>SO_SNDBUF</code>, bytes) on inter-node sockets.</td>
@@ -2229,6 +2244,11 @@
 <td>Max time (seconds) the API node waits for a Data node to return a chunk. <strong>Caveat:</strong> in-code default is 60; the file sets 120.</td>
 </tr>
 <tr>
+<td><code>shannonstore.api.s3.ec.parity.hedge.ms</code></td>
+<td><code>2000</code></td>
+<td>Healthy GETs fetch only the data shards. Parity shards are requested when a data shard fails or is missing, or when the data shards have not all arrived after this many ms (hedging against a slow node). <code>0</code> = never hedge on time.</td>
+</tr>
+<tr>
 <td><code>shannonstore.api.network.http.max.content.length</code></td>
 <td><code>268435456</code> (256 MiB)</td>
 <td>Maximum permitted HTTP request body length (bytes); effectively caps a single non-streaming PutObject body and an Admin UI upload.</td>
@@ -2356,9 +2376,49 @@
 <td>Interval (ms) at which the background flusher drains buffered parts to Data nodes.</td>
 </tr>
 <tr>
+<td><code>shannonstore.api.part.buffer.flush.parallelism</code></td>
+<td><code>4</code></td>
+<td>Objects whose buffered parts are flushed concurrently in one round (parts of one object stay sequential).</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.part.buffer.max.bytes</code></td>
+<td><code>262144</code> (256 KiB)</td>
+<td>Largest single-PUT object (stored bytes) that goes through the part buffer. Larger ones are written straight to the data nodes and are durable there before the client is answered. Multipart parts always use the buffer, which carries in-flight uploads across restarts. <code>0</code> = no single PUT is buffered.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.part.buffer.rocksdb.write.buffer.bytes</code></td>
+<td><code>67108864</code> (64 MiB)</td>
+<td>Part-buffer memtable size. Must hold several parts; at 16 MiB (the former fixed value) one 16 MiB part filled it and every PUT stalled on a flush.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.part.buffer.rocksdb.write.buffer.number</code></td>
+<td><code>4</code></td>
+<td>Memtables kept before writes stall. Native memory is at most number × bytes.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.part.buffer.rocksdb.compression</code></td>
+<td><code>NONE</code></td>
+<td><code>NONE</code> or <code>SNAPPY</code>. Buffered data is ciphertext when object encryption is on (default), and it does not compress.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.part.buffer.rocksdb.blob.files.enabled</code></td>
+<td><code>true</code></td>
+<td>Keep large values in blob files (RocksDB BlobDB). Flushes and compactions then move references instead of rewriting MiB-sized parts.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.part.buffer.rocksdb.min.blob.bytes</code></td>
+<td><code>65536</code></td>
+<td>Values at least this large go to blob files.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.part.buffer.rocksdb.blob.file.bytes</code></td>
+<td><code>268435456</code> (256 MiB)</td>
+<td>Target blob file size.</td>
+</tr>
+<tr>
 <td><code>shannonstore.api.part.buffer.memory.max.bytes</code></td>
 <td><code>2147483648</code> (2 GiB)</td>
-<td>Soft cap (bytes) on the in-memory (L1) part-buffer footprint before parts are evicted.</td>
+<td>Legacy key from the removed in-memory part-buffer layer; the buffer is RocksDB-backed (see <code>part.buffer.rocksdb.*</code>).</td>
 </tr>
 </tbody>
 </table>
@@ -2777,6 +2837,11 @@ config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
 <td>Largest single internal NIO message (header + body) a node accepts; larger frames are refused and the connection closed.</td>
 </tr>
 <tr>
+<td><code>shannonstore.network.nio.io.slice.bytes</code></td>
+<td><code>262144</code> (256 KiB)</td>
+<td>Largest number of bytes passed to one socket read or write on node-to-node connections, and in data-node shard file reads. Whole-shard calls made the JDK copy multi-MiB buffers on every partial transfer and allocate uncached native buffers. API and Data nodes.</td>
+</tr>
+<tr>
 <td><code>shannonstore.network.rpc.default.timeout.seconds</code></td>
 <td><code>30</code></td>
 <td>Default timeout (seconds) for a synchronous NIO <code>sendAndReceive</code> RPC when the caller specifies none.</td>
@@ -2808,8 +2873,8 @@ config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
 </tr>
 <tr>
 <td><code>shannonstore.network.http.body.read.buffer.size</code></td>
-<td><code>8192</code> (8 KiB)</td>
-<td>Heap buffer (bytes) per read step when draining an HTTP request body.</td>
+<td><code>262144</code> (256 KiB)</td>
+<td>Largest number of request-body bytes read from the socket in one call, straight into the handler's buffer. The former 8 KiB took about 2,000 reads for a 16 MiB PUT.</td>
 </tr>
 <tr>
 <td><code>shannonstore.network.http.response.stream.chunk.size</code></td>

@@ -661,6 +661,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#jvm-memory-and-native-libraries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JVM memory and native libraries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#stopping-individual-roles" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1866,11 +1877,28 @@
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>  -Dshannonstore.data.storage.dirs=/var/lib/shannonstore/disk-a,/var/lib/shannonstore/disk-b
 </code></pre></div>
 <p>Each Data Node can pack chunks across multiple storage directories — typically one per disk — to balance load and tolerate single-disk failures. See <a href="../../features/multi-disk-storage/">Multi-Disk Storage</a> for details.</p>
+<h3 id="jvm-memory-and-native-libraries">JVM memory and native libraries</h3>
+<p>Set an explicit heap for every role. JVM options go in <code>conf/jvm.conf</code> (one per line), or as
+<code>-X...</code> arguments to the start script, for example:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>bin/start-api-server.sh -Xmx4g -XX:MaxDirectMemorySize=2g -Dshannonstore.api.s3.port=8080 ...
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>bin/start-data-node.sh  -Xmx2g -Dshannonstore.nio.port=9001 ...
+</code></pre></div>
+<p>Without <code>-Xmx</code>, every JVM may grow its heap to 25% of the host's memory. Several roles on one host
+(or one container VM) can then exceed it, and the kernel's OOM killer stops one under load. Also set
+a memory limit on containers.</p>
+<p>On Linux (x86_64 and aarch64), the start scripts put the bundled native crypto provider
+(<code>lib/native/&lt;os-arch&gt;/</code>, Amazon Corretto Crypto Provider) on the classpath. Object encryption at
+rest (AES-GCM) then runs natively, about 50x faster than the JDK's implementation on some CPUs. The
+startup log says which provider is in use:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>Native crypto provider installed: AES/GCM/NoPadding via AmazonCorrettoCryptoProvider version 2.5
+</code></pre></div>
+<p>On other platforms, or with <code>shannonstore.crypto.native.provider.enabled=false</code>, the JDK providers
+are used. Data is readable either way.</p>
 <h3 id="stopping-individual-roles">Stopping individual roles</h3>
 <p>Each <code>start-*.sh</code> writes a PID file under <code>bin/</code>, and a matching <code>stop-*.sh</code> reads it to shut the process down gracefully. Use these in your service manager (systemd, k8s lifecycle hooks, etc.) instead of sending raw signals.</p>
 <h2 id="verifying-the-cluster">Verifying the Cluster</h2>
 <p>Once nodes are up, the admin port exposes a health endpoint:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>curl http://localhost:8888/admin/health
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>curl http://localhost:8888/admin/health
 </code></pre></div>
 <p>While the cluster is still starting up, this endpoint reports the node as not ready. Once every API Server has synchronised state from the leader and at least one Data Node is registered, the endpoint reports the node as ready and the S3 port begins accepting client requests.</p>
 <p>For the next step — creating a bucket, an access key, and uploading an object — continue to <a href="../getting-started/">Getting Started</a>.</p>
