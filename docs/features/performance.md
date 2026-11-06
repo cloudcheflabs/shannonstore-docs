@@ -6,41 +6,47 @@ Five techniques together carry ShannonStore from the textbook "encode → fan ou
 
 Multipart uploads expose a fundamental tension: the client treats parts as independent (any order, any concurrency), the storage layer wants them grouped (so a single EC pass spans the whole object). Without buffering, every part triggers its own EC encode at write time and another at `CompleteMultipartUpload` — twice the CPU.
 
-ShannonStore solves this with a **two-layer buffer**:
+ShannonStore solves this with a **write-back part buffer** on each API node:
 
 ```text
-   UploadPart bytes
-        │
+   UploadPart bytes (always)  /  single-PUT bodies up to part.buffer.max.bytes (256 KiB)
+        │  encrypted with a per-part DEK (envelope encryption)
         ▼
-   ┌─────────────────────────────────────────┐
-   │  In-memory buffer (bounded)              │
-   │   - direct ByteBuffer for zero-copy     │
-   │   - encrypted at-rest with per-part DEK │
-   └────────┬────────────────────────────────┘
-            │ overflow when memory cap hit
+   ┌────────────────────────────────────────────────┐
+   │  Local RocksDB part buffer                      │
+   │   - WAL on: the client is answered once here    │
+   │   - large values in blob files (BlobDB)         │
+   │   - small header record per part (no payload)   │
+   └────────┬───────────────────────────────────────┘
+            │ flusher, every flush.interval.ms,
+            │ distinct objects in parallel (flush.parallelism)
             ▼
-   ┌─────────────────────────────────────────┐
-   │  RocksDB-backed spill                   │
-   │   - same encryption                      │
-   │   - flushed every flushIntervalMs       │
-   └─────────────────────────────────────────┘
-            │
-            ▼  CompleteMultipartUpload
-   ┌─────────────────────────────────────────┐
-   │  Single EC pass across all parts        │
-   │  → final shards placed across cluster   │
-   └─────────────────────────────────────────┘
+   ┌────────────────────────────────────────────────┐
+   │  EC encode → shards to data nodes → metadata    │
+   │  marked committed (only the header is rewritten)│
+   └────────────────────────────────────────────────┘
+
+   Larger single PUTs skip the buffer: EC-encoded and written to the data nodes
+   before the client is answered.
 ```
+
+**Only small single PUTs are buffered; multipart parts always are.** The buffer is what carries an in-flight multipart upload across an API-node restart, so every part goes through it. For single PUTs, the buffer answers small writes quickly, but every buffered byte is written again locally (WAL, blob/SST file) and flushed later, so for large payloads it costs more than writing the shards directly, and under sustained uploads the flush backlog grew without bound. Measured on the docker compose test cluster: buffering wins at 4 KiB (about 1,350 vs 990 PUT/s); from 1 MiB, writing directly is faster (349 vs 225 MiB/s at 1 MiB, 304 vs 100–380 MiB/s acknowledged plus a long drain at 16 MiB). Direct writes are also on the data nodes before the client gets its 200.
+
+**The flusher and crash recovery read headers, not payloads.** Each part has a small header record next to its payload. The flusher's scan, crash recovery at startup, AbortMultipartUpload and ListMultipartUploads read only headers; a payload is loaded just before it is flushed. Earlier builds loaded every buffered part with its payload on every flush tick and at startup, so a backlog larger than the heap made an API node fail to start with `OutOfMemoryError`. Records written by those builds get headers when the store opens.
 
 Knobs:
 
 | Key | Default | Effect |
 | --- | --- | --- |
 | `shannonstore.api.part.buffer.enabled` | `true` | Master switch. |
-| `shannonstore.api.part.buffer.memory.max.bytes` | (configured) | In-memory cap per node before spilling. |
-| `shannonstore.api.part.buffer.rocksdb.path` | `./data/s3-metadata/part-buffer` | Spill location. |
-| `shannonstore.api.part.buffer.flush.interval.ms` | (configured) | Background flush cadence for the spill. |
-| `shannonstore.api.part.buffer.peer.fetch.timeout.seconds` | (configured) | Timeout when CompleteMultipart needs a part buffered on a peer. |
+| `shannonstore.api.part.buffer.max.bytes` | `262144` (256 KiB) | Largest single-PUT object (stored bytes) that is buffered; larger ones are written straight to the data nodes. Multipart parts are always buffered. `0` = no single PUT is buffered. |
+| `shannonstore.api.part.buffer.flush.interval.ms` | `5000` | Flusher cadence. |
+| `shannonstore.api.part.buffer.flush.parallelism` | `4` | Objects flushed concurrently (parts of one object stay sequential). |
+| `shannonstore.api.part.buffer.rocksdb.path` | `./data/s3-metadata/part-buffer` | Store location. |
+| `shannonstore.api.part.buffer.rocksdb.write.buffer.bytes` / `.write.buffer.number` | `67108864` / `4` | Memtable size and count (native memory: at most their product). |
+| `shannonstore.api.part.buffer.rocksdb.compression` | `NONE` | The buffered data is ciphertext, which does not compress. |
+| `shannonstore.api.part.buffer.rocksdb.blob.files.enabled` / `.min.blob.bytes` / `.blob.file.bytes` | `true` / `65536` / `268435456` | Large values in blob files, so flushes and compactions move references instead of rewriting payloads. |
+| `shannonstore.api.part.buffer.peer.fetch.timeout.seconds` | `10` | Timeout when a read or CompleteMultipart needs a part buffered on a peer. |
 
 The buffer is **cluster-aware**: a part uploaded to API node A and a completion call landing on API node B fetches the buffered bytes from A over the internal NIO plane, so SDKs can multipart-upload across a load balancer without sticky sessions.
 
@@ -162,6 +168,29 @@ front, so heap use does not grow with the size of the ranges. A request with mor
 `shannonstore.api.s3.max.ranges.per.request` (64) ranges gets the whole object. Readers that
 coalesce nearby column chunks into one request benefit, and so do readers that issue separate
 range GETs on a reused connection.
+
+## Large-object path
+
+Profiling large GETs and PUTs against MinIO on the same cluster shape (2026-11, see
+[HTTP Protocols](http-protocols.md#measured-effect)) found the costs below. Each fix is on by
+default, and each is a setting in `shannonstore.properties`.
+
+| Cost | Fix | Setting |
+| --- | --- | --- |
+| Every GET requested all k+m shards and used the first k to arrive. That meant a third more disk and network I/O, and a Reed-Solomon reconstruction whenever a parity shard won the race. | Healthy reads fetch only the k data shards: no decoding, no parity I/O. Parity is requested when a data shard fails, is missing, or is slower than the hedge delay. | `shannonstore.api.s3.ec.parity.hedge.ms` (`2000`) |
+| AES-GCM (object encryption at rest) through the JDK provider: about 95 MiB/s per core on aarch64. Encrypting or decrypting a 16 MiB object took about 170 ms of CPU. | The native Amazon Corretto Crypto Provider (AWS-LC), about 5.5 GB/s. It implements the same standard algorithm, so data written with either provider is readable with the other. It falls back to the JDK when the native library cannot load. | `shannonstore.crypto.native.provider.enabled` (`true`) |
+| Internal shard transfers allocated a direct buffer per message, opened two selectors per RPC, and busy-spun on a full socket while copying the whole remaining shard on every attempt. | One selector per connection, bounded read/write slices, waiting for the socket instead of spinning, and no extra copy of the payload. | `shannonstore.network.nio.io.slice.bytes` (`262144`) |
+| Shards (AES ciphertext) were Snappy-compressed for the network, which costs CPU and copies for no gain. | A sample is compressed first, and the payload is sent as-is when it does not shrink. | `shannonstore.network.compression.sample.bytes`, `.min.saving.percent` |
+| EC encode called a GF(2⁸) multiply per byte per shard. | A table-driven encoder with sequential access per shard. Its output is byte-identical (verified against the original). | — |
+| Request bodies were read 8 KiB at a time into a side buffer, and aws-chunked headers one byte per socket read. | Bodies are read straight into the destination array, and the aws-chunked decoder is buffered. | `shannonstore.network.http.body.read.buffer.size` (`262144`) |
+| Data nodes read shard files through a temporary 4 MiB native buffer that was allocated and zero-filled on every read. | Shard files are read in bounded slices. | (same slice setting) |
+
+!!! warning "Set a heap limit"
+    Give API and data nodes an explicit `-Xmx` (in `conf/jvm.conf` or on the command line) and a
+    container memory limit. Without `-Xmx`, every JVM may grow its heap to 25% of the machine. Five
+    of them on one host can exceed its memory, and the kernel's OOM killer then stops one under
+    load. The docker compose test cluster uses `-Xmx1536m` for API nodes and `-Xmx1g` for data
+    nodes.
 
 ## What's deliberately not optimised
 

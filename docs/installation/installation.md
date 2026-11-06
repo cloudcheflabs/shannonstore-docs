@@ -92,6 +92,32 @@ bin/start-data-node.sh \
 
 Each Data Node can pack chunks across multiple storage directories — typically one per disk — to balance load and tolerate single-disk failures. See [Multi-Disk Storage](../features/multi-disk-storage.md) for details.
 
+### JVM memory and native libraries
+
+Set an explicit heap for every role. JVM options go in `conf/jvm.conf` (one per line), or as
+`-X...` arguments to the start script, for example:
+
+```agsl
+bin/start-api-server.sh -Xmx4g -XX:MaxDirectMemorySize=2g -Dshannonstore.api.s3.port=8080 ...
+bin/start-data-node.sh  -Xmx2g -Dshannonstore.nio.port=9001 ...
+```
+
+Without `-Xmx`, every JVM may grow its heap to 25% of the host's memory. Several roles on one host
+(or one container VM) can then exceed it, and the kernel's OOM killer stops one under load. Also set
+a memory limit on containers.
+
+On Linux (x86_64 and aarch64), the start scripts put the bundled native crypto provider
+(`lib/native/<os-arch>/`, Amazon Corretto Crypto Provider) on the classpath. Object encryption at
+rest (AES-GCM) then runs natively, about 50x faster than the JDK's implementation on some CPUs. The
+startup log says which provider is in use:
+
+```text
+Native crypto provider installed: AES/GCM/NoPadding via AmazonCorrettoCryptoProvider version 2.5
+```
+
+On other platforms, or with `shannonstore.crypto.native.provider.enabled=false`, the JDK providers
+are used. Data is readable either way.
+
 ### Stopping individual roles
 
 Each `start-*.sh` writes a PID file under `bin/`, and a matching `stop-*.sh` reads it to shut the process down gracefully. Use these in your service manager (systemd, k8s lifecycle hooks, etc.) instead of sending raw signals.
