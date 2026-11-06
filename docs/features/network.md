@@ -5,7 +5,7 @@ Three traffic planes leave a ShannonStore node, each tuned for a different shape
 ```text
    ┌───────────────────────────────────┐
    │  S3 client traffic   :8080        │  AWS SDKs, applications, range
-   │   Netty HTTP/1.1, AWS wire format │  reads, multipart uploads
+   │  HTTP/1.1 keep-alive + HTTP/2 h2c │  reads, multipart uploads
    └────────────────┬──────────────────┘
                     │  (TCP, optional TLS at the proxy)
                     ▼
@@ -26,22 +26,35 @@ Three traffic planes leave a ShannonStore node, each tuned for a different shape
               sweepers)                  optional compression)
 ```
 
-The HTTP planes (8080, 8888) are handled by Netty with the standard HTTP/1.1 pipeline. The internal plane (9090) is a custom NIO framed protocol — kept narrow so the hot path between API nodes and data nodes never pays HTTP parsing overhead.
+The S3 plane (8080) is served by ShannonStore's own `java.nio` HTTP server (`NioHttpServer`), which speaks HTTP/1.1 with persistent connections and HTTP/2 over clear text (h2c) on the same port. The admin plane (8888) is a Netty HTTP/1.1 server. The internal plane (9090) is a custom NIO framed protocol, kept narrow so the hot path between API nodes and data nodes never pays HTTP parsing overhead.
 
 ## S3 client plane (port 8080)
 
-The outward face of the cluster. Standard HTTP/1.1, AWS wire format, see [S3-Compatible API](s3-compatible-api.md) for the protocol shape. Tuning levers worth knowing:
+The outward face of the cluster. AWS wire format over **HTTP/1.1 with keep-alive** or **HTTP/2 (h2c)**. See [S3-Compatible API](s3-compatible-api.md) for the operations and [HTTP Protocols & Client Tuning](http-protocols.md) for connection handling, HTTP/2, and client pool settings.
+
+How it is served:
+
+- **One selector thread** accepts connections, reads request headers without blocking, and holds idle keep-alive connections. An idle connection costs a socket and a small header buffer, never a thread.
+- **A worker pool** (`cores × netty.worker.threads.multiplier`) runs each request once its headers are complete. Workers also run each HTTP/2 stream.
+- After the response, the connection returns to the selector for the client's next request. It is closed instead when the response could not be cleanly delimited or the client asked to close.
+
+Tuning levers worth knowing:
 
 | Key | Default | Effect |
 | --- | --- | --- |
 | `shannonstore.api.s3.port` | `8080` | Bind port for client traffic. |
-| `shannonstore.api.netty.worker.threads.multiplier` | `4` | Netty worker pool size = `multiplier × availableProcessors()`. |
-| `shannonstore.api.s3.fetch.timeout.seconds` | `60` | Per-shard read deadline propagated to the internal plane. |
-| `shannonstore.api.s3.chunked.stream.size` | `1 MiB` | Chunk size advertised in `Transfer-Encoding: chunked` for streamed GETs. |
-| `shannonstore.api.s3.circular.buffer.size` | `64 MiB` | Per-request ring buffer for the streaming download path. |
+| `shannonstore.api.netty.worker.threads.multiplier` | `4` | Request worker pool size = `multiplier × availableProcessors()`. The name is historical: the S3 port does not use Netty. |
+| `shannonstore.network.http.keepalive.enabled` | `true` | HTTP/1.1 persistent connections. |
+| `shannonstore.network.http.keepalive.idle.timeout.ms` | `75000` | Idle or slow-header connections are closed after this. Keep it longer than the proxy's and the SDK's idle timeouts. |
+| `shannonstore.network.http.max.connections` | `0` (unlimited) | Cap on open client connections. |
+| `shannonstore.network.http.accept.backlog` | `1024` | Listen backlog (the JDK default is 50). |
+| `shannonstore.network.http2.enabled` | `true` | HTTP/2 h2c on the same port. See [HTTP Protocols](http-protocols.md#configuration) for the HTTP/2 limits. |
+| `shannonstore.api.s3.fetch.timeout.seconds` | `120` (shipped; code default 60) | Per-shard read deadline propagated to the internal plane. |
+| `shannonstore.api.s3.chunked.stream.size` | `1 MiB` | Write-chunk size for streamed GET bodies. Responses carry `Content-Length`; this is not `Transfer-Encoding: chunked`. |
+| `shannonstore.api.s3.circular.buffer.size` | `128 MiB` (shipped; code default 64 MiB) | Per-request ring buffer for the streaming download path. |
 | `shannonstore.api.s3.small.object.threshold` | `64 MiB` | Cutoff between in-memory PUT/GET and streaming. Objects below this short-circuit through a single buffer; above, the streaming path engages. |
 
-TLS termination happens at the upstream proxy (nginx). See [Nginx Reverse Proxy](../operations/nginx-proxy.md) for the recommended configuration that fronts both 8080 and 8888.
+TLS termination happens at the upstream proxy. See [Nginx Reverse Proxy](../operations/nginx-proxy.md) for the recommended configuration that fronts both 8080 and 8888. nginx forwards to the S3 port over pooled HTTP/1.1 keep-alive connections. To carry HTTP/2 all the way to the API nodes, use a proxy that speaks HTTP/2 to upstreams (HAProxy `proto h2`, Envoy). See [HTTP Protocols](http-protocols.md#where-http2-helps-and-the-nginx-caveat).
 
 ## Admin plane (port 8888)
 
@@ -106,11 +119,12 @@ The 1 KiB default is chosen so that small control messages (heartbeats, membersh
 
 ## Thread-pool isolation
 
-Three distinct pools serve the three planes so a runaway worker on one path never starves another:
+Distinct pools serve the planes so a runaway worker on one path never starves another:
 
 | Pool | Default size | Workload |
 | --- | --- | --- |
-| Netty boss + worker | `4 × cpus` | Accept + read/write on 8080 and 8888 |
+| S3 request workers (`NioHttpServer`) | `netty.worker.threads.multiplier × cpus` (default `4 × cpus`) | One HTTP/1.1 request or HTTP/2 stream each on 8080. Accept, header reads, and idle connections stay on one selector thread. |
+| Admin Netty event loops | 1 boss + `max(2, cpus)` workers | Admin REST/UI on 8888 |
 | Fetch pool | `max(16, 4 × cpus)` | Per-request shard fan-out reads |
 | Chunk pool | `max(16, 4 × cpus)` | EC encode / decode, KMS unwrap, compression |
 
@@ -145,12 +159,15 @@ Each plane logs distinct slow-path lines so operators can pinpoint contention:
 
 | Log signature | Plane | Likely cause |
 | --- | --- | --- |
-| `Acquire timeout on connection pool …` | internal NIO | `connection.pool.size.per.host` too small for current fan-out |
-| `Fetch timeout for chunk …` | internal NIO | data node slow, raise `s3.fetch.timeout.seconds` or investigate the peer |
-| `Netty channel idle timeout` | S3 (8080) | client opened a TCP connection and idled past the keep-alive window |
-| `Compression skipped — payload below threshold` (debug) | internal NIO | informational; tune `network.compression.threshold` to be more aggressive |
+| `Timeout (Ns) waiting for connection permit to <host:port>` | internal NIO | `connection.pool.size.per.host` too small for the current fan-out, or the peer is unreachable |
+| `S3 port 8080: N connections open (max M); refusing new connections` | S3 (8080) | `network.http.max.connections` reached. Raise it, or find the client that is not reusing connections. |
+| `Headers too large, closing connection` | S3 (8080) | request headers exceed `network.http.header.buffer.size` (64 KiB) |
+| `Streamed X bytes but announced Content-Length Y; closing the connection` | S3 (8080) | a streamed GET body ended early (a backend read failed mid-stream). The client sees a short read and retries. |
+| `NioHttpServer started on port … (keep-alive on, idle timeout …, HTTP/2 h2c on …)` (startup) | S3 (8080) | confirms the effective connection settings |
 
-Prometheus exposes per-plane counters (`shannonstore_http_requests_total{port="8080"}`, etc.) so a grafana panel can visualize the distribution at a glance.
+Connections that sit idle past `network.http.keepalive.idle.timeout.ms` are closed silently. That is normal and is not an error.
+
+Prometheus (`/metrics` on the admin port when enabled) exposes S3 request latency per operation as the Micrometer timer `s3_api_requests_seconds{method="…"}` (`_count`, `_sum`, `_max`), plus the JVM, GC, thread, and CPU binders.
 
 ## See also
 
@@ -158,4 +175,5 @@ Prometheus exposes per-plane counters (`shannonstore_http_requests_total{port="8
 - [Performance Optimization](performance.md) — how the pools and buffers interact under load.
 - [Nginx Reverse Proxy](../operations/nginx-proxy.md) — the recommended TLS termination + routing setup.
 - [S3-Compatible API](s3-compatible-api.md) — what the 8080 surface speaks.
+- [HTTP Protocols & Client Tuning](http-protocols.md) — keep-alive, HTTP/2 (h2c), client pool settings.
 - [Authentication & Authorization](auth-authz.md) — what the 8888 surface requires.

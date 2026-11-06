@@ -66,6 +66,7 @@ nav:
       - "Backup & Restore": features/backup.md
       - "Configuration Management": features/configuration.md
       - "Network & Internal Communication": features/network.md
+      - "HTTP Protocols & Client Tuning": features/http-protocols.md
   - "Operations":
       - "Cluster Operations": operations/operations.md
       - "Admin UI Guide": operations/admin-ui.md

@@ -8,7 +8,7 @@ ShannonStore is a high-performance, S3-compatible object storage system designed
 
 API Servers are the "brain" of ShannonStore. They terminate the S3 protocol, enforce security, and orchestrate data movement across the storage tier.
 
-- **S3 protocol handling** — Standard S3 over HTTPS: SigV4 authentication, multipart upload, list-objects, and STS AssumeRole.
+- **S3 protocol handling** — Standard S3 (SigV4 authentication, multipart upload, list-objects, STS AssumeRole) over HTTP/1.1 with persistent connections or HTTP/2 (h2c), both served by a built-in `java.nio` server on the S3 port; TLS is terminated by the proxy in front. See [HTTP Protocols & Client Tuning](../features/http-protocols.md).
 - **Metadata management** — Object location and metadata is distributed across the API tier and replicated for durability. Adding or removing an API node moves only the small fraction of keys whose ownership changed — no cluster-wide rebalance window.
 - **Security** — Role-based access control through users, groups, and policies. Data is encrypted at rest (SSE-S3, SSE-KMS) and in transit, with key material wrapped by a cluster-wide master key.
 - **Erasure coding** — Each object is split into data + parity shards on write and reconstructed from any healthy subset on read. Disk loss is transparent to the client.

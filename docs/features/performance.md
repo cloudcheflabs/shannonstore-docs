@@ -105,7 +105,7 @@ Three independent pools serve three different waiting patterns:
 
 | Pool | Sized via | Workload pattern |
 | --- | --- | --- |
-| Netty workers | `netty.worker.threads.multiplier × cpus` | IO multiplexing for 8080/8888 |
+| S3 request workers | `netty.worker.threads.multiplier × cpus` | One HTTP/1.1 request or HTTP/2 stream each on 8080 (`NioHttpServer`, not Netty). Idle keep-alive connections hold no worker. |
 | Fetch pool | `fetch.thread.pool.size` (default `max(16, 4 × cpus)`) | Per-shard NIO reads on the internal plane |
 | Chunk pool | `chunk.thread.pool.size` (default `max(16, 4 × cpus)`) | EC encode/decode, KMS unwrap, compression |
 
@@ -115,7 +115,8 @@ The split exists because doubling the wrong pool wastes the resource. Fetch thre
 | --- | --- |
 | Fetch-pool acquire timeouts appearing in the API-node logs | fetch pool too small (or pool size per host too small) |
 | `system.cpu.usage` pegged at 100% | chunk pool can't process incoming work; PUT/GET latency is CPU-bound |
-| Netty event-loop time near 100% | netty pool too small for connection count |
+| Many `NioHttpWorker-8080` threads `RUNNABLE` in a thread dump and request latency rising with concurrency | request workers saturated: raise `netty.worker.threads.multiplier` |
+| Growing `TIME_WAIT` sockets on clients / proxy, or established connections on 8080 churning under steady load | connections are not being reused: check client pool sizes and idle timeouts, and the proxy's upstream keep-alive ([HTTP Protocols & Client Tuning](http-protocols.md#client-tuning)) |
 
 ## Object-size paths
 
@@ -140,17 +141,39 @@ The threshold is configurable, but the trade-off rarely changes: small objects b
 
 These are starting points — read the metrics, then tune. The defaults are already a reasonable middle ground.
 
+## Connection reuse and HTTP/2
+
+Many-small-request workloads (lakehouse metadata, Parquet footers, and column chunks) are
+dominated by per-request connection cost unless connections are reused. The S3 port keeps
+HTTP/1.1 connections alive and serves HTTP/2 (h2c) on the same port. On a 32-thread small-GET
+benchmark, reusing connections instead of reconnecting per request raised throughput by 62% and cut
+p99 latency from 46 ms to 11 ms (loopback, no TLS; the gap is larger across a network or a TLS
+proxy). Make sure the client actually pools:
+
+- nginx: `upstream { keepalive 256; keepalive_requests 10000; keepalive_timeout 60s; }` with `proxy_http_version 1.1` and `proxy_set_header Connection ""`. See [Nginx Reverse Proxy](../operations/nginx-proxy.md).
+- s3a / AWS SDK / boto3 pool sizes and idle timeouts: see [HTTP Protocols & Client Tuning](http-protocols.md#client-tuning).
+- To multiplex end to end over HTTP/2, put HAProxy (`proto h2`) or Envoy in front instead of nginx.
+
+## Multi-range GETs
+
+`Range: bytes=0-99,200-299` is answered with `206 multipart/byteranges`. Overlapping or adjacent
+ranges are merged first. The body is **streamed slice by slice**, with its total length computed up
+front, so heap use does not grow with the size of the ranges. A request with more than
+`shannonstore.api.s3.max.ranges.per.request` (64) ranges gets the whole object. Readers that
+coalesce nearby column chunks into one request benefit, and so do readers that issue separate
+range GETs on a reused connection.
+
 ## What's deliberately not optimised
 
-Two paths take simple-and-correct over fast-but-complex:
+One path takes simple-and-correct over fast-but-complex:
 
-- **Multi-range HTTP requests** (`Range: bytes=0-99,200-299`) are not supported. Implementing them well requires multipart MIME responses; SDKs that need multiple ranges issue them as separate requests, and the prefetch path handles that cleanly.
 - **Coalesced metadata writes**. Each IAM mutation immediately fans out a snapshot rather than batching multiple mutations into one push. Batching would lower CPU but increases the leader→follower convergence window; the convergence guarantee is more valuable than the savings.
 
 ## See also
 
 - [Erasure Coding](ec.md) — the encoding step the chunk pool drives.
 - [Network & Internal Communication](network.md) — the connection pool and threading model in more depth.
+- [HTTP Protocols & Client Tuning](http-protocols.md) — keep-alive, HTTP/2, and client connection pools.
 - [Encryption & Key Management](kms.md) — the KMS unwrap that runs on the chunk pool.
 - [Disk Repair Service](disk-repair.md) — the recipient of background-write failures from quorum writes.
 - [Configuration Management](configuration.md) — the full set of knobs mentioned here.

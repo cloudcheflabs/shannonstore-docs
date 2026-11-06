@@ -114,11 +114,12 @@ API node only.
 | `shannonstore.api.prefetch.initial.count` | `8` | Chunks fetched eagerly at the start of a streaming read before the steady-state window kicks in. |
 | `shannonstore.api.thread.pool.task.executor.size` | `48` | General-purpose async executor for S3 request handling and background work. In-code default `max(16, cores × 4)`. |
 | `shannonstore.api.metadata.persistence.thread.pool.size` | `4` | Background threads flushing dirty metadata down to the index RocksDB. **Caveat:** in-code default is `1`; the file sets `4` for higher write throughput. |
-| `shannonstore.api.netty.worker.threads.multiplier` | `4` | Multiplier for sizing Netty/HTTP worker event-loop threads: `cores × multiplier`. |
+| `shannonstore.api.netty.worker.threads.multiplier` | `4` | S3-port request worker pool = `cores × multiplier`. The name is historical: the S3 port is served by `NioHttpServer` (java.nio), not Netty. Each worker runs one HTTP/1.1 request or one HTTP/2 stream, and idle keep-alive connections hold no worker. |
 | `shannonstore.api.connection.pool.size.per.host` | `64` | Max persistent (keep-alive) connections retained in the API→Data-node pool per remote host. |
 | `shannonstore.api.connection.pool.acquire.timeout.seconds` | `30` | Max time (seconds) a caller blocks waiting to borrow a pooled connection before failing. |
 | `shannonstore.api.connection.pool.warmup.enabled` | `true` | Eagerly open (warm) connections to Data nodes at startup so early requests avoid setup latency. |
 | `shannonstore.api.s3.small.object.threshold` | `67108864` (64 MiB) | Objects ≤ this content-length take the single-shot in-memory path; larger ones take the streaming/multi-segment path. |
+| `shannonstore.api.s3.max.ranges.per.request` | `64` | Most byte ranges served from one multi-range GET, counted after overlapping or adjacent ranges are merged. More ranges are answered with the whole object (`200`). Multi-range bodies are streamed. |
 | `shannonstore.api.s3.select.max.object.bytes` | `134217728` (128 MiB) | Largest object [SelectObjectContent](s3-compatible-api.md#s3-select) will scan. A Select reads the whole object into memory to evaluate over it; a larger object is refused with `ObjectTooLarge` rather than attempted. |
 | `shannonstore.api.s3.select.max.record.bytes` | `1048576` (1 MiB) | Longest single record (one CSV line, one JSON value) a Select will accept. Keeps a file with no line breaks &mdash; a truncated upload, a generated one-line file &mdash; from turning one request into an allocation the size of the object. |
 | `shannonstore.api.s3.select.max.fields` | `4096` | Most fields one record may have before it is treated as malformed. Bounds CSV splitting: a line of nothing but delimiters would otherwise produce one list entry per byte. |
@@ -301,6 +302,22 @@ config (Admin UI → Event Notifications), **not** here.
 | `shannonstore.network.http.header.buffer.size` | `65536` (64 KiB) | Max buffer (bytes) for parsing an incoming HTTP request line + headers; larger header blocks are rejected. |
 | `shannonstore.network.http.body.read.buffer.size` | `8192` (8 KiB) | Heap buffer (bytes) per read step when draining an HTTP request body. |
 | `shannonstore.network.http.response.stream.chunk.size` | `8388608` (8 MiB) | HTTP response streaming chunk size (bytes) for large S3 GETs. |
+| `shannonstore.network.http.keepalive.enabled` | `true` | HTTP/1.1 persistent connections on the S3 port. A connection is kept only after a cleanly delimited response; `false` closes after every response. |
+| `shannonstore.network.http.keepalive.idle.timeout.ms` | `75000` | Closes an S3-port connection that is idle, or has not finished sending headers, for this long. Also the idle timeout of HTTP/2 connections with no active stream. Keep it above the nginx upstream `keepalive_timeout` and the SDK idle timeouts (60 s). |
+| `shannonstore.network.http.keepalive.max.drain.bytes` | `1048576` (1 MiB) | Unread request body the server reads and discards to keep a connection alive after an early response. A larger remainder closes the connection. |
+| `shannonstore.network.http.max.connections` | `0` (unlimited) | Cap on open S3-port connections (HTTP/1.1 + HTTP/2). Beyond it, new connections are closed immediately. |
+| `shannonstore.network.http.accept.backlog` | `1024` | S3-port listen backlog. The JDK default is 50, and the OS caps it with `net.core.somaxconn`. |
+| `shannonstore.network.http.header.initial.buffer.size` | `4096` (4 KiB) | Initial per-connection header buffer. It grows to `http.header.buffer.size` only when a request needs it. |
+| `shannonstore.network.http2.enabled` | `true` | Serves HTTP/2 over clear text (h2c, prior knowledge) on the S3 port. |
+| `shannonstore.network.http2.h2c.upgrade.enabled` | `true` | Honours HTTP/1.1 `Upgrade: h2c` for requests without a body. |
+| `shannonstore.network.http2.max.concurrent.streams` | `128` | `SETTINGS_MAX_CONCURRENT_STREAMS`. Excess streams are refused with `REFUSED_STREAM`. |
+| `shannonstore.network.http2.initial.window.size` | `1048576` (1 MiB) | `SETTINGS_INITIAL_WINDOW_SIZE`: request-body bytes per stream before credit is needed. Credit is returned only as the body is consumed. |
+| `shannonstore.network.http2.connection.window.size` | `16777216` (16 MiB) | Connection-level receive window: the bound on upload data buffered per HTTP/2 connection. |
+| `shannonstore.network.http2.max.frame.size` | `16384` | `SETTINGS_MAX_FRAME_SIZE` accepted (16384–16777215). |
+| `shannonstore.network.http2.max.header.list.size` | `65536` | `SETTINGS_MAX_HEADER_LIST_SIZE`. Larger request headers get `431`. |
+| `shannonstore.network.http2.header.table.size` | `4096` | HPACK dynamic table size offered to the client's encoder. |
+| `shannonstore.network.http2.max.queued.write.bytes` | `4194304` (4 MiB) | Response bytes queued per HTTP/2 connection before writers wait for the socket. |
+| `shannonstore.network.http2.stream.timeout.ms` | `60000` | How long an HTTP/2 stream waits on its client (flow-control credit, socket drain, or request body) before it is reset. |
 | `shannonstore.api.iam.policy.pattern.cache.size` | `10000` | Max entries in the IAM `PolicyEvaluator` regex-pattern cache; cleared and rebuilt when full. |
 | `shannonstore.api.sts.default.session.duration.seconds` | `3600` | Default STS session duration (seconds) when clients omit `DurationSeconds`. AWS-compatible range is [900, 43200]. |
 | `shannonstore.api.metadata.rpc.read.timeout.seconds` | `5` | Timeout (seconds) for a metadata GET RPC sent to the HRW-owning API node when the local node is not the owner. |
