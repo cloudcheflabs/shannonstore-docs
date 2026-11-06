@@ -1391,6 +1391,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#connection-reuse-and-http2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Connection reuse and HTTP/2
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multi-range-gets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-range GETs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#whats-deliberately-not-optimised" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1520,6 +1542,34 @@
     
   
     Network & Internal Communication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http-protocols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Protocols & Client Tuning
   
 
     
@@ -1889,9 +1939,9 @@
 </thead>
 <tbody>
 <tr>
-<td>Netty workers</td>
+<td>S3 request workers</td>
 <td><code>netty.worker.threads.multiplier × cpus</code></td>
-<td>IO multiplexing for 8080/8888</td>
+<td>One HTTP/1.1 request or HTTP/2 stream each on 8080 (<code>NioHttpServer</code>, not Netty). Idle keep-alive connections hold no worker.</td>
 </tr>
 <tr>
 <td>Fetch pool</td>
@@ -1923,8 +1973,12 @@
 <td>chunk pool can't process incoming work; PUT/GET latency is CPU-bound</td>
 </tr>
 <tr>
-<td>Netty event-loop time near 100%</td>
-<td>netty pool too small for connection count</td>
+<td>Many <code>NioHttpWorker-8080</code> threads <code>RUNNABLE</code> in a thread dump and request latency rising with concurrency</td>
+<td>request workers saturated: raise <code>netty.worker.threads.multiplier</code></td>
+</tr>
+<tr>
+<td>Growing <code>TIME_WAIT</code> sockets on clients / proxy, or established connections on 8080 churning under steady load</td>
+<td>connections are not being reused: check client pool sizes and idle timeouts, and the proxy's upstream keep-alive (<a href="../http-protocols/#client-tuning">HTTP Protocols &amp; Client Tuning</a>)</td>
 </tr>
 </tbody>
 </table>
@@ -1984,16 +2038,35 @@
 </tbody>
 </table>
 <p>These are starting points — read the metrics, then tune. The defaults are already a reasonable middle ground.</p>
-<h2 id="whats-deliberately-not-optimised">What's deliberately not optimised</h2>
-<p>Two paths take simple-and-correct over fast-but-complex:</p>
+<h2 id="connection-reuse-and-http2">Connection reuse and HTTP/2</h2>
+<p>Many-small-request workloads (lakehouse metadata, Parquet footers, and column chunks) are
+dominated by per-request connection cost unless connections are reused. The S3 port keeps
+HTTP/1.1 connections alive and serves HTTP/2 (h2c) on the same port. On a 32-thread small-GET
+benchmark, reusing connections instead of reconnecting per request raised throughput by 62% and cut
+p99 latency from 46 ms to 11 ms (loopback, no TLS; the gap is larger across a network or a TLS
+proxy). Make sure the client actually pools:</p>
 <ul>
-<li><strong>Multi-range HTTP requests</strong> (<code>Range: bytes=0-99,200-299</code>) are not supported. Implementing them well requires multipart MIME responses; SDKs that need multiple ranges issue them as separate requests, and the prefetch path handles that cleanly.</li>
+<li>nginx: <code>upstream { keepalive 256; keepalive_requests 10000; keepalive_timeout 60s; }</code> with <code>proxy_http_version 1.1</code> and <code>proxy_set_header Connection ""</code>. See <a href="../../operations/nginx-proxy/">Nginx Reverse Proxy</a>.</li>
+<li>s3a / AWS SDK / boto3 pool sizes and idle timeouts: see <a href="../http-protocols/#client-tuning">HTTP Protocols &amp; Client Tuning</a>.</li>
+<li>To multiplex end to end over HTTP/2, put HAProxy (<code>proto h2</code>) or Envoy in front instead of nginx.</li>
+</ul>
+<h2 id="multi-range-gets">Multi-range GETs</h2>
+<p><code>Range: bytes=0-99,200-299</code> is answered with <code>206 multipart/byteranges</code>. Overlapping or adjacent
+ranges are merged first. The body is <strong>streamed slice by slice</strong>, with its total length computed up
+front, so heap use does not grow with the size of the ranges. A request with more than
+<code>shannonstore.api.s3.max.ranges.per.request</code> (64) ranges gets the whole object. Readers that
+coalesce nearby column chunks into one request benefit, and so do readers that issue separate
+range GETs on a reused connection.</p>
+<h2 id="whats-deliberately-not-optimised">What's deliberately not optimised</h2>
+<p>One path takes simple-and-correct over fast-but-complex:</p>
+<ul>
 <li><strong>Coalesced metadata writes</strong>. Each IAM mutation immediately fans out a snapshot rather than batching multiple mutations into one push. Batching would lower CPU but increases the leader→follower convergence window; the convergence guarantee is more valuable than the savings.</li>
 </ul>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="../ec/">Erasure Coding</a> — the encoding step the chunk pool drives.</li>
 <li><a href="../network/">Network &amp; Internal Communication</a> — the connection pool and threading model in more depth.</li>
+<li><a href="../http-protocols/">HTTP Protocols &amp; Client Tuning</a> — keep-alive, HTTP/2, and client connection pools.</li>
 <li><a href="../kms/">Encryption &amp; Key Management</a> — the KMS unwrap that runs on the chunk pool.</li>
 <li><a href="../disk-repair/">Disk Repair Service</a> — the recipient of background-write failures from quorum writes.</li>
 <li><a href="../configuration/">Configuration Management</a> — the full set of knobs mentioned here.</li>

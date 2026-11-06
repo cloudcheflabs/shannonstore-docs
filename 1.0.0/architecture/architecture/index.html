@@ -1495,6 +1495,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../features/http-protocols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Protocols & Client Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1696,7 +1724,7 @@
 <h3 id="control-logic-layer-api-servers">Control &amp; Logic Layer (API Servers)</h3>
 <p>API Servers are the "brain" of ShannonStore. They terminate the S3 protocol, enforce security, and orchestrate data movement across the storage tier.</p>
 <ul>
-<li><strong>S3 protocol handling</strong> — Standard S3 over HTTPS: SigV4 authentication, multipart upload, list-objects, and STS AssumeRole.</li>
+<li><strong>S3 protocol handling</strong> — Standard S3 (SigV4 authentication, multipart upload, list-objects, STS AssumeRole) over HTTP/1.1 with persistent connections or HTTP/2 (h2c), both served by a built-in <code>java.nio</code> server on the S3 port; TLS is terminated by the proxy in front. See <a href="../../features/http-protocols/">HTTP Protocols &amp; Client Tuning</a>.</li>
 <li><strong>Metadata management</strong> — Object location and metadata is distributed across the API tier and replicated for durability. Adding or removing an API node moves only the small fraction of keys whose ownership changed — no cluster-wide rebalance window.</li>
 <li><strong>Security</strong> — Role-based access control through users, groups, and policies. Data is encrypted at rest (SSE-S3, SSE-KMS) and in transit, with key material wrapped by a cluster-wide master key.</li>
 <li><strong>Erasure coding</strong> — Each object is split into data + parity shards on write and reconstructed from any healthy subset on read. Disk loss is transparent to the client.</li>

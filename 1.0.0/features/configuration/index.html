@@ -1666,6 +1666,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http-protocols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Protocols & Client Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2128,7 +2156,7 @@
 <tr>
 <td><code>shannonstore.api.netty.worker.threads.multiplier</code></td>
 <td><code>4</code></td>
-<td>Multiplier for sizing Netty/HTTP worker event-loop threads: <code>cores × multiplier</code>.</td>
+<td>S3-port request worker pool = <code>cores × multiplier</code>. The name is historical: the S3 port is served by <code>NioHttpServer</code> (java.nio), not Netty. Each worker runs one HTTP/1.1 request or one HTTP/2 stream, and idle keep-alive connections hold no worker.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.connection.pool.size.per.host</code></td>
@@ -2149,6 +2177,11 @@
 <td><code>shannonstore.api.s3.small.object.threshold</code></td>
 <td><code>67108864</code> (64 MiB)</td>
 <td>Objects ≤ this content-length take the single-shot in-memory path; larger ones take the streaming/multi-segment path.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.max.ranges.per.request</code></td>
+<td><code>64</code></td>
+<td>Most byte ranges served from one multi-range GET, counted after overlapping or adjacent ranges are merged. More ranges are answered with the whole object (<code>200</code>). Multi-range bodies are streamed.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.s3.select.max.object.bytes</code></td>
@@ -2782,6 +2815,86 @@ config (Admin UI → Event Notifications), <strong>not</strong> here.</p>
 <td><code>shannonstore.network.http.response.stream.chunk.size</code></td>
 <td><code>8388608</code> (8 MiB)</td>
 <td>HTTP response streaming chunk size (bytes) for large S3 GETs.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.keepalive.enabled</code></td>
+<td><code>true</code></td>
+<td>HTTP/1.1 persistent connections on the S3 port. A connection is kept only after a cleanly delimited response; <code>false</code> closes after every response.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.keepalive.idle.timeout.ms</code></td>
+<td><code>75000</code></td>
+<td>Closes an S3-port connection that is idle, or has not finished sending headers, for this long. Also the idle timeout of HTTP/2 connections with no active stream. Keep it above the nginx upstream <code>keepalive_timeout</code> and the SDK idle timeouts (60 s).</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.keepalive.max.drain.bytes</code></td>
+<td><code>1048576</code> (1 MiB)</td>
+<td>Unread request body the server reads and discards to keep a connection alive after an early response. A larger remainder closes the connection.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.max.connections</code></td>
+<td><code>0</code> (unlimited)</td>
+<td>Cap on open S3-port connections (HTTP/1.1 + HTTP/2). Beyond it, new connections are closed immediately.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.accept.backlog</code></td>
+<td><code>1024</code></td>
+<td>S3-port listen backlog. The JDK default is 50, and the OS caps it with <code>net.core.somaxconn</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.header.initial.buffer.size</code></td>
+<td><code>4096</code> (4 KiB)</td>
+<td>Initial per-connection header buffer. It grows to <code>http.header.buffer.size</code> only when a request needs it.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.enabled</code></td>
+<td><code>true</code></td>
+<td>Serves HTTP/2 over clear text (h2c, prior knowledge) on the S3 port.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.h2c.upgrade.enabled</code></td>
+<td><code>true</code></td>
+<td>Honours HTTP/1.1 <code>Upgrade: h2c</code> for requests without a body.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.max.concurrent.streams</code></td>
+<td><code>128</code></td>
+<td><code>SETTINGS_MAX_CONCURRENT_STREAMS</code>. Excess streams are refused with <code>REFUSED_STREAM</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.initial.window.size</code></td>
+<td><code>1048576</code> (1 MiB)</td>
+<td><code>SETTINGS_INITIAL_WINDOW_SIZE</code>: request-body bytes per stream before credit is needed. Credit is returned only as the body is consumed.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.connection.window.size</code></td>
+<td><code>16777216</code> (16 MiB)</td>
+<td>Connection-level receive window: the bound on upload data buffered per HTTP/2 connection.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.max.frame.size</code></td>
+<td><code>16384</code></td>
+<td><code>SETTINGS_MAX_FRAME_SIZE</code> accepted (16384–16777215).</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.max.header.list.size</code></td>
+<td><code>65536</code></td>
+<td><code>SETTINGS_MAX_HEADER_LIST_SIZE</code>. Larger request headers get <code>431</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.header.table.size</code></td>
+<td><code>4096</code></td>
+<td>HPACK dynamic table size offered to the client's encoder.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.max.queued.write.bytes</code></td>
+<td><code>4194304</code> (4 MiB)</td>
+<td>Response bytes queued per HTTP/2 connection before writers wait for the socket.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.stream.timeout.ms</code></td>
+<td><code>60000</code></td>
+<td>How long an HTTP/2 stream waits on its client (flow-control credit, socket drain, or request body) before it is reset.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.iam.policy.pattern.cache.size</code></td>

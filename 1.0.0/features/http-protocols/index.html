@@ -1,0 +1,2254 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://cloudcheflabs.github.io/shannonstore-docs/1.0.0/features/http-protocols/">
+      
+      
+        <link rel="prev" href="../network/">
+      
+      
+        <link rel="next" href="../../operations/operations/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../images/logo/shannonstore-logo-without-name.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>HTTP Protocols & Client Tuning - ShannonStore</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#http-protocols-client-tuning" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="ShannonStore" class="md-header__button md-logo" aria-label="ShannonStore" data-md-component="logo">
+      
+  <img src="../../images/logo/shannonstore-logo-without-name.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ShannonStore
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              HTTP Protocols & Client Tuning
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="lime"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/architecture/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../installation/installation/" class="md-tabs__link">
+          
+  
+  
+  Installation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../s3-compatible-api/" class="md-tabs__link">
+          
+  
+  
+  Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../operations/operations/" class="md-tabs__link">
+          
+  
+  
+  Operations
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="ShannonStore" class="md-nav__button md-logo" aria-label="ShannonStore" data-md-component="logo">
+      
+  <img src="../../images/logo/shannonstore-logo-without-name.png" alt="logo">
+
+    </a>
+    ShannonStore
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ShannonStore Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Installation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Download & Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../installation/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Features
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Features
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../s3-compatible-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S3 Compatible API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bucket-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bucket Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../storage-classes-tiering/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Storage Classes & Tiering
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../bucket-counters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bucket Counters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../site-replication/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Site Replication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../event-notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object Event Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../distributed-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Distributed Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ec/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Erasure Coding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../placement-cascade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Topology-Aware Placement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nic-fail-safety/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NIC Silent-Fail Safety
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-integrity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Integrity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Encryption & Key Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-compression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Compression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../iam/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Identity & Access Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth-authz/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Authentication & Authorization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sso/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Single Sign-On (OIDC/SAML/LDAP)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../worm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Object Lock (WORM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-password-recovery/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin Password Recovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../disk-repair/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Disk Repair Service
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../monitoring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring & Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metadata-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../multi-disk-storage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Disk Storage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Optimization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maintenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintenance Mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backup & Restore
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration Management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../network/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Network & Internal Communication
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Protocols & Client Tuning
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Protocols & Client Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#http11-persistent-connections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP/1.1 persistent connections
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#http2-h2c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP/2 (h2c)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="HTTP/2 (h2c)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#where-http2-helps-and-the-nginx-caveat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where HTTP/2 helps — and the nginx caveat
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#http11-and-connection-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP/1.1 and connection handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#http2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTP/2
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#client-tuning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Client tuning
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Client tuning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hadoop-s3a-spark-hive-trino-with-the-hadoop-fs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hadoop s3a (Spark, Hive, Trino with the Hadoop FS)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#aws-sdk-for-java-v2-iceberg-s3fileio-custom-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AWS SDK for Java v2 (Iceberg S3FileIO, custom applications)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#boto3-aws-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        boto3 / aws-cli
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-that-reuse-happens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking that reuse happens
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#measured-effect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measured effect
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cluster Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin UI Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/admin-rest-api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operations/nginx-proxy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nginx Reverse Proxy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="http-protocols-client-tuning">HTTP Protocols &amp; Client Tuning</h1>
+<p>The S3 port (<code>8080</code> by default) speaks <strong>HTTP/1.1 with persistent connections</strong> and
+<strong>HTTP/2 over clear text (h2c)</strong> on the same socket. Both are served by ShannonStore's own
+<code>java.nio</code> HTTP server (<code>NioHttpServer</code>) — not Netty, and no third-party HTTP/2 library. The
+admin port (<code>8888</code>) is a separate Netty server and the internal node plane (<code>9090</code>) a custom
+binary protocol; neither is affected by anything on this page.</p>
+<p>Why it matters: an S3 workload is many small requests. On a lakehouse table, a query planner
+reads manifests, footers and column chunks as hundreds or thousands of GETs, each typically
+under a few MiB. When every request opens a new TCP connection — and, behind a TLS proxy, a
+new TLS session — the handshakes dominate the latency, the client's connection pool churns,
+and sockets pile up in <code>TIME_WAIT</code>. HTTP/1.1 keep-alive removes the per-request handshake;
+HTTP/2 additionally multiplexes many concurrent requests over one connection.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   client ──HTTP/1.1 keep-alive──▶ ┌─────────────────────────────┐
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   client ──h2c (prior knowledge)─▶ │  :8080  NioHttpServer       │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   client ──HTTP/1.1 Upgrade: h2c─▶ │   same port, same S3 logic   │
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                                   └─────────────────────────────┘
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>   nginx  ──HTTP/1.1 keep-alive (upstream keepalive pool)──▶ :8080
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>   HAProxy / Envoy ──HTTP/2 (proto h2 / http2 upstream)────▶ :8080
+</code></pre></div>
+<h2 id="http11-persistent-connections">HTTP/1.1 persistent connections</h2>
+<p>A connection stays open after a response and carries the next request. Clients that pool
+connections (AWS SDKs, s3a, boto3/urllib3, aws-cli, pyarrow) and proxies with an upstream
+keep-alive pool (nginx <code>keepalive</code>) reuse it instead of reconnecting.</p>
+<p>The server keeps a connection only when the response is unambiguously delimited, and closes it
+otherwise — so a mis-framed response can never be read as the start of the next one:</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Connection after the response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Normal response with <code>Content-Length</code> (or a bodyless status: 1xx/204/304, or a HEAD)</td>
+<td><strong>kept</strong> (<code>Connection: keep-alive</code>)</td>
+</tr>
+<tr>
+<td>Client sent <code>Connection: close</code>, or HTTP/1.0 without <code>Connection: keep-alive</code></td>
+<td>closed</td>
+</tr>
+<tr>
+<td>Handler answered before reading the whole request body (e.g. <code>403</code> to a <code>PUT</code>)</td>
+<td>kept if the unread rest is ≤ <code>keepalive.max.drain.bytes</code> (it is read and discarded), closed otherwise</td>
+</tr>
+<tr>
+<td>Request carried both <code>Content-Length</code> and <code>Transfer-Encoding: chunked</code>, or an invalid <code>Content-Length</code></td>
+<td>closed (request-smuggling shape)</td>
+</tr>
+<tr>
+<td>Internal error, no response, or a streamed body shorter than its <code>Content-Length</code></td>
+<td>closed</td>
+</tr>
+</tbody>
+</table>
+<p>Other properties of the implementation:</p>
+<ul>
+<li><strong>Pipelining.</strong> Requests sent back-to-back without waiting are answered in order.</li>
+<li><strong>Idle connections cost no thread.</strong> An idle keep-alive connection lives on the selector thread with a small header buffer (4 KiB, grown on demand up to 64 KiB). Request threads (<code>cores × shannonstore.api.netty.worker.threads.multiplier</code>) are only taken while a request is being served, so thousands of pooled client connections do not need thousands of threads.</li>
+<li><strong>Idle timeout.</strong> A connection idle for <code>keepalive.idle.timeout.ms</code> (75 s), or that has not finished sending its request headers in that time, is closed. This also bounds slow-header ("slowloris") connections.</li>
+<li><strong>HEAD</strong> responses announce <code>Content-Length</code> but never send body bytes, including error responses.</li>
+<li><strong><code>Expect: 100-continue</code></strong> is answered immediately with <code>100 Continue</code>, so SDK uploads don't stall for the client's continue timeout.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Before 1.0.0 builds of 2026-11</p>
+<p>Earlier builds closed the connection after every response (<code>Connection: close</code>), so
+client and nginx connection pools reused nothing and every S3 call paid a TCP handshake.
+No configuration change is needed to benefit; the documented nginx <code>upstream keepalive</code>
+pool now actually takes effect.</p>
+</div>
+<h2 id="http2-h2c">HTTP/2 (h2c)</h2>
+<p>HTTP/2 multiplexes many concurrent requests ("streams") over one TCP connection, compresses
+headers (HPACK) and applies per-stream flow control. ShannonStore serves it in clear text on
+the S3 port; TLS (and ALPN negotiation of <code>h2</code>) is the job of the proxy in front, exactly as for
+HTTP/1.1.</p>
+<p>A connection becomes HTTP/2 in one of two ways:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>How</th>
+<th>Who uses it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Prior knowledge</strong></td>
+<td>the connection starts with the HTTP/2 preface</td>
+<td>HAProxy <code>proto h2</code>, Envoy http2 upstream, <code>curl --http2-prior-knowledge</code>, gRPC-style clients</td>
+</tr>
+<tr>
+<td><strong>Upgrade</strong></td>
+<td>an HTTP/1.1 request with <code>Upgrade: h2c</code> + <code>HTTP2-Settings</code> is answered <code>101 Switching Protocols</code>, then that request continues as stream 1</td>
+<td>JDK <code>HttpClient</code> on <code>http://</code> URLs, <code>curl --http2</code> on <code>http://</code></td>
+</tr>
+</tbody>
+</table>
+<p>Only a request <strong>without a body</strong> is upgraded; a request with a body that asks to upgrade is
+served as HTTP/1.1 (RFC 9113 allows the server to ignore the upgrade). HTTP/1.1 clients are
+unaffected by HTTP/2 being enabled.</p>
+<p>Behaviour worth knowing:</p>
+<ul>
+<li><strong>Same S3 semantics.</strong> Every S3 operation, signature (SigV4 including presigned URLs), header and error behaves identically over HTTP/2. <code>:authority</code> stands in for <code>Host</code> when signing is verified.</li>
+<li><strong>Flow control protects the server.</strong> A client may send at most <code>initial.window.size</code> request-body bytes per stream (and <code>connection.window.size</code> per connection) before the server returns credit — and credit is returned only as the request is actually processed. A slow backend therefore slows the uploading client instead of growing server memory.</li>
+<li><strong>Fairness and limits.</strong> Up to <code>max.concurrent.streams</code> requests per connection run at once; more are refused with <code>REFUSED_STREAM</code>, which clients retry. Oversized request headers get <code>431</code>. A stream whose client stops reading (or stops sending its body) for <code>stream.timeout.ms</code> is reset, so a stalled client cannot pin a server thread.</li>
+<li><strong>Errors stay on their stream.</strong> A failing request gets its own <code>500</code> (or <code>RST_STREAM</code>); the other streams and the connection continue. Protocol violations end the connection with <code>GOAWAY</code> and an error code.</li>
+<li><strong>Idle HTTP/2 connections</strong> with no active streams are closed with <code>GOAWAY(NO_ERROR)</code> after <code>keepalive.idle.timeout.ms</code>.</li>
+</ul>
+<h3 id="where-http2-helps-and-the-nginx-caveat">Where HTTP/2 helps — and the nginx caveat</h3>
+<p>nginx terminates HTTP/2 from clients but <strong>always speaks HTTP/1.1 to upstreams</strong> (<code>proxy_pass</code>
+has no HTTP/2 mode). So:</p>
+<table>
+<thead>
+<tr>
+<th>Front end</th>
+<th>Client ↔ proxy</th>
+<th>Proxy ↔ ShannonStore</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nginx (documented default)</td>
+<td>HTTP/1.1 or HTTP/2 over TLS (<code>listen 443 ssl http2</code>)</td>
+<td><strong>HTTP/1.1 keep-alive</strong></td>
+<td>upstream connections are pooled and reused — see <a href="../../operations/nginx-proxy/">Nginx Reverse Proxy</a></td>
+</tr>
+<tr>
+<td>HAProxy</td>
+<td>HTTP/1.1 / HTTP/2 over TLS</td>
+<td><strong>HTTP/2</strong> (<code>server … proto h2</code>)</td>
+<td>many client requests multiplexed over few upstream connections</td>
+</tr>
+<tr>
+<td>Envoy</td>
+<td>HTTP/1.1 / HTTP/2 over TLS</td>
+<td><strong>HTTP/2</strong> (<code>http2_protocol_options</code> on the cluster)</td>
+<td></td>
+</tr>
+<tr>
+<td>Direct (same LAN, no TLS)</td>
+<td>h2c or HTTP/1.1</td>
+<td>—</td>
+<td>clients that speak h2c</td>
+</tr>
+</tbody>
+</table>
+<p>HAProxy example (TLS from clients, HTTP/2 to the S3 port):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>frontend s3_in
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    bind :443 ssl crt /etc/haproxy/certs/s3.pem alpn h2,http/1.1
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    mode http
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    default_backend shannon_s3
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>backend shannon_s3
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    mode http
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    balance roundrobin
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    timeout server 300s
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    timeout http-keep-alive 60s          # below keepalive.idle.timeout.ms (75 s)
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    server api1 10.0.0.11:8080 proto h2 check
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    server api2 10.0.0.12:8080 proto h2 check
+</code></pre></div>
+<h2 id="configuration">Configuration</h2>
+<p>All keys live in <code>shannonstore.properties</code> (system-property overrides work as usual — see
+<a href="../configuration/">Configuration Management</a>). They are read at startup; changing them needs a
+rolling restart of the API nodes.</p>
+<h3 id="http11-and-connection-handling">HTTP/1.1 and connection handling</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.network.http.keepalive.enabled</code></td>
+<td><code>true</code></td>
+<td>Persistent connections. <code>false</code> restores close-after-every-response.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.keepalive.idle.timeout.ms</code></td>
+<td><code>75000</code></td>
+<td>Close a connection idle (or stuck mid-headers) this long. Keep it <strong>longer</strong> than the idle timeout of whatever pools connections in front: nginx upstream <code>keepalive_timeout</code> (60 s), AWS SDK <code>connectionMaxIdleTime</code> (60 s), s3a <code>fs.s3a.connection.idle.time</code> (60 s) — the client side must close first.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.keepalive.max.drain.bytes</code></td>
+<td><code>1048576</code></td>
+<td>Unread request body the server will read and discard to keep the connection after an early answer.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.max.connections</code></td>
+<td><code>0</code> (unlimited)</td>
+<td>Cap on open client connections (HTTP/1.1 + HTTP/2). Beyond it new connections are closed immediately and a warning is logged. Check <code>ulimit -n</code> too.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.accept.backlog</code></td>
+<td><code>1024</code></td>
+<td>Listen backlog (the JDK default is 50). Effective value is capped by the OS (<code>net.core.somaxconn</code>).</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.header.initial.buffer.size</code></td>
+<td><code>4096</code></td>
+<td>Initial per-connection header buffer, grown to <code>shannonstore.network.http.header.buffer.size</code> (64 KiB) only when needed.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.netty.worker.threads.multiplier</code></td>
+<td><code>4</code></td>
+<td>Request worker threads = <code>cores × multiplier</code> (the name is historical; the S3 port does not use Netty). Each worker serves one HTTP/1.1 request or one HTTP/2 stream at a time.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="http2">HTTP/2</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.network.http2.enabled</code></td>
+<td><code>true</code></td>
+<td>Serve h2c (prior knowledge) on the S3 port.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.h2c.upgrade.enabled</code></td>
+<td><code>true</code></td>
+<td>Honour <code>Upgrade: h2c</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.max.concurrent.streams</code></td>
+<td><code>128</code></td>
+<td>Concurrent requests per connection (<code>SETTINGS_MAX_CONCURRENT_STREAMS</code>).</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.initial.window.size</code></td>
+<td><code>1048576</code></td>
+<td>Request-body bytes per stream before credit is needed (<code>SETTINGS_INITIAL_WINDOW_SIZE</code>). Larger = faster uploads on high-latency links.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.connection.window.size</code></td>
+<td><code>16777216</code></td>
+<td>Request-body bytes per connection — the bound on upload data buffered per HTTP/2 connection.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.max.frame.size</code></td>
+<td><code>16384</code></td>
+<td>Largest frame payload accepted (16384–16777215). Outgoing frames follow the client's setting.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.max.header.list.size</code></td>
+<td><code>65536</code></td>
+<td>Decoded request-header bytes; larger requests get <code>431</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.header.table.size</code></td>
+<td><code>4096</code></td>
+<td>HPACK dynamic table the client may use for request headers.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.max.queued.write.bytes</code></td>
+<td><code>4194304</code></td>
+<td>Response bytes queued per connection before writers wait for the socket.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.stream.timeout.ms</code></td>
+<td><code>60000</code></td>
+<td>How long a stream waits on its client (flow-control credit, socket drain, or request body) before it is reset.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="client-tuning">Client tuning</h2>
+<p>Server-side keep-alive and HTTP/2 only pay off if the client keeps and reuses connections.
+Most SDK defaults are fine for a handful of threads and too small for an analytics engine
+issuing hundreds of concurrent range reads.</p>
+<h3 id="hadoop-s3a-spark-hive-trino-with-the-hadoop-fs">Hadoop s3a (Spark, Hive, Trino with the Hadoop FS)</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">&lt;property&gt;&lt;name&gt;</span>fs.s3a.endpoint<span class="nt">&lt;/name&gt;&lt;value&gt;</span>https://s3.example.internal<span class="nt">&lt;/value&gt;&lt;/property&gt;</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">&lt;property&gt;&lt;name&gt;</span>fs.s3a.path.style.access<span class="nt">&lt;/name&gt;&lt;value&gt;</span>true<span class="nt">&lt;/value&gt;&lt;/property&gt;</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="cm">&lt;!-- pool &gt;= concurrent readers + writers per executor; the default (which differs between</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="cm">     Hadoop releases) is easily exhausted by vectored reads and parallel uploads --&gt;</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">&lt;property&gt;&lt;name&gt;</span>fs.s3a.connection.maximum<span class="nt">&lt;/name&gt;&lt;value&gt;</span>256<span class="nt">&lt;/value&gt;&lt;/property&gt;</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nt">&lt;property&gt;&lt;name&gt;</span>fs.s3a.threads.max<span class="nt">&lt;/name&gt;&lt;value&gt;</span>128<span class="nt">&lt;/value&gt;&lt;/property&gt;</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="cm">&lt;!-- keep idle connections, but close them before the server / proxy does --&gt;</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="nt">&lt;property&gt;&lt;name&gt;</span>fs.s3a.connection.idle.time<span class="nt">&lt;/name&gt;&lt;value&gt;</span>60s<span class="nt">&lt;/value&gt;&lt;/property&gt;</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="nt">&lt;property&gt;&lt;name&gt;</span>fs.s3a.connection.ttl<span class="nt">&lt;/name&gt;&lt;value&gt;</span>5m<span class="nt">&lt;/value&gt;&lt;/property&gt;</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="nt">&lt;property&gt;&lt;name&gt;</span>fs.s3a.connection.establish.timeout<span class="nt">&lt;/name&gt;&lt;value&gt;</span>5s<span class="nt">&lt;/value&gt;&lt;/property&gt;</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="nt">&lt;property&gt;&lt;name&gt;</span>fs.s3a.connection.timeout<span class="nt">&lt;/name&gt;&lt;value&gt;</span>200s<span class="nt">&lt;/value&gt;&lt;/property&gt;</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="cm">&lt;!-- vectored reads (Parquet/ORC) coalesce nearby ranges into fewer GETs --&gt;</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="nt">&lt;property&gt;&lt;name&gt;</span>fs.s3a.vectored.read.min.seek.size<span class="nt">&lt;/name&gt;&lt;value&gt;</span>128K<span class="nt">&lt;/value&gt;&lt;/property&gt;</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="nt">&lt;property&gt;&lt;name&gt;</span>fs.s3a.vectored.read.max.merged.size<span class="nt">&lt;/name&gt;&lt;value&gt;</span>2M<span class="nt">&lt;/value&gt;&lt;/property&gt;</span>
+</code></pre></div>
+<h3 id="aws-sdk-for-java-v2-iceberg-s3fileio-custom-applications">AWS SDK for Java v2 (Iceberg <code>S3FileIO</code>, custom applications)</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">S3Client</span><span class="w"> </span><span class="n">s3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">S3Client</span><span class="p">.</span><span class="na">builder</span><span class="p">()</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="p">.</span><span class="na">endpointOverride</span><span class="p">(</span><span class="n">URI</span><span class="p">.</span><span class="na">create</span><span class="p">(</span><span class="s">&quot;https://s3.example.internal&quot;</span><span class="p">))</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="p">.</span><span class="na">forcePathStyle</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="p">.</span><span class="na">httpClientBuilder</span><span class="p">(</span><span class="n">ApacheHttpClient</span><span class="p">.</span><span class="na">builder</span><span class="p">()</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="p">.</span><span class="na">maxConnections</span><span class="p">(</span><span class="mi">256</span><span class="p">)</span><span class="w">                         </span><span class="c1">// default 50 — too small for parallel scans</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">        </span><span class="p">.</span><span class="na">connectionMaxIdleTime</span><span class="p">(</span><span class="n">Duration</span><span class="p">.</span><span class="na">ofSeconds</span><span class="p">(</span><span class="mi">60</span><span class="p">))</span><span class="w">  </span><span class="c1">// &lt; server idle timeout (75 s)</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="p">.</span><span class="na">connectionTimeToLive</span><span class="p">(</span><span class="n">Duration</span><span class="p">.</span><span class="na">ofMinutes</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="p">.</span><span class="na">tcpKeepAlive</span><span class="p">(</span><span class="kc">true</span><span class="p">))</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="p">.</span><span class="na">build</span><span class="p">();</span>
+</code></pre></div>
+<p>For the async client, <code>NettyNioAsyncHttpClient.builder().maxConcurrency(256)
+.connectionMaxIdleTime(Duration.ofSeconds(60))</code> is the equivalent; with
+<code>.protocol(Protocol.HTTP2)</code> it multiplexes over HTTP/2 when the endpoint (or the TLS proxy in
+front) negotiates <code>h2</code>.</p>
+<p>Iceberg passes these through catalog properties, e.g. <code>http-client.type=apache</code>,
+<code>http-client.apache.max-connections=256</code>, <code>http-client.apache.connection-max-idle-time-ms=60000</code>.</p>
+<h3 id="boto3-aws-cli">boto3 / aws-cli</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">botocore.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">s3</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s2">&quot;s3&quot;</span><span class="p">,</span> <span class="n">endpoint_url</span><span class="o">=</span><span class="s2">&quot;https://s3.example.internal&quot;</span><span class="p">,</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>                  <span class="n">config</span><span class="o">=</span><span class="n">Config</span><span class="p">(</span><span class="n">max_pool_connections</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="n">tcp_keepalive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>                                <span class="n">s3</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;addressing_style&quot;</span><span class="p">:</span> <span class="s2">&quot;path&quot;</span><span class="p">}))</span>
+</code></pre></div>
+<p>aws-cli: <code>aws configure set default.s3.max_concurrent_requests 32</code>.</p>
+<h3 id="checking-that-reuse-happens">Checking that reuse happens</h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># HTTP/1.1: two requests, one TCP connection -&gt; &quot;0&quot; connects on the second</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>curl<span class="w"> </span>-s<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">&#39;%{http_code} %{num_connects}\n&#39;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL1</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL2</span><span class="s2">&quot;</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># HTTP/2 prior knowledge, 20 requests multiplexed on one connection</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>curl<span class="w"> </span>-s<span class="w"> </span>--http2-prior-knowledge<span class="w"> </span>--parallel<span class="w"> </span>-w<span class="w"> </span><span class="s1">&#39;%{http_version} %{num_connects}\n&#39;</span><span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">&quot;</span><span class="w"> </span>...
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># On an API node: established client connections on the S3 port stay few and stable under load</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>ss<span class="w"> </span>-tan<span class="w"> </span>state<span class="w"> </span>established<span class="w"> </span><span class="s1">&#39;( sport = :8080 )&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l
+</code></pre></div>
+<p>A growing number of <code>TIME_WAIT</code> sockets on the client or proxy host under steady load means
+connections are not being reused — check the client pool size and idle timeouts, and the
+proxy's upstream keep-alive settings.</p>
+<h2 id="measured-effect">Measured effect</h2>
+<p>Same build, same hardware (Docker Desktop, 32 client threads, 3,200 GETs of 32 KiB objects
+against one API node), the only difference being whether each request opens a new connection
+(the pre-keep-alive behaviour, reproduced with <code>Connection: close</code>) or reuses one:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Throughput</th>
+<th>p50 latency</th>
+<th>p99 latency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>New connection per request</td>
+<td>2,838 req/s</td>
+<td>9.22 ms</td>
+<td>46.23 ms</td>
+</tr>
+<tr>
+<td>Keep-alive reuse</td>
+<td><strong>4,590 req/s</strong> (+62%)</td>
+<td><strong>6.64 ms</strong></td>
+<td><strong>11.44 ms</strong> (−75%)</td>
+</tr>
+</tbody>
+</table>
+<p>This measurement runs over a local loopback with no TLS. Across a real network, and especially through a TLS-terminating proxy, each new connection costs more, so reusing connections matters even more there.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../network/">Network &amp; Internal Communication</a>: the three traffic planes and their ports.</li>
+<li><a href="../../operations/nginx-proxy/">Nginx Reverse Proxy</a>: TLS termination and the upstream keep-alive pool.</li>
+<li><a href="../s3-compatible-api/">S3-Compatible API</a>: the operations served over both protocols, including multi-range GET.</li>
+<li><a href="../performance/">Performance Optimization</a>: how request threads, fetch, and chunk pools interact.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © <script>document.write(new Date().getFullYear())</script> Cloud Chef Labs, Inc. All rights reserved. <a href="mailto:admin@cloudchef-labs.com">admin@cloudchef-labs.com</a>
+
+    </div>
+  
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy", "header.autohide"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "2.2.0", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/extra.js"></script>
+      
+    
+  </body>
+</html>

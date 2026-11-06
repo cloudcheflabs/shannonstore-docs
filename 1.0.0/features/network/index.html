@@ -14,7 +14,7 @@
         <link rel="prev" href="../configuration/">
       
       
-        <link rel="next" href="../../operations/operations/">
+        <link rel="next" href="../http-protocols/">
       
       
         
@@ -1550,6 +1550,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http-protocols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Protocols & Client Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1749,7 +1777,7 @@
 <p>Three traffic planes leave a ShannonStore node, each tuned for a different shape of work. Operators should understand the split to size sockets, plan firewalls, and reason about latency.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>   ┌───────────────────────────────────┐
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   │  S3 client traffic   :8080        │  AWS SDKs, applications, range
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   │   Netty HTTP/1.1, AWS wire format │  reads, multipart uploads
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>   │  HTTP/1.1 keep-alive + HTTP/2 h2c │  reads, multipart uploads
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>   └────────────────┬──────────────────┘
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                    │  (TCP, optional TLS at the proxy)
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                    ▼
@@ -1769,9 +1797,16 @@
 <a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>              cross-product              pooled connections,
 <a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>              sweepers)                  optional compression)
 </code></pre></div>
-<p>The HTTP planes (8080, 8888) are handled by Netty with the standard HTTP/1.1 pipeline. The internal plane (9090) is a custom NIO framed protocol — kept narrow so the hot path between API nodes and data nodes never pays HTTP parsing overhead.</p>
+<p>The S3 plane (8080) is served by ShannonStore's own <code>java.nio</code> HTTP server (<code>NioHttpServer</code>), which speaks HTTP/1.1 with persistent connections and HTTP/2 over clear text (h2c) on the same port. The admin plane (8888) is a Netty HTTP/1.1 server. The internal plane (9090) is a custom NIO framed protocol, kept narrow so the hot path between API nodes and data nodes never pays HTTP parsing overhead.</p>
 <h2 id="s3-client-plane-port-8080">S3 client plane (port 8080)</h2>
-<p>The outward face of the cluster. Standard HTTP/1.1, AWS wire format, see <a href="../s3-compatible-api/">S3-Compatible API</a> for the protocol shape. Tuning levers worth knowing:</p>
+<p>The outward face of the cluster. AWS wire format over <strong>HTTP/1.1 with keep-alive</strong> or <strong>HTTP/2 (h2c)</strong>. See <a href="../s3-compatible-api/">S3-Compatible API</a> for the operations and <a href="../http-protocols/">HTTP Protocols &amp; Client Tuning</a> for connection handling, HTTP/2, and client pool settings.</p>
+<p>How it is served:</p>
+<ul>
+<li><strong>One selector thread</strong> accepts connections, reads request headers without blocking, and holds idle keep-alive connections. An idle connection costs a socket and a small header buffer, never a thread.</li>
+<li><strong>A worker pool</strong> (<code>cores × netty.worker.threads.multiplier</code>) runs each request once its headers are complete. Workers also run each HTTP/2 stream.</li>
+<li>After the response, the connection returns to the selector for the client's next request. It is closed instead when the response could not be cleanly delimited or the client asked to close.</li>
+</ul>
+<p>Tuning levers worth knowing:</p>
 <table>
 <thead>
 <tr>
@@ -1789,21 +1824,46 @@
 <tr>
 <td><code>shannonstore.api.netty.worker.threads.multiplier</code></td>
 <td><code>4</code></td>
-<td>Netty worker pool size = <code>multiplier × availableProcessors()</code>.</td>
+<td>Request worker pool size = <code>multiplier × availableProcessors()</code>. The name is historical: the S3 port does not use Netty.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.keepalive.enabled</code></td>
+<td><code>true</code></td>
+<td>HTTP/1.1 persistent connections.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.keepalive.idle.timeout.ms</code></td>
+<td><code>75000</code></td>
+<td>Idle or slow-header connections are closed after this. Keep it longer than the proxy's and the SDK's idle timeouts.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.max.connections</code></td>
+<td><code>0</code> (unlimited)</td>
+<td>Cap on open client connections.</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http.accept.backlog</code></td>
+<td><code>1024</code></td>
+<td>Listen backlog (the JDK default is 50).</td>
+</tr>
+<tr>
+<td><code>shannonstore.network.http2.enabled</code></td>
+<td><code>true</code></td>
+<td>HTTP/2 h2c on the same port. See <a href="../http-protocols/#configuration">HTTP Protocols</a> for the HTTP/2 limits.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.s3.fetch.timeout.seconds</code></td>
-<td><code>60</code></td>
+<td><code>120</code> (shipped; code default 60)</td>
 <td>Per-shard read deadline propagated to the internal plane.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.s3.chunked.stream.size</code></td>
 <td><code>1 MiB</code></td>
-<td>Chunk size advertised in <code>Transfer-Encoding: chunked</code> for streamed GETs.</td>
+<td>Write-chunk size for streamed GET bodies. Responses carry <code>Content-Length</code>; this is not <code>Transfer-Encoding: chunked</code>.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.s3.circular.buffer.size</code></td>
-<td><code>64 MiB</code></td>
+<td><code>128 MiB</code> (shipped; code default 64 MiB)</td>
 <td>Per-request ring buffer for the streaming download path.</td>
 </tr>
 <tr>
@@ -1813,7 +1873,7 @@
 </tr>
 </tbody>
 </table>
-<p>TLS termination happens at the upstream proxy (nginx). See <a href="../../operations/nginx-proxy/">Nginx Reverse Proxy</a> for the recommended configuration that fronts both 8080 and 8888.</p>
+<p>TLS termination happens at the upstream proxy. See <a href="../../operations/nginx-proxy/">Nginx Reverse Proxy</a> for the recommended configuration that fronts both 8080 and 8888. nginx forwards to the S3 port over pooled HTTP/1.1 keep-alive connections. To carry HTTP/2 all the way to the API nodes, use a proxy that speaks HTTP/2 to upstreams (HAProxy <code>proto h2</code>, Envoy). See <a href="../http-protocols/#where-http2-helps-and-the-nginx-caveat">HTTP Protocols</a>.</p>
 <h2 id="admin-plane-port-8888">Admin plane (port 8888)</h2>
 <p>JWT-authenticated REST. Used by:</p>
 <ul>
@@ -1924,7 +1984,7 @@
 <p><strong>Caveat:</strong> unlike the object-level <code>shannonstore.api.s3.object.compression.type</code> (which does support <code>NONE</code>/<code>SNAPPY</code>/<code>GZIP</code>/<code>ZSTD</code> — see <a href="../data-compression/">Data Compression</a>), <code>NetworkHelper.compress(byte[], String type)</code> on the internal NIO plane ignores its <code>type</code> argument entirely and always compresses with Snappy; <code>decompress()</code> only recognizes the Snappy header byte and throws for anything else. Setting <code>shannonstore.network.compression.type</code> to <code>GZIP</code> or <code>ZSTD</code> has no effect — Snappy is used regardless. The shipped <code>shannonstore.properties</code> template itself documents this: "Supported: NONE, SNAPPY" for this key (as opposed to the four-way list on the object-level key two sections later).</p>
 <p>The 1 KiB default is chosen so that small control messages (heartbeats, membership pings) don't pay the compression latency, while shard payloads (the dominant byte flow) do. The compression header is a single byte at the start of the payload, so a peer running a different setting still decodes correctly (Snappy either way) — change the setting on a rolling restart without coordination.</p>
 <h2 id="thread-pool-isolation">Thread-pool isolation</h2>
-<p>Three distinct pools serve the three planes so a runaway worker on one path never starves another:</p>
+<p>Distinct pools serve the planes so a runaway worker on one path never starves another:</p>
 <table>
 <thead>
 <tr>
@@ -1935,9 +1995,14 @@
 </thead>
 <tbody>
 <tr>
-<td>Netty boss + worker</td>
-<td><code>4 × cpus</code></td>
-<td>Accept + read/write on 8080 and 8888</td>
+<td>S3 request workers (<code>NioHttpServer</code>)</td>
+<td><code>netty.worker.threads.multiplier × cpus</code> (default <code>4 × cpus</code>)</td>
+<td>One HTTP/1.1 request or HTTP/2 stream each on 8080. Accept, header reads, and idle connections stay on one selector thread.</td>
+</tr>
+<tr>
+<td>Admin Netty event loops</td>
+<td>1 boss + <code>max(2, cpus)</code> workers</td>
+<td>Admin REST/UI on 8888</td>
 </tr>
 <tr>
 <td>Fetch pool</td>
@@ -2012,34 +2077,41 @@
 </thead>
 <tbody>
 <tr>
-<td><code>Acquire timeout on connection pool …</code></td>
+<td><code>Timeout (Ns) waiting for connection permit to &lt;host:port&gt;</code></td>
 <td>internal NIO</td>
-<td><code>connection.pool.size.per.host</code> too small for current fan-out</td>
+<td><code>connection.pool.size.per.host</code> too small for the current fan-out, or the peer is unreachable</td>
 </tr>
 <tr>
-<td><code>Fetch timeout for chunk …</code></td>
-<td>internal NIO</td>
-<td>data node slow, raise <code>s3.fetch.timeout.seconds</code> or investigate the peer</td>
-</tr>
-<tr>
-<td><code>Netty channel idle timeout</code></td>
+<td><code>S3 port 8080: N connections open (max M); refusing new connections</code></td>
 <td>S3 (8080)</td>
-<td>client opened a TCP connection and idled past the keep-alive window</td>
+<td><code>network.http.max.connections</code> reached. Raise it, or find the client that is not reusing connections.</td>
 </tr>
 <tr>
-<td><code>Compression skipped — payload below threshold</code> (debug)</td>
-<td>internal NIO</td>
-<td>informational; tune <code>network.compression.threshold</code> to be more aggressive</td>
+<td><code>Headers too large, closing connection</code></td>
+<td>S3 (8080)</td>
+<td>request headers exceed <code>network.http.header.buffer.size</code> (64 KiB)</td>
+</tr>
+<tr>
+<td><code>Streamed X bytes but announced Content-Length Y; closing the connection</code></td>
+<td>S3 (8080)</td>
+<td>a streamed GET body ended early (a backend read failed mid-stream). The client sees a short read and retries.</td>
+</tr>
+<tr>
+<td><code>NioHttpServer started on port … (keep-alive on, idle timeout …, HTTP/2 h2c on …)</code> (startup)</td>
+<td>S3 (8080)</td>
+<td>confirms the effective connection settings</td>
 </tr>
 </tbody>
 </table>
-<p>Prometheus exposes per-plane counters (<code>shannonstore_http_requests_total{port="8080"}</code>, etc.) so a grafana panel can visualize the distribution at a glance.</p>
+<p>Connections that sit idle past <code>network.http.keepalive.idle.timeout.ms</code> are closed silently. That is normal and is not an error.</p>
+<p>Prometheus (<code>/metrics</code> on the admin port when enabled) exposes S3 request latency per operation as the Micrometer timer <code>s3_api_requests_seconds{method="…"}</code> (<code>_count</code>, <code>_sum</code>, <code>_max</code>), plus the JVM, GC, thread, and CPU binders.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="../configuration/">Configuration Management</a> — the resolution chain that produces every knob mentioned here.</li>
 <li><a href="../performance/">Performance Optimization</a> — how the pools and buffers interact under load.</li>
 <li><a href="../../operations/nginx-proxy/">Nginx Reverse Proxy</a> — the recommended TLS termination + routing setup.</li>
 <li><a href="../s3-compatible-api/">S3-Compatible API</a> — what the 8080 surface speaks.</li>
+<li><a href="../http-protocols/">HTTP Protocols &amp; Client Tuning</a> — keep-alive, HTTP/2 (h2c), client pool settings.</li>
 <li><a href="../auth-authz/">Authentication &amp; Authorization</a> — what the 8888 surface requires.</li>
 </ul>
 

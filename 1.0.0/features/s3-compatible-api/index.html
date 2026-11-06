@@ -698,6 +698,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transport
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#supported-operations" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1794,6 +1805,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http-protocols/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HTTP Protocols & Client Tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -2003,6 +2042,13 @@
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>   │  - object plane → EC + KMS + cluster │
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>   └──────────────────────────────────────┘
 </code></pre></div>
+<h2 id="transport">Transport</h2>
+<p>The S3 port speaks <strong>HTTP/1.1 with persistent connections</strong> and <strong>HTTP/2 over clear text
+(h2c)</strong>, either with prior knowledge or via <code>Upgrade: h2c</code>. Both run on the same port and
+serve the same operations. Signatures (SigV4 headers and presigned URLs) verify the same
+way over both. TLS is terminated by the proxy in front. See
+<a href="../http-protocols/">HTTP Protocols &amp; Client Tuning</a> for connection reuse, HTTP/2 limits, and
+SDK pool settings.</p>
 <h2 id="supported-operations">Supported operations</h2>
 <p>The dispatch table in <code>S3RequestHandler</code> routes the following verb × subresource combinations to fully implemented handlers. Each handler returns the canonical S3 XML response.</p>
 <h3 id="object-plane">Object plane</h3>
@@ -2018,7 +2064,7 @@
 <tr>
 <td><strong>PutObject</strong></td>
 <td><code>PUT /&lt;bucket&gt;/&lt;key&gt;</code></td>
-<td>Streaming upload via Netty NIO. Body is encrypted &mdash; with a cluster key, or with a caller-supplied one under <a href="#sse-c">SSE-C</a> &mdash; and then erasure-coded before being persisted across data nodes. Returns <code>x-amz-version-id</code> on a versioned bucket.</td>
+<td>Streaming upload (<code>Content-Length</code>, <code>Transfer-Encoding: chunked</code>, or <code>aws-chunked</code>; HTTP/1.1 or HTTP/2). Body is encrypted &mdash; with a cluster key, or with a caller-supplied one under <a href="#sse-c">SSE-C</a> &mdash; and then erasure-coded before being persisted across data nodes. Returns <code>x-amz-version-id</code> on a versioned bucket.</td>
 </tr>
 <tr>
 <td><strong>GetObject</strong></td>
@@ -2576,13 +2622,29 @@ implementation.</p>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>Range: bytes=-512        (last 512 bytes — suffix form)
 </code></pre></div>
 <p>A 206 Partial Content response carries the requested slice and a <code>Content-Range</code> header.</p>
-<p><strong>Multi-range</strong> (<code>Range: bytes=0-99,200-299</code>) is answered as <code>multipart/byteranges</code>,
-one part per range with its own <code>Content-Range</code>. Because each part is buffered,
-a multi-range request whose parts add up to more than
-<code>shannonstore.api.s3.small.object.threshold</code> is served as the whole object
-instead — a client asking for most of an object in slices is better served the
-object than by having the server hold it all in memory, and RFC 7233 permits
-ignoring the ranges.</p>
+<p><strong>Multi-range</strong> (<code>Range: bytes=0-99,200-299</code>) is answered <code>206</code> with
+<code>multipart/byteranges</code>, one part per range, each with its own <code>Content-Range</code>:</p>
+<ul>
+<li><strong>Overlapping or adjacent ranges are merged</strong> first (RFC 9110 §14.2). For example,
+  <code>bytes=1000-1999,500-1500</code> becomes one part <code>500-1999</code>, so a request cannot
+  multiply the bytes served by repeating ranges. Parts come back in ascending order.</li>
+<li><strong>Streamed, not buffered.</strong> The response <code>Content-Length</code> is computed up front from
+  the part headers and slice lengths. Each slice is then read from storage only when the
+  writer reaches it, so heap use stays at one slice or stream chunk at a time,
+  however large the ranges add up to.</li>
+<li><strong>Capped.</strong> A request with more than <code>shannonstore.api.s3.max.ranges.per.request</code>
+  (default <code>64</code>) ranges, counted after merging, is answered with the whole object (<code>200</code>,
+  streamed). RFC 9110 permits this, and it bounds the per-request work a client
+  can ask for with thousands of tiny ranges.</li>
+<li>A single range, including one left after merging, is answered as a normal <code>206</code>
+  with a plain body.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Earlier builds</p>
+<p>Multi-range bodies used to be assembled in memory. A request whose ranges added
+up to more than <code>shannonstore.api.s3.small.object.threshold</code> (64 MiB) was answered by
+loading the <strong>entire object</strong> into the heap. Ranges were neither merged nor capped.</p>
+</div>
 <p>Two edge cases behave as the RFC requires rather than as errors:</p>
 <ul>
 <li>A range entirely past the end of the object gets <code>416</code> with
