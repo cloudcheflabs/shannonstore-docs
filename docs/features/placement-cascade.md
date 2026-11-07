@@ -9,6 +9,11 @@ Erasure-coded shards (data + parity) must land on **distinct failure domains**, 
 
 Each pass picks shards from the HRW-ranked candidate set whose chosen label is *not yet covered* by the prior passes. When a label is absent at a layer (host id not configured, etc.) the cascade falls back **upward** — `hostId == null → nodeId`, `rackId == null → hostKey`, `zoneId == null → rackKey` — so a cluster with no labels behaves identically to the legacy strategy.
 
+Two rules keep the spread even when the cluster has fewer domains than shards (for example 4+2 on three servers):
+
+- **Pass E is balanced over hosts.** The shards left after the distinct passes go round by round: in round *r* a disk is accepted only on a host holding fewer than *r* shards of the chunk. Three servers with two disks each always get two shards apiece, even when one server has more disks than the others.
+- **One registration per data node.** A restarted data node is briefly registered twice (its previous ZooKeeper session has not expired yet). Placement counts each `address:port` once, using the newest registration, so the restarted server is not mistaken for an extra node.
+
 ## Topology labels
 
 Each node advertises three optional labels in its registration payload:

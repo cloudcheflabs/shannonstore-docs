@@ -169,6 +169,7 @@ API node only.
 | `shannonstore.api.s3.stream.max.concurrent` | `64` | Format-2 PUTs and GETs per API node at once; more get `503 SlowDown`. |
 | `shannonstore.api.s3.stream.read.ahead.blocks` | `4` | Blocks a format-2 GET reads ahead. |
 | `shannonstore.api.s3.stream.shard.inflight` | `2` | Pieces a format-2 PUT may have in flight to one shard. |
+| `shannonstore.api.s3.node.suspect.ms` | `10000` | After a connection-level failure to a data node, format-2 GETs read its shards only after parity for this long, instead of every block waiting for the connect timeout. `0` = off. |
 | `shannonstore.api.s3.stream.block.buffers` | `128` | Reused heap buffers (one block + 4 KiB each) for format-2 GETs; `0` = allocate per block. |
 | `shannonstore.api.s3.etag.md5.when.encrypted` | `false` | Compute an MD5 ETag for large encrypted single PUTs sent without `Content-MD5`. When `false`, they get a random 32-hex ETag (see [S3 API](s3-compatible-api.md#etag-semantics)). |
 | `shannonstore.data.storage.fsync.enabled` | `true` | Data nodes fsync each shard file before acknowledging it. |
