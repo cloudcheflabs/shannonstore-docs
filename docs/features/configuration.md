@@ -169,9 +169,9 @@ API node only.
 | `shannonstore.api.s3.stream.max.concurrent` | `64` | Format-2 PUTs and GETs per API node at once; more get `503 SlowDown`. |
 | `shannonstore.api.s3.stream.read.ahead.blocks` | `4` | Blocks a format-2 GET reads ahead. |
 | `shannonstore.api.s3.stream.shard.inflight` | `2` | Pieces a format-2 PUT may have in flight to one shard. |
-| `shannonstore.api.s3.node.suspect.ms` | `10000` | After a connection-level failure to a data node, format-2 GETs read its shards only after parity for this long, instead of every block waiting for the connect timeout. `0` = off. |
+| `shannonstore.api.s3.node.suspect.ms` | `10000` | After a connection-level failure to a data node, GETs read its shards only after (format 2) or together with (format 1) parity for this long, instead of waiting for the connect timeout. `0` = off. |
 | `shannonstore.api.s3.stream.block.buffers` | `128` | Reused heap buffers (one block + 4 KiB each) for format-2 GETs; `0` = allocate per block. |
-| `shannonstore.api.s3.etag.md5.when.encrypted` | `false` | Compute an MD5 ETag for large encrypted single PUTs sent without `Content-MD5`. When `false`, they get a random 32-hex ETag (see [S3 API](s3-compatible-api.md#etag-semantics)). |
+| `shannonstore.api.s3.etag.md5.when.encrypted` | `true` | Compute an MD5 ETag for large encrypted single PUTs sent without `Content-MD5`. When `false`, they get a random 32-hex ETag, which AWS SDK for Java v1 / v2 < 2.30 clients reject (see [S3 API](s3-compatible-api.md#etag-semantics)). |
 | `shannonstore.data.storage.fsync.enabled` | `true` | Data nodes fsync each shard file before acknowledging it. |
 | `shannonstore.data.range.zero.copy.enabled` | `true` | Data nodes serve shard range reads with sendfile (`FileChannel.transferTo`). |
 | `shannonstore.api.part.buffer.rocksdb.write.buffer.bytes` | `67108864` (64 MiB) | Part-buffer memtable size. Must hold several parts; at 16 MiB (the former fixed value) one 16 MiB part filled it and every PUT stalled on a flush. |
@@ -234,6 +234,9 @@ Data node only.
 | `shannonstore.api.repair.grace.period.seconds` | `600` | Grace period (seconds) a disk may be missing before it is declared dead and its shards become eligible for reconstruction. Should exceed normal restart time. |
 | `shannonstore.api.repair.max.concurrent` | `4` | Max shard-reconstruction operations running concurrently during repair. |
 | `shannonstore.api.repair.min.available.bytes` | `104857600` (100 MiB) | Minimum free space a candidate disk must have to be chosen as a reconstruction target. |
+| `shannonstore.api.repair.rebalance.enabled` | `true` | Every repair cycle moves the shards of crowded parts (written while a node was down) to the slots a write would pick now, the same slots the chunk rebalancer uses. |
+| `shannonstore.api.repair.rebalance.max.per.cycle` | `200` | Shard moves per repair cycle. |
+| `shannonstore.api.repair.rebalance.max.shard.bytes` | `268435456` (256 MiB) | Larger shards are not moved. |
 
 ---
 
