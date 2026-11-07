@@ -1696,6 +1696,11 @@
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>   (Pass A)  (Pass B)  (Pass C)  (Pass D)  (Pass E)  (Pass F — desperation, warns)
 </code></pre></div>
 <p>Each pass picks shards from the HRW-ranked candidate set whose chosen label is <em>not yet covered</em> by the prior passes. When a label is absent at a layer (host id not configured, etc.) the cascade falls back <strong>upward</strong> — <code>hostId == null → nodeId</code>, <code>rackId == null → hostKey</code>, <code>zoneId == null → rackKey</code> — so a cluster with no labels behaves identically to the legacy strategy.</p>
+<p>Two rules keep the spread even when the cluster has fewer domains than shards (for example 4+2 on three servers):</p>
+<ul>
+<li><strong>Pass E is balanced over hosts.</strong> The shards left after the distinct passes go round by round: in round <em>r</em> a disk is accepted only on a host holding fewer than <em>r</em> shards of the chunk. Three servers with two disks each always get two shards apiece, even when one server has more disks than the others.</li>
+<li><strong>One registration per data node.</strong> A restarted data node is briefly registered twice (its previous ZooKeeper session has not expired yet). Placement counts each <code>address:port</code> once, using the newest registration, so the restarted server is not mistaken for an extra node.</li>
+</ul>
 <h2 id="topology-labels">Topology labels</h2>
 <p>Each node advertises three optional labels in its registration payload:</p>
 <table>

@@ -2416,6 +2416,11 @@
 <td>Pieces a format-2 PUT may have in flight to one shard.</td>
 </tr>
 <tr>
+<td><code>shannonstore.api.s3.node.suspect.ms</code></td>
+<td><code>10000</code></td>
+<td>After a connection-level failure to a data node, format-2 GETs read its shards only after parity for this long, instead of every block waiting for the connect timeout. <code>0</code> = off.</td>
+</tr>
+<tr>
 <td><code>shannonstore.api.s3.stream.block.buffers</code></td>
 <td><code>128</code></td>
 <td>Reused heap buffers (one block + 4 KiB each) for format-2 GETs; <code>0</code> = allocate per block.</td>
