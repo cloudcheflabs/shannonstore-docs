@@ -2416,6 +2416,11 @@
 <td>Pieces a format-2 PUT may have in flight to one shard.</td>
 </tr>
 <tr>
+<td><code>shannonstore.api.s3.stream.block.buffers</code></td>
+<td><code>128</code></td>
+<td>Reused heap buffers (one block + 4 KiB each) for format-2 GETs; <code>0</code> = allocate per block.</td>
+</tr>
+<tr>
 <td><code>shannonstore.api.s3.etag.md5.when.encrypted</code></td>
 <td><code>false</code></td>
 <td>Compute an MD5 ETag for large encrypted single PUTs sent without <code>Content-MD5</code>. When <code>false</code>, they get a random 32-hex ETag (see <a href="../s3-compatible-api/#etag-semantics">S3 API</a>).</td>
@@ -2424,6 +2429,11 @@
 <td><code>shannonstore.data.storage.fsync.enabled</code></td>
 <td><code>true</code></td>
 <td>Data nodes fsync each shard file before acknowledging it.</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.range.zero.copy.enabled</code></td>
+<td><code>true</code></td>
+<td>Data nodes serve shard range reads with sendfile (<code>FileChannel.transferTo</code>).</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.part.buffer.rocksdb.write.buffer.bytes</code></td>

@@ -2168,6 +2168,10 @@ arrays alive, and the first byte reached the client only after the last shard ha
   next block is read from the client.</li>
 <li>A GET reads the pieces of a few blocks ahead (<code>stream.read.ahead.blocks</code>), decodes each block, and
   starts sending after the first block. A range GET reads only the blocks it covers.</li>
+<li>A data node sends the requested shard range straight from the page cache to the socket (sendfile).
+  The API node receives a block's data pieces back to back into a reused buffer, decrypts into a
+  second one, and writes that buffer to the client. No per-block arrays are allocated and nothing is
+  reassembled, which matters most on small hosts where large GETs are CPU-bound.</li>
 <li>Memory per request is bounded by the block size × the read-ahead and in-flight windows, not by the
   object size. <code>stream.max.concurrent</code> caps the streams an API node serves at once. A request over
   the cap gets <code>503 SlowDown</code>, which S3 SDKs retry with backoff.</li>
@@ -2208,6 +2212,16 @@ The shard layout is described in <a href="../ec/#block-streaming-format-2">Erasu
 <td><code>shannonstore.api.s3.stream.shard.inflight</code></td>
 <td><code>2</code></td>
 <td>Pieces a PUT may have in flight to one shard.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.stream.block.buffers</code></td>
+<td><code>128</code></td>
+<td>Reused block buffers for GETs (heap, about one block + 4 KiB each). When all are in use a block allocates its own. <code>0</code> disables reuse.</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.range.zero.copy.enabled</code></td>
+<td><code>true</code></td>
+<td>Data nodes send shard ranges with sendfile instead of reading them into the JVM.</td>
 </tr>
 </tbody>
 </table>
