@@ -169,8 +169,10 @@ API node only.
 | `shannonstore.api.s3.stream.max.concurrent` | `64` | Format-2 PUTs and GETs per API node at once; more get `503 SlowDown`. |
 | `shannonstore.api.s3.stream.read.ahead.blocks` | `4` | Blocks a format-2 GET reads ahead. |
 | `shannonstore.api.s3.stream.shard.inflight` | `2` | Pieces a format-2 PUT may have in flight to one shard. |
+| `shannonstore.api.s3.stream.block.buffers` | `128` | Reused heap buffers (one block + 4 KiB each) for format-2 GETs; `0` = allocate per block. |
 | `shannonstore.api.s3.etag.md5.when.encrypted` | `false` | Compute an MD5 ETag for large encrypted single PUTs sent without `Content-MD5`. When `false`, they get a random 32-hex ETag (see [S3 API](s3-compatible-api.md#etag-semantics)). |
 | `shannonstore.data.storage.fsync.enabled` | `true` | Data nodes fsync each shard file before acknowledging it. |
+| `shannonstore.data.range.zero.copy.enabled` | `true` | Data nodes serve shard range reads with sendfile (`FileChannel.transferTo`). |
 | `shannonstore.api.part.buffer.rocksdb.write.buffer.bytes` | `67108864` (64 MiB) | Part-buffer memtable size. Must hold several parts; at 16 MiB (the former fixed value) one 16 MiB part filled it and every PUT stalled on a flush. |
 | `shannonstore.api.part.buffer.rocksdb.write.buffer.number` | `4` | Memtables kept before writes stall. Native memory is at most number × bytes. |
 | `shannonstore.api.part.buffer.rocksdb.compression` | `NONE` | `NONE` or `SNAPPY`. Buffered data is ciphertext when object encryption is on (default), and it does not compress. |
