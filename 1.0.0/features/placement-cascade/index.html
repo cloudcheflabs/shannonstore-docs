@@ -1745,7 +1745,7 @@
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span>http://api:8888/admin/rebalance<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
 </code></pre></div>
 <p>Status JSON shows <code>enabled</code>, <code>leader</code>, <code>scanInProgress</code>, <code>cyclesCompleted</code>, <code>objectsScanned</code>, <code>chunksMigrated</code>, <code>lastCycleStart</code>, <code>lastCycleEnd</code> and <code>lastCycleStatus</code>. Every API node answers <code>/admin/rebalance</code> with the leader's status, and <code>enable</code> / <code>run</code> are forwarded to the leader, so the switch is the one the worker actually reads. Changing it is administrator-only. Tiered objects (storage class != STANDARD) are skipped — their location lives outside this cluster.</p>
-<p>A chunk counts as misplaced only when its recorded location (<code>host:port</code> and disk path) is not among the disks the cascade picks for it today, so a cycle on a cluster whose topology has not changed migrates nothing. (Builds before 1.0.0 compared against the data node's registry id instead and re-copied every chunk on every cycle.)</p>
+<p>Shard <em>i</em> counts as misplaced only when its recorded location (<code>host:port</code> and disk path) is not slot <em>i</em> of what the cascade picks for it today, so a cycle on a cluster whose topology has not changed migrates nothing. Disks are ranked by <code>host:port:path</code>, which survives a data node restart. Earlier builds ranked them by the data node's registry id, a new random id on every start, so restarting a data node alone changed the target of many parts.</p>
 
 
 

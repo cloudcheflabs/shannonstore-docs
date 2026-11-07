@@ -1235,6 +1235,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#rebalance-after-a-node-returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rebalance after a node returns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#grace-period" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1857,11 +1868,34 @@
 <td>104857600 (100 MiB)</td>
 <td>Minimum free space a candidate disk must have to receive a reconstructed shard.</td>
 </tr>
+<tr>
+<td><code>shannonstore.api.repair.rebalance.enabled</code></td>
+<td><code>true</code></td>
+<td>Spread crowded parts again in every repair cycle (see <a href="#rebalance-after-a-node-returns">Rebalance after a node returns</a>).</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.repair.rebalance.max.per.cycle</code></td>
+<td><code>200</code></td>
+<td>Shard moves per repair cycle.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.repair.rebalance.max.shard.bytes</code></td>
+<td>268435456 (256 MiB)</td>
+<td>Shards larger than this are not moved (a move holds the shard in memory).</td>
+</tr>
 </tbody>
 </table>
 <p><code>repair.max.concurrent</code> is the primary lever: lower it to protect client throughput (accepting a longer window of partial under-replication), raise it to shorten the rebuild window at the cost of more dataplane contention.</p>
 <p>Repairs <strong>keep running</strong> while <a href="../maintenance/">maintenance mode</a> is active, and that is deliberate: maintenance closes the cluster to clients so that work like this can proceed without writes landing in the middle of it. Pausing repair during the window would invert the intent.</p>
 <p>To stop repair specifically, stop repair — it has its own control at <code>POST /admin/maintenance/repair/trigger</code> and the scheduled cycle is governed by its own interval setting, independent of maintenance mode.</p>
+<h2 id="rebalance-after-a-node-returns">Rebalance after a node returns</h2>
+<p>A part written or repaired while a data node was down is crowded on the remaining nodes: with 4+2 on three nodes and one of them down, the best possible split is 3+3, and losing either node then loses the part. Repair cannot do better at that moment, so every repair cycle (periodic, or the manual trigger) also checks the parts whose primary is this API node:</p>
+<ol>
+<li>A node is <strong>crowded</strong> when it holds more shards of the part than ceil(shards / healthy data nodes). A part with a shard on a node that is not registered, or a missing shard, is left to repair first.</li>
+<li>The part's shards move to their placement-cascade slots, the disks a write of the part would pick now (shard <em>i</em> to slot <em>i</em>). These are the same slots the <a href="../placement-cascade/">chunk rebalancer</a> converges to, so the two never move a shard back and forth. Moves to the least loaded node go first, so the split never gets worse on the way.</li>
+<li>The shard is copied and its CRC32C checked. The metadata is then re-read from the primary: if the object changed meanwhile, the copy is dropped. Otherwise the metadata is switched to the new location and the old file is deleted. A reader that still holds the old location finds it gone and reads parity instead.</li>
+</ol>
+<p>When the node is back, a 3+3 part therefore returns to 2+2+2. A shard moved between two disks of the same node is deleted from the old disk only.</p>
 <h2 id="grace-period">Grace period</h2>
 <p>A disk that fails one probe is not immediately written off. The grace period gives a transient fault time to clear:</p>
 <table>

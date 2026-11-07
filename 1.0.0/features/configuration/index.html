@@ -2418,7 +2418,7 @@
 <tr>
 <td><code>shannonstore.api.s3.node.suspect.ms</code></td>
 <td><code>10000</code></td>
-<td>After a connection-level failure to a data node, format-2 GETs read its shards only after parity for this long, instead of every block waiting for the connect timeout. <code>0</code> = off.</td>
+<td>After a connection-level failure to a data node, GETs read its shards only after (format 2) or together with (format 1) parity for this long, instead of waiting for the connect timeout. <code>0</code> = off.</td>
 </tr>
 <tr>
 <td><code>shannonstore.api.s3.stream.block.buffers</code></td>
@@ -2427,8 +2427,8 @@
 </tr>
 <tr>
 <td><code>shannonstore.api.s3.etag.md5.when.encrypted</code></td>
-<td><code>false</code></td>
-<td>Compute an MD5 ETag for large encrypted single PUTs sent without <code>Content-MD5</code>. When <code>false</code>, they get a random 32-hex ETag (see <a href="../s3-compatible-api/#etag-semantics">S3 API</a>).</td>
+<td><code>true</code></td>
+<td>Compute an MD5 ETag for large encrypted single PUTs sent without <code>Content-MD5</code>. When <code>false</code>, they get a random 32-hex ETag, which AWS SDK for Java v1 / v2 &lt; 2.30 clients reject (see <a href="../s3-compatible-api/#etag-semantics">S3 API</a>).</td>
 </tr>
 <tr>
 <td><code>shannonstore.data.storage.fsync.enabled</code></td>
@@ -2651,6 +2651,21 @@
 <td><code>shannonstore.api.repair.min.available.bytes</code></td>
 <td><code>104857600</code> (100 MiB)</td>
 <td>Minimum free space a candidate disk must have to be chosen as a reconstruction target.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.repair.rebalance.enabled</code></td>
+<td><code>true</code></td>
+<td>Every repair cycle moves the shards of crowded parts (written while a node was down) to the slots a write would pick now, the same slots the chunk rebalancer uses.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.repair.rebalance.max.per.cycle</code></td>
+<td><code>200</code></td>
+<td>Shard moves per repair cycle.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.repair.rebalance.max.shard.bytes</code></td>
+<td><code>268435456</code> (256 MiB)</td>
+<td>Larger shards are not moved.</td>
 </tr>
 </tbody>
 </table>
