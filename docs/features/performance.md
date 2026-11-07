@@ -200,6 +200,10 @@ Since 2026-11-07, a single PUT larger than `shannonstore.api.part.buffer.max.byt
   next block is read from the client.
 - A GET reads the pieces of a few blocks ahead (`stream.read.ahead.blocks`), decodes each block, and
   starts sending after the first block. A range GET reads only the blocks it covers.
+- A data node sends the requested shard range straight from the page cache to the socket (sendfile).
+  The API node receives a block's data pieces back to back into a reused buffer, decrypts into a
+  second one, and writes that buffer to the client. No per-block arrays are allocated and nothing is
+  reassembled, which matters most on small hosts where large GETs are CPU-bound.
 - Memory per request is bounded by the block size × the read-ahead and in-flight windows, not by the
   object size. `stream.max.concurrent` caps the streams an API node serves at once. A request over
   the cap gets `503 SlowDown`, which S3 SDKs retry with backoff.
@@ -215,6 +219,8 @@ The shard layout is described in [Erasure Coding](ec.md#block-streaming-format-2
 | `shannonstore.api.s3.stream.max.concurrent` | `64` | Format-2 PUTs and GETs one API node runs at once; more get `503 SlowDown`. |
 | `shannonstore.api.s3.stream.read.ahead.blocks` | `4` | Blocks a GET fetches ahead of the one being sent. |
 | `shannonstore.api.s3.stream.shard.inflight` | `2` | Pieces a PUT may have in flight to one shard. |
+| `shannonstore.api.s3.stream.block.buffers` | `128` | Reused block buffers for GETs (heap, about one block + 4 KiB each). When all are in use a block allocates its own. `0` disables reuse. |
+| `shannonstore.data.range.zero.copy.enabled` | `true` | Data nodes send shard ranges with sendfile instead of reading them into the JVM. |
 
 !!! warning "Set a heap limit"
     Give API and data nodes an explicit `-Xmx` (in `conf/jvm.conf` or on the command line) and a
