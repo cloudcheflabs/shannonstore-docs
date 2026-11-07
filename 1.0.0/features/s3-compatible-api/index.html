@@ -2472,8 +2472,12 @@ operation's permission check.</p>
 </thead>
 <tbody>
 <tr>
-<td>Single-PUT object</td>
+<td>Single-PUT object up to 256 KiB (<code>shannonstore.api.part.buffer.max.bytes</code>), or unencrypted, or sent with <code>Content-MD5</code> / a checksum header</td>
 <td>lowercase hex of <code>MD5(plaintext body)</code></td>
+</tr>
+<tr>
+<td>Larger <strong>encrypted</strong> single PUT without <code>Content-MD5</code> (the default configuration)</td>
+<td>a random 32-hex id. The body's MD5 is not computed, as MinIO does for SSE objects, which saves a full pass over the body. Set <code>shannonstore.api.s3.etag.md5.when.encrypted=true</code> for MD5 ETags here too.</td>
 </tr>
 <tr>
 <td>Multipart-completed object</td>
@@ -2489,7 +2493,8 @@ operation's permission check.</p>
 </tr>
 </tbody>
 </table>
-<p>So <code>aws s3 cp --validate</code> and <code>boto3.upload_file</code> integrity checks pass without any client-side workaround.</p>
+<p>Integrity on upload is checked against what the client sends (<code>Content-MD5</code>, <code>x-amz-checksum-*</code>, SigV4 payload hashes). A client that compares the ETag with its own MD5 of a large encrypted object gets a mismatch, as with SSE objects on AWS S3 and MinIO; set the option above if such a client must be supported.</p>
+<p><strong>Read-after-write consistency.</strong> A GET or HEAD of the latest version returns the newest committed write, whichever API node serves it. The metadata primary for the key answers latest-version reads; see <a href="../metadata-management/#read-path">Metadata Management</a>. Builds before 2026-11-07 could return the previous version of an object for a while after it was overwritten through another node.</p>
 <h2 id="content-md5-enforcement">Content-MD5 enforcement</h2>
 <p>When the client opts into stronger write-time verification:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Content-MD5: &lt;base64(md5(body))&gt;

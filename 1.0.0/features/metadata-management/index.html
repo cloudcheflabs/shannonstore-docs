@@ -1912,14 +1912,15 @@
 </ul>
 <p>The default <code>PULL</code> is the safe choice for nearly every workload. <code>SYNC</code> is appropriate for cross-AZ deployments where read-your-writes must hold across owners; <code>ASYNC_PUSH</code> is rarely the right answer outside of tightly observed environments.</p>
 <h2 id="read-path">Read path</h2>
-<p>A read for <code>(bucket, key)</code>:</p>
+<p>A read of the <strong>latest</strong> version of <code>(bucket, key)</code>:</p>
 <ol>
-<li>Compute the HRW owner set.</li>
-<li>If the local node is in the owner set, look up the local RocksDB — return immediately on hit.</li>
-<li>If the local node is <em>not</em> in the owner set, fetch the metadata over the internal NIO plane from any of the owners.</li>
-<li>The remote-fetch path includes a small cache (LRU on <code>(bucket, key) → metadata</code>) so subsequent reads against the same key on a non-owner don't keep round-tripping.</li>
+<li>Compute the HRW owner set. Its first member is the key's primary, which commits every write of the key.</li>
+<li>On the primary, answer from the local store.</li>
+<li>On any other node, ask the primary over the internal NIO plane. A replica copy (which lags the primary in <code>PULL</code> and <code>ASYNC_PUSH</code> modes) or a cached entry is used only when the primary cannot be reached. That case is logged, because the answer may then be stale.</li>
 </ol>
-<p>The cache is invalidated on receipt of any replicated update touching the key. Operators can size the cache via configuration; default is sufficient for most read-heavy workloads.</p>
+<p>A read of a <strong>specific version id</strong> may be answered from a local copy, because a version never changes.</p>
+<p>A node that forwards a write to the primary drops its own cached entry for the key.</p>
+<p>This makes reads strongly consistent with writes (as S3 is), whichever API node a load balancer picks. Builds before 2026-11-07 answered from any local copy first. A GET after an overwrite through another node, or through the same node (its cache kept the old entry), could return the previous version of the object until that copy expired. A test that overwrote one key across three endpoints read a stale version 11 times out of 36; the fixed build read 0 out of 108.</p>
 <h2 id="membership-changes">Membership changes</h2>
 <p>When an API node joins or leaves the cluster:</p>
 <table>

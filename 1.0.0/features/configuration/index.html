@@ -2386,6 +2386,46 @@
 <td>Largest single-PUT object (stored bytes) that goes through the part buffer. Larger ones are written straight to the data nodes and are durable there before the client is answered. Multipart parts always use the buffer, which carries in-flight uploads across restarts. <code>0</code> = no single PUT is buffered.</td>
 </tr>
 <tr>
+<td><code>shannonstore.api.part.buffer.rocksdb.sync</code></td>
+<td><code>true</code></td>
+<td>Sync the part buffer's write-ahead log on every write, so an acknowledged buffered PUT or part survives a power loss.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.stream.format.enabled</code></td>
+<td><code>true</code></td>
+<td>Store single PUTs larger than <code>part.buffer.max.bytes</code> in block-streaming format 2 (see <a href="../performance/#block-streaming-format-2">Performance</a>).</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.stream.block.bytes</code></td>
+<td><code>1048576</code></td>
+<td>Format-2 plaintext block size.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.stream.max.concurrent</code></td>
+<td><code>64</code></td>
+<td>Format-2 PUTs and GETs per API node at once; more get <code>503 SlowDown</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.stream.read.ahead.blocks</code></td>
+<td><code>4</code></td>
+<td>Blocks a format-2 GET reads ahead.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.stream.shard.inflight</code></td>
+<td><code>2</code></td>
+<td>Pieces a format-2 PUT may have in flight to one shard.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.etag.md5.when.encrypted</code></td>
+<td><code>false</code></td>
+<td>Compute an MD5 ETag for large encrypted single PUTs sent without <code>Content-MD5</code>. When <code>false</code>, they get a random 32-hex ETag (see <a href="../s3-compatible-api/#etag-semantics">S3 API</a>).</td>
+</tr>
+<tr>
+<td><code>shannonstore.data.storage.fsync.enabled</code></td>
+<td><code>true</code></td>
+<td>Data nodes fsync each shard file before acknowledging it.</td>
+</tr>
+<tr>
 <td><code>shannonstore.api.part.buffer.rocksdb.write.buffer.bytes</code></td>
 <td><code>67108864</code> (64 MiB)</td>
 <td>Part-buffer memtable size. Must hold several parts; at 16 MiB (the former fixed value) one 16 MiB part filled it and every PUT stalled on a flush.</td>

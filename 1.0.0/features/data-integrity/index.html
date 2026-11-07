@@ -989,6 +989,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#durability-of-writes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Durability of writes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#bitrot-scrubber-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1683,6 +1694,15 @@
 <p>ShannonStore protects every stored byte against silent corruption (bitrot) with end-to-end checksums, and includes an optional background scrubber for proactive verification of cold data.</p>
 <h2 id="end-to-end-checksums">End-to-end checksums</h2>
 <p>Every shard is checksummed when written and verified on every read. If a shard fails verification, the original data is reconstructed from erasure-coded parity instead — the corrupt bytes never reach the client. Verification is hardware-accelerated and adds no measurable latency to the hot path.</p>
+<p>Objects in <a href="../ec/#block-streaming-format-2">block-streaming format</a> are also verified per block. Each encrypted block carries an AES-GCM authentication tag. An unencrypted block has a CRC32C recorded in metadata. A block that fails either check is rebuilt from parity pieces before any of it is sent.</p>
+<h2 id="durability-of-writes">Durability of writes</h2>
+<p>A PUT is acknowledged only after its shards are on disk, not just in the page cache:</p>
+<ul>
+<li><strong>Data nodes</strong> fsync every shard file before acknowledging it (<code>shannonstore.data.storage.fsync.enabled</code>, default <code>true</code>). Without it, a power loss on several data nodes at once could lose acknowledged objects.</li>
+<li><strong>The part buffer</strong> on API nodes (small single PUTs and multipart parts) syncs its write-ahead log on every write (<code>shannonstore.api.part.buffer.rocksdb.sync</code>, default <code>true</code>).</li>
+<li>A shard write the data node refuses (disk full, an I/O error) fails the shard. Before 2026-11-07 such a refusal was counted as a success.</li>
+</ul>
+<p>Turning either setting off trades this guarantee for write throughput. Do so only when the hardware protects the cache, for example a battery-backed RAID controller.</p>
 <h2 id="bitrot-scrubber-optional">Bitrot Scrubber (optional)</h2>
 <p>A background scrubber periodically reads every shard the cluster holds, verifies its checksum, and rebuilds anything corrupted from parity. Disabled by default; toggle from the admin UI per node, or trigger an ad-hoc cycle. Live counters (scanned / corrupt / repaired / failed) are visible while a scan runs. Scan interval and rate limit are configurable so scrubbing never competes with normal client traffic.</p>
 

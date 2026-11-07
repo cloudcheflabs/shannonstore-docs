@@ -1421,6 +1421,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Large-object path">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#block-streaming-format-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Block streaming (format 2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2135,6 +2152,62 @@ default, and each is a setting in <code>shannonstore.properties</code>.</p>
 <td>Data nodes read shard files through a temporary 4 MiB native buffer that was allocated and zero-filled on every read.</td>
 <td>Shard files are read in bounded slices.</td>
 <td>(same slice setting)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="block-streaming-format-2">Block streaming (format 2)</h3>
+<p>Encrypted large objects were still slow under concurrency, because a PUT or GET held the whole
+part in memory and processed it in sequence: buffer it, encrypt it, erasure-code it, send the shards,
+and the reverse on read. Sixteen concurrent 16 MiB GETs kept several hundred MiB of short-lived
+arrays alive, and the first byte reached the client only after the last shard had been decoded.</p>
+<p>Since 2026-11-07, a single PUT larger than <code>shannonstore.api.part.buffer.max.bytes</code> is stored in
+<strong>format 2</strong> (as MinIO does):</p>
+<ul>
+<li>The body is processed in 1 MiB blocks as it arrives. Each block is encrypted with AES-GCM on its
+  own, erasure-coded, and its pieces are appended to the k+m shard files on the data nodes while the
+  next block is read from the client.</li>
+<li>A GET reads the pieces of a few blocks ahead (<code>stream.read.ahead.blocks</code>), decodes each block, and
+  starts sending after the first block. A range GET reads only the blocks it covers.</li>
+<li>Memory per request is bounded by the block size × the read-ahead and in-flight windows, not by the
+  object size. <code>stream.max.concurrent</code> caps the streams an API node serves at once. A request over
+  the cap gets <code>503 SlowDown</code>, which S3 SDKs retry with backoff.</li>
+</ul>
+<p>Multipart parts, objects up to 256 KiB, compressed objects and SSE-C objects keep the earlier layout
+(format 1). Objects written by older builds stay readable, and the two formats coexist in one bucket.
+The shard layout is described in <a href="../ec/#block-streaming-format-2">Erasure Coding</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>shannonstore.api.s3.stream.format.enabled</code></td>
+<td><code>true</code></td>
+<td>Store large single PUTs in format 2. <code>false</code> writes format 1; both are always readable.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.stream.block.bytes</code></td>
+<td><code>1048576</code></td>
+<td>Plaintext block size. Larger blocks mean fewer RPCs and more memory per stream.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.stream.max.concurrent</code></td>
+<td><code>64</code></td>
+<td>Format-2 PUTs and GETs one API node runs at once; more get <code>503 SlowDown</code>.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.stream.read.ahead.blocks</code></td>
+<td><code>4</code></td>
+<td>Blocks a GET fetches ahead of the one being sent.</td>
+</tr>
+<tr>
+<td><code>shannonstore.api.s3.stream.shard.inflight</code></td>
+<td><code>2</code></td>
+<td>Pieces a PUT may have in flight to one shard.</td>
 </tr>
 </tbody>
 </table>
