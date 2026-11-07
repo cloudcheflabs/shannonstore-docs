@@ -39,6 +39,33 @@ The matrix is square per design choice: as long as **m ≤ k**, the storage over
 
 The encoding step is a pure-Java `ReedSolomon`/`ErasureCoder` implementation (`shannonstore-core`) — there is no Intel ISA-L or native/JNI acceleration in source today; throughput comes entirely from the JVM's own JIT.
 
+## Block streaming (format 2)
+
+The steps above describe **format 1**: the whole part is buffered, encrypted, and split once into k
+blocks. A single PUT larger than 256 KiB (`shannonstore.api.part.buffer.max.bytes`) is stored in
+**format 2** instead, which never holds the whole object:
+
+1. The body is cut into plaintext blocks of `shannonstore.api.s3.stream.block.bytes` (1 MiB).
+2. Each block is encrypted with AES-256-GCM under the part's data key. The nonce is an 8-byte
+   random prefix followed by the 4-byte block index. Every block therefore has its own nonce and
+   authentication tag, and a block moved to another position fails to decrypt.
+3. The encrypted block (ciphertext and 16-byte tag) is split into k pieces of `ceil(len/k)` bytes, and
+   m parity pieces are computed with the same Reed-Solomon code.
+4. Piece i of every block is appended to shard file i. All shard files of a part have the same length.
+
+Reed-Solomon works on each byte position on its own. The parity relation therefore holds at every
+offset of the concatenated shard files, and the existing tools work on format-2 shards unchanged:
+whole-shard reconstruction in [Disk Repair](disk-repair.md), and the whole-file CRC32C that the
+[Bitrot Scrubber](data-integrity.md) checks.
+
+A GET reads the k data pieces of each block it needs by offset and length, a few blocks ahead.
+Parity pieces are read only for a block whose data piece failed. A shard file is written
+under a temporary name and appears under its final name, after an fsync, only when all of it has
+arrived. A PUT that fails part-way therefore leaves no half-written shard behind.
+
+The part's metadata records `format: 2`, the block size, the wrapped data key, and the nonce prefix.
+Objects stored in format 1 are read as before.
+
 ## How a GET reconstructs the object
 
 1. **Read the metadata** for the requested key (and version, if specified) from the local RocksDB.
@@ -72,7 +99,7 @@ Three paths feed shard reconstruction, and they aren't quite the "GET discovers,
 `DiskRepairService` (both the reactive-queue worker and the scheduled scanner) then:
 
 1. Finds a healthy disk on a different node than the failed shard's owner (placement constraints).
-2. Reconstructs the missing shard from k other shards (data or parity) via the same `ErasureCoder`.
+2. Reconstructs the missing shard from k other shards (data or parity) via the same `ErasureCoder`. A lost *parity* shard is re-encoded from the data shards. Before 2026-11-07, a rebuilt parity shard was written as zeros. A repaired part then had one parity shard fewer than its metadata claimed, and a second failure could make it unreadable.
 3. Writes the reconstructed bytes to the new disk; updates the metadata's shard layout entry to point at the new `{nodeAddress, diskPath, checksum}`.
 4. Replicates the updated metadata to peer API nodes.
 

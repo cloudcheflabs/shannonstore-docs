@@ -62,7 +62,7 @@ The keystore itself holds one or more **randomly generated** 256-bit AES KEKs, k
 
 ### Data Encryption Keys (DEK)
 
-For each object (or part, for multipart), ShannonStore mints a fresh 256-bit DEK at write time. The DEK encrypts the shard payloads; the *current ACTIVE KEK* for the relevant `keyId` wraps the DEK, and the KEK's version number is written into the envelope alongside the wrapped DEK. Only the wrapped DEK (+ version) is persisted — alongside the object's metadata in the API node's RocksDB.
+For each object (or part, for multipart), ShannonStore mints a fresh 256-bit DEK at write time. An object stored in [block-streaming format](ec.md#block-streaming-format-2) encrypts each 1 MiB block separately under that DEK, with a nonce made of a random per-part prefix and the block index. The DEK encrypts the shard payloads; the *current ACTIVE KEK* for the relevant `keyId` wraps the DEK, and the KEK's version number is written into the envelope alongside the wrapped DEK. Only the wrapped DEK (+ version) is persisted — alongside the object's metadata in the API node's RocksDB.
 
 A read pipeline:
 

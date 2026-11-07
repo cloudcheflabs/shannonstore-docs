@@ -108,14 +108,17 @@ The default `PULL` is the safe choice for nearly every workload. `SYNC` is appro
 
 ## Read path
 
-A read for `(bucket, key)`:
+A read of the **latest** version of `(bucket, key)`:
 
-1. Compute the HRW owner set.
-2. If the local node is in the owner set, look up the local RocksDB — return immediately on hit.
-3. If the local node is *not* in the owner set, fetch the metadata over the internal NIO plane from any of the owners.
-4. The remote-fetch path includes a small cache (LRU on `(bucket, key) → metadata`) so subsequent reads against the same key on a non-owner don't keep round-tripping.
+1. Compute the HRW owner set. Its first member is the key's primary, which commits every write of the key.
+2. On the primary, answer from the local store.
+3. On any other node, ask the primary over the internal NIO plane. A replica copy (which lags the primary in `PULL` and `ASYNC_PUSH` modes) or a cached entry is used only when the primary cannot be reached. That case is logged, because the answer may then be stale.
 
-The cache is invalidated on receipt of any replicated update touching the key. Operators can size the cache via configuration; default is sufficient for most read-heavy workloads.
+A read of a **specific version id** may be answered from a local copy, because a version never changes.
+
+A node that forwards a write to the primary drops its own cached entry for the key.
+
+This makes reads strongly consistent with writes (as S3 is), whichever API node a load balancer picks. Builds before 2026-11-07 answered from any local copy first. A GET after an overwrite through another node, or through the same node (its cache kept the old entry), could return the previous version of the object until that copy expired. A test that overwrote one key across three endpoints read a stale version 11 times out of 36; the fixed build read 0 out of 108.
 
 ## Membership changes
 
