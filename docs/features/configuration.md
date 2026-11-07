@@ -163,6 +163,14 @@ API node only.
 | `shannonstore.api.part.buffer.flush.interval.ms` | `5000` | Interval (ms) at which the background flusher drains buffered parts to Data nodes. |
 | `shannonstore.api.part.buffer.flush.parallelism` | `4` | Objects whose buffered parts are flushed concurrently in one round (parts of one object stay sequential). |
 | `shannonstore.api.part.buffer.max.bytes` | `262144` (256 KiB) | Largest single-PUT object (stored bytes) that goes through the part buffer. Larger ones are written straight to the data nodes and are durable there before the client is answered. Multipart parts always use the buffer, which carries in-flight uploads across restarts. `0` = no single PUT is buffered. |
+| `shannonstore.api.part.buffer.rocksdb.sync` | `true` | Sync the part buffer's write-ahead log on every write, so an acknowledged buffered PUT or part survives a power loss. |
+| `shannonstore.api.s3.stream.format.enabled` | `true` | Store single PUTs larger than `part.buffer.max.bytes` in block-streaming format 2 (see [Performance](performance.md#block-streaming-format-2)). |
+| `shannonstore.api.s3.stream.block.bytes` | `1048576` | Format-2 plaintext block size. |
+| `shannonstore.api.s3.stream.max.concurrent` | `64` | Format-2 PUTs and GETs per API node at once; more get `503 SlowDown`. |
+| `shannonstore.api.s3.stream.read.ahead.blocks` | `4` | Blocks a format-2 GET reads ahead. |
+| `shannonstore.api.s3.stream.shard.inflight` | `2` | Pieces a format-2 PUT may have in flight to one shard. |
+| `shannonstore.api.s3.etag.md5.when.encrypted` | `false` | Compute an MD5 ETag for large encrypted single PUTs sent without `Content-MD5`. When `false`, they get a random 32-hex ETag (see [S3 API](s3-compatible-api.md#etag-semantics)). |
+| `shannonstore.data.storage.fsync.enabled` | `true` | Data nodes fsync each shard file before acknowledging it. |
 | `shannonstore.api.part.buffer.rocksdb.write.buffer.bytes` | `67108864` (64 MiB) | Part-buffer memtable size. Must hold several parts; at 16 MiB (the former fixed value) one 16 MiB part filled it and every PUT stalled on a flush. |
 | `shannonstore.api.part.buffer.rocksdb.write.buffer.number` | `4` | Memtables kept before writes stall. Native memory is at most number × bytes. |
 | `shannonstore.api.part.buffer.rocksdb.compression` | `NONE` | `NONE` or `SNAPPY`. Buffered data is ciphertext when object encryption is on (default), and it does not compress. |

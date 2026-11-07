@@ -212,12 +212,15 @@ ShannonStore preserves the exact ETag rules that AWS S3 SDKs depend on for clien
 
 | Path | ETag format |
 | --- | --- |
-| Single-PUT object | lowercase hex of `MD5(plaintext body)` |
+| Single-PUT object up to 256 KiB (`shannonstore.api.part.buffer.max.bytes`), or unencrypted, or sent with `Content-MD5` / a checksum header | lowercase hex of `MD5(plaintext body)` |
+| Larger **encrypted** single PUT without `Content-MD5` (the default configuration) | a random 32-hex id. The body's MD5 is not computed, as MinIO does for SSE objects, which saves a full pass over the body. Set `shannonstore.api.s3.etag.md5.when.encrypted=true` for MD5 ETags here too. |
 | Multipart-completed object | lowercase hex of `MD5(concat(each part's raw MD5 bytes)) + "-" + partCount` |
 | HeadObject / GetObject responses | the persisted ETag, surrounded by double quotes per S3 wire format |
 | Pre-existing legacy objects | empty when written before the field existed; SDK still works because the ETag is optional |
 
-So `aws s3 cp --validate` and `boto3.upload_file` integrity checks pass without any client-side workaround.
+Integrity on upload is checked against what the client sends (`Content-MD5`, `x-amz-checksum-*`, SigV4 payload hashes). A client that compares the ETag with its own MD5 of a large encrypted object gets a mismatch, as with SSE objects on AWS S3 and MinIO; set the option above if such a client must be supported.
+
+**Read-after-write consistency.** A GET or HEAD of the latest version returns the newest committed write, whichever API node serves it. The metadata primary for the key answers latest-version reads; see [Metadata Management](metadata-management.md#read-path). Builds before 2026-11-07 could return the previous version of an object for a while after it was overwritten through another node.
 
 ## Content-MD5 enforcement
 

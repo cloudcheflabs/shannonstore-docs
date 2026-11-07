@@ -185,6 +185,37 @@ default, and each is a setting in `shannonstore.properties`.
 | Request bodies were read 8 KiB at a time into a side buffer, and aws-chunked headers one byte per socket read. | Bodies are read straight into the destination array, and the aws-chunked decoder is buffered. | `shannonstore.network.http.body.read.buffer.size` (`262144`) |
 | Data nodes read shard files through a temporary 4 MiB native buffer that was allocated and zero-filled on every read. | Shard files are read in bounded slices. | (same slice setting) |
 
+### Block streaming (format 2)
+
+Encrypted large objects were still slow under concurrency, because a PUT or GET held the whole
+part in memory and processed it in sequence: buffer it, encrypt it, erasure-code it, send the shards,
+and the reverse on read. Sixteen concurrent 16 MiB GETs kept several hundred MiB of short-lived
+arrays alive, and the first byte reached the client only after the last shard had been decoded.
+
+Since 2026-11-07, a single PUT larger than `shannonstore.api.part.buffer.max.bytes` is stored in
+**format 2** (as MinIO does):
+
+- The body is processed in 1 MiB blocks as it arrives. Each block is encrypted with AES-GCM on its
+  own, erasure-coded, and its pieces are appended to the k+m shard files on the data nodes while the
+  next block is read from the client.
+- A GET reads the pieces of a few blocks ahead (`stream.read.ahead.blocks`), decodes each block, and
+  starts sending after the first block. A range GET reads only the blocks it covers.
+- Memory per request is bounded by the block size × the read-ahead and in-flight windows, not by the
+  object size. `stream.max.concurrent` caps the streams an API node serves at once. A request over
+  the cap gets `503 SlowDown`, which S3 SDKs retry with backoff.
+
+Multipart parts, objects up to 256 KiB, compressed objects and SSE-C objects keep the earlier layout
+(format 1). Objects written by older builds stay readable, and the two formats coexist in one bucket.
+The shard layout is described in [Erasure Coding](ec.md#block-streaming-format-2).
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `shannonstore.api.s3.stream.format.enabled` | `true` | Store large single PUTs in format 2. `false` writes format 1; both are always readable. |
+| `shannonstore.api.s3.stream.block.bytes` | `1048576` | Plaintext block size. Larger blocks mean fewer RPCs and more memory per stream. |
+| `shannonstore.api.s3.stream.max.concurrent` | `64` | Format-2 PUTs and GETs one API node runs at once; more get `503 SlowDown`. |
+| `shannonstore.api.s3.stream.read.ahead.blocks` | `4` | Blocks a GET fetches ahead of the one being sent. |
+| `shannonstore.api.s3.stream.shard.inflight` | `2` | Pieces a PUT may have in flight to one shard. |
+
 !!! warning "Set a heap limit"
     Give API and data nodes an explicit `-Xmx` (in `conf/jvm.conf` or on the command line) and a
     container memory limit. Without `-Xmx`, every JVM may grow its heap to 25% of the machine. Five
